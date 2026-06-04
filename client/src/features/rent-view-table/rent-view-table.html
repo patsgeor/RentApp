@@ -1,0 +1,42 @@
+<div class="overflow-x-auto rounded-box border border-base-content/5 bg-base-100  m-auto">
+  <table class="table table-xs table-pin-rows table-zebra">
+    <thead>
+        <tr class="py-3">
+            <th >Select</th>
+            <th>Category</th>
+            <th>description</th>
+            <th>Serial Number</th>
+            <th>Invoice Item ID</th>
+            <th>Initial Value</th>
+            <th>Residual Value</th>
+            <th>Current Value</th>
+            <th>Acquired Date</th>
+            <th>Useful Life (Years)</th>
+            <th>Notes</th>
+            <th>Created By</th>
+            <th>Created At</th>
+            <th>Modified At</th>
+        </tr>
+    </thead>
+    <tbody>
+        @for (Rent of Rents(); track Rent.id) {
+            <tr >
+                <td><input type="checkbox" /></td>
+                <td>{{ Rent.logCategory }}</td>
+                <td>{{ Rent.description }}</td>
+                <td>{{ Rent.serialNumber }}</td>
+                <td >{{ Rent.invoiceItemId }}</td>
+                <td>{{ Rent.initialValue }}</td>
+                <td>{{ Rent.residualValue }}</td>
+                <td>{{ Rent.currentValue }}</td>
+                <td>{{ Rent.acquiredDate | date:'d/M/y' }}</td>
+                <td>{{ Rent.usefulLifeYears }}</td>
+                <td>{{ Rent.notes }}</td>
+                <td>{{ Rent.createdByMemberName }}</td>
+                <td>{{ Rent.createdAt | date:'short' }}</td>
+                <td>{{ Rent.modifiedAt | date:'short' }}</td>
+            </tr>
+        }
+    </tbody>
+    </table>
+</div>
