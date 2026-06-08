@@ -24,5 +24,5 @@ public class Payment: BaseEntity
 
     // Navigation Properties
     [ForeignKey(nameof(InvoiceId))]
-    public virtual Invoice Invoice { get; set; } = null!;
+    public  Invoice Invoice { get; set; } = null!;
 }

@@ -21,8 +21,8 @@ public class AppUser:IdentityUser, IMustHaveTenant
 
     // Navigation Properties
     [ForeignKey(nameof(TenantId))]
-    public virtual Tenant Tenant { get; set; } = null!;
-    public virtual Member Member { get; set; } = null!;
+    public  Tenant Tenant { get; set; } = null!;
+    public  Member Member { get; set; } = null!;
 
 
 }

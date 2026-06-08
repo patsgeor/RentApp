@@ -33,8 +33,5 @@ public class Member
     public  AppUser User { get; set; } = null!;
 
 
-    public ICollection<File> Files { get; set; } = new List<File>(); // ένα μέλος μπορεί να έχει πολλά αρχεία (π.χ. αποδείξεις, τιμολόγια) αφορα τι καταχώρησε ή τροποποίησε
-    public ICollection<Rent> Rents { get; set; } = new List<Rent>();// ένα μέλος μπορεί να είναι υπεύθυνο για πολλά περιουσιακά στοιχεία (Rents) που διαχειρίζεται
-    public ICollection<Invoice> Invoices { get; set; } = new List<Invoice>(); // ένα μέλος μπορεί να είναι υπεύθυνο για πολλά τιμολόγια (invoices) που διαχειρίζεται
 
 }

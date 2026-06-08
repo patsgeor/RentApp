@@ -7,7 +7,7 @@ namespace API.Entities;
 public class Invoice: BaseEntity
 {
     [Required]
-    public Guid RentalId { get; set; }
+    public Guid ContractId { get; set; }
 
     [Required, MaxLength(50)]
     public string InvoiceNumber { get; set; } = null!;
@@ -30,9 +30,9 @@ public class Invoice: BaseEntity
     public decimal OutstandingBalance { get; set; }
 
     // Navigation Properties
-    [ForeignKey(nameof(RentalId))]
-    public virtual Rental Rental { get; set; } = null!;
-    public virtual ICollection<Payment> Payments { get; set; } = new List<Payment>();
+    [ForeignKey(nameof(ContractId))]
+    public  Contract Contract { get; set; } = null!;
+    public  ICollection<Payment> Payments { get; set; } = new List<Payment>();
 
 
 }

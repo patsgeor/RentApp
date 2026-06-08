@@ -1,5 +1,6 @@
 using System;
 using System.ComponentModel.DataAnnotations;
+using static API.Entities.Enums;
 
 namespace API.Entities;
 //αφορά Multy-Tenancy, δηλαδή την υποστήριξη πολλαπλών εταιρειών στην ίδια βάση δεδομένων.
@@ -20,7 +21,7 @@ public class Tenant
     public SubscriptionStatus SubscriptionStatus { get; set; } = SubscriptionStatus.Active;
 
     // Navigation Properties
-    public virtual ICollection<AppUser> Users { get; set; } = new List<AppUser>();
-    public virtual ICollection<Customer> Customers { get; set; } = new List<Customer>();
+    public  ICollection<AppUser> Users { get; set; } = new List<AppUser>();
+    public  ICollection<Customer> Customers { get; set; } = new List<Customer>();
 }
-}
+

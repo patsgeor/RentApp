@@ -5,7 +5,7 @@ using static API.Entities.Enums;
 
 namespace API.Entities;
 
-public class Rental: BaseEntity
+public class Contract: BaseEntity
 {
     [Required]
     public required Guid CustomerId { get; set; }
@@ -32,7 +32,7 @@ public class Rental: BaseEntity
 
     // Navigation Properties
     
-    public ICollection<RentalAsset> Asset { get; set; } = new List<RentalAsset>(); //ένα Rent μπορεί να περιλαμβάνει πολλά περιουσιακά στοιχεία (Assets)
+    public ICollection<ContractAsset> ContractAssets { get; set; } = new List<ContractAsset>(); //ένα Contract μπορεί να περιλαμβάνει πολλά περιουσιακά στοιχεία (Assets)
     
     [ForeignKey(nameof(CustomerId))]
     public Customer Customer { get; set; } = null!;

@@ -28,5 +28,5 @@ public class Contact : BaseEntity
 
     // Navigation Properties
     [ForeignKey(nameof(CustomerId))]
-    public virtual Customer Customer { get; set; } = null!;
+    public  Customer Customer { get; set; } = null!;
 }

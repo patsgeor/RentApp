@@ -18,12 +18,14 @@
     <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="10.0.8" />
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.7" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.7" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.7" />
-  </ItemGroup>
+    <!-- <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.7" /> -->
+    <PackageReference Include="Npgsql" Version="10.0.3" />
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.2" />
+    <!-- <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL.Design" Version="1.1.0" />-->
+  </ItemGroup> 
 
   <ItemGroup>
     <Folder Include="Data\Contexts\" />
-    <Folder Include="Data\Contexts\Configurations\" />
     <Folder Include="Data\Migrations\" />
     <Folder Include="Data\Repositories\" />
     <Folder Include="Errors\" />

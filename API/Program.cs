@@ -3,6 +3,7 @@ using API.Data.Contexts;
 using API.Data.Repositories;
 using API.Entities;
 using API.Interfaces;
+using API.Services;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
@@ -13,10 +14,14 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllers();
 builder.Services.AddDbContext<AppDbContext>(options =>
 {
-    options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection"));
+    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection"));
+
+    options.EnableSensitiveDataLogging();
+    options.EnableDetailedErrors();
 });
 
 builder.Services.AddScoped<IRentRepository,RentRepository>();
+builder.Services.AddScoped<ITenantProvider, TenantProvider>();
 
 //για να επιτρεψει αιτησεις απο angular
 builder.Services.AddCors();
@@ -67,7 +72,8 @@ try
     await context.Database.MigrateAsync(); 
 
     //4. Καλούμε την InitializeAsync περνώντας ΚΑΙ ΤΑ ΔΥΟ ορίσματα
-    await DbInitializer.InitializeAsync(context, userManager);}
+    await DbInitializer.InitializeAsync(context, userManager);
+    }
 catch (Exception ex)
 {
     var logger = services.GetRequiredService<ILogger<Program>>();

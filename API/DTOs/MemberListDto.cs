@@ -13,8 +13,8 @@ public class MemberListDto
     public string DisplayName { get; set; } = "";
     
     // Στοιχεία Μονάδας (Flattened)
-    public string MonadaName { get; set; } = "";
-    public int MonadaId { get; set; }
+    public string TentalName { get; set; } = "";
+    public Guid TentalId { get; set; } = Guid.Empty;
     
     public DateTime LastActive { get; set; }
     

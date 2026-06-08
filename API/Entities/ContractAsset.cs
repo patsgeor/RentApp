@@ -4,10 +4,10 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace API.Entities;
 
-public class RentalAsset: BaseEntity
+public class ContractAsset: BaseEntity
 {
     [Required]
-    public Guid RentalId { get; set; }
+    public Guid ContractId { get; set; }
     
     [Required]
     public Guid AssetId { get; set; }
@@ -16,8 +16,8 @@ public class RentalAsset: BaseEntity
     public string? Notes { get; set; }
 
     // Navigation Properties
-    [ForeignKey(nameof(RentalId))]
-    public  Rental Rental { get; set; } = null!;
+    [ForeignKey(nameof(ContractId))]
+    public  Contract Contract { get; set; } = null!;
     
     [ForeignKey(nameof(AssetId))]
     public  Asset Asset { get; set; } = null!;

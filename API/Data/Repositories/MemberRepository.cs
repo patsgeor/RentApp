@@ -34,7 +34,6 @@ public class MemberRepositor (AppDbContext context,UserManager<AppUser> userMana
             LastName = dto.LastName,
             Afm = dto.Afm,
             Amka = dto.Amka,
-            MonadaId = dto.MonadaId,
             Id = user.Id
         };
 
@@ -51,8 +50,8 @@ public class MemberRepositor (AppDbContext context,UserManager<AppUser> userMana
                                     Afm=m.Afm,
                                     Email=m.User.Email!,
                                     DisplayName=m.User.DisplayName,
-                                    MonadaName=m.Monada.Name,
-                                    MonadaId=m.MonadaId,
+                                    TentalName = m.User.Tenant.Name,
+                                    TentalId = m.User.TenantId,
                                     LastActive=m.LastActive,
                                     IsLockout = m.User.LockoutEnd != null && m.User.LockoutEnd > DateTime.UtcNow
                                 }

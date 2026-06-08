@@ -34,6 +34,6 @@ public class Customer : BaseEntity
     [ForeignKey(nameof(TenantId))]
     public  Tenant Tenant { get; set; } = null!;
     public  ICollection<Contact> Contacts { get; set; } = new List<Contact>();
-    public  ICollection<Rental> Rentals { get; set; } = new List<Rental>();
+    public  ICollection<Contract> Contracts { get; set; } = new List<Contract>();
 }
 
