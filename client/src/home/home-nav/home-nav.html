@@ -1,0 +1,38 @@
+<header class="navbar sticky top-0 z-50 bg-base-100/95 backdrop-blur border-b border-base-300 px-4 lg:px-8">
+  <!-- Left: Logo + nav -->
+  <div class="navbar-start">
+    <!-- Mobile dropdown -->
+    <div class="dropdown">
+      <div tabindex="0" role="button" class="btn btn-ghost lg:hidden" aria-label="Άνοιγμα μενού">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+        </svg>
+      </div>
+      <ul tabindex="0" class="menu menu-sm dropdown-content mt-3 z-[1] p-2 shadow-lg bg-base-100 rounded-box w-52">
+        @for (link of navLinks; track link.href) {
+          <li><a [href]="link.href">{{ link.label }}</a></li>
+        }
+      </ul>
+    </div>
+
+    <a routerLink="/" class="btn btn-ghost text-xl font-bold gap-2 px-2">
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+      </svg>
+      <span>Rent<span class="text-primary">App</span></span>
+    </a>
+
+    <!-- Desktop nav -->
+    <ul class="menu menu-horizontal px-1 hidden lg:flex ml-4">
+      @for (link of navLinks; track link.href) {
+        <li><a [href]="link.href" class="font-medium">{{ link.label }}</a></li>
+      }
+    </ul>
+  </div>
+
+  <!-- Right: Auth buttons -->
+  <div class="navbar-end gap-2">
+    <a routerLink="/sign-in" class="btn btn-ghost btn-sm sm:btn-md">Sign In</a>
+    <a routerLink="/sign-up" class="btn btn-primary btn-sm sm:btn-md">Sign Up</a>
+  </div>
+</header>
