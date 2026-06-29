@@ -2,13 +2,13 @@ import { inject } from '@angular/core';
 import { CanActivateFn, Router } from '@angular/router';
 import { AccountService } from '../services/account-service';
 
-export const authGuard: CanActivateFn = () => {
-  const accountService = inject(AccountService);
+export const guestGuard: CanActivateFn = (route, state) => {
+const account = inject(AccountService);
   const router = inject(Router);
 
-  if (accountService.isLoggedIn()) {
-    return true;
+  if (account.isLoggedIn()) {
+    return router.createUrlTree(['/home']);
   }
 
-  return router.createUrlTree(['/landing']);
+  return true;
 };

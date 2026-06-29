@@ -1,0 +1,83 @@
+<div class="min-h-screen flex items-center justify-center bg-base-200">
+  <div class="card w-full max-w-md bg-base-100 shadow-xl">
+    <div class="card-body gap-4">
+
+      <!-- Logo / Title -->
+      <div class="text-center mb-2">
+        <h1 class="text-3xl font-bold text-primary">Rent-ERP</h1>
+        <p class="text-base-content/60 mt-1">Σύνδεση στο λογαριασμό σας</p>
+      </div>
+
+      <!-- Error Alert -->
+      @if (errorMessage()) {
+        <div role="alert" class="alert alert-error">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 shrink-0" viewBox="0 0 20 20" fill="currentColor">
+            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
+          </svg>
+          <span>{{ errorMessage() }}</span>
+        </div>
+      }
+
+      <!-- Form -->
+      <form [formGroup]="form" (ngSubmit)="onLogin()" class="flex flex-col gap-4">
+
+        <div class="form-control ">
+          <div class="grid grid-cols-[100px_1fr] gap-4 items-center">
+          <label class="label" for="email">
+            <span class="label-text font-medium">Email</span>
+          </label>
+          <input id="email" type="email" formControlName="email"
+                 placeholder="email@example.com"
+                 class="input input-bordered"
+                 [class.input-error]="f['email'].invalid && f['email'].touched" />
+          @if (f['email'].invalid && f['email'].touched) {
+            <div class="label">
+              <span class="label-text-alt text-error">
+                @if (f['email'].errors?.['required']) { Το email είναι υποχρεωτικό }
+                @else if (f['email'].errors?.['email']) { Μη έγκυρη μορφή email }
+              </span>
+            </div>
+          }
+        </div>
+        </div>
+
+        <div class="form-control ">
+          <div class="grid grid-cols-[100px_1fr] gap-4 items-center">
+          <label class="label" for="password">
+            <span class="label-text font-medium">Κωδικός</span>
+          </label>
+          <input id="password" type="password" formControlName="password"
+                 placeholder="••••••••"
+                 class="input input-bordered"
+                 [class.input-error]="f['password'].invalid && f['password'].touched" />
+          @if (f['password'].invalid && f['password'].touched) {
+            <div class="label">
+              <span class="label-text-alt text-error">
+                @if (f['password'].errors?.['required']) { Ο κωδικός είναι υποχρεωτικός }
+                @else if (f['password'].errors?.['minlength']) { Τουλάχιστον 6 χαρακτήρες }
+              </span>
+            </div>
+          }
+        </div>
+        </div>
+
+        <button type="submit" class="btn btn-primary mt-2"
+                [disabled]="form.invalid || loading()">
+          @if (loading()) {
+            <span class="loading loading-spinner loading-sm"></span>
+          }
+          Σύνδεση
+        </button>
+
+      </form>
+
+      <div class="divider text-base-content/40">ή</div>
+
+      <p class="text-center text-sm text-base-content/70">
+        Δεν έχετε λογαριασμό;
+        <a routerLink="/register" class="link link-primary font-medium">Εγγραφή εταιρείας</a>
+      </p>
+
+    </div>
+  </div>
+</div>

@@ -55,8 +55,7 @@
                         <li><a>Αλλαγή Password</a></li>
                         <!-- <li><a (click)="openResetPasswordModal()">Αλλαγή Password</a></li> -->
                         <div class="divider my-0"></div>
-                        <li><a routerLink="/logout" class="text-error">Logout</a></li>
-                    </ul>
+                        <li><a (click)="logout()" class="text-error cursor-pointer">Logout</a></li>                    </ul>
                 </div>
             </div>
         </div>
@@ -175,10 +174,9 @@
 
             <!-- Sidenav Footer Profile / User Info -->
             <div class="mt-auto pt-6 pb-2">
-                <div class="text-xs text-base-content/60">Logged in as:</div>
-                <div class="font-bold">user
-                    <!-- todo -->
-                </div>
+               <div class="text-xs text-base-content/60">Συνδεδεμένος ως:</div>
+                <div class="font-bold">{{ accountService.currentUser()?.displayName }}</div>
+                <div class="text-xs text-base-content/50">{{ accountService.currentUser()?.tenantName }}</div>
             </div>
 
         </ul>

@@ -1,17 +1,17 @@
-import { HttpClient } from '@angular/common/http';
-import { Component, inject, OnInit, signal } from '@angular/core';
-import { Nav } from '../layout/nav/nav';
-import { Home } from "../home/home/home";
+import { Component, inject, signal } from '@angular/core';
+import { RouterOutlet } from "@angular/router";
+import { AccountService } from '../core/services/account-service';
 
 @Component({
   selector: 'app-root',
-  imports: [Nav, Home],
+  imports: [ RouterOutlet],
   templateUrl: './app.html',
   styleUrl: './app.css'
 })
 export class App {
 
   protected readonly title = signal('Rent-ERP');
+  protected  accountService=inject(AccountService);
   
  
 

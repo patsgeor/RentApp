@@ -11,7 +11,7 @@ export class RentService {
 
   // προβολή παγίων
   getRent(){
-    return this.http.get<[]>("https://localhost:5001/api/Rent");
+    return this.http.get<[]>(`${this.baseUrl}/Rent`);
   }
   
   
