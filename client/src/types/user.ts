@@ -33,3 +33,25 @@ export interface TenantRegisterDto {
   password: string;
   confirmPassword: string;
 }
+
+
+export interface MemberInviteDto {
+  email: string;
+  firstName: string;
+  lastName: string;
+  role: string;
+}
+
+export interface MemberInviteInfoDto {
+  email: string;
+  firstName: string;
+  lastName: string;
+  tenantName: string;
+}
+
+export interface MemberRegisterFromInviteDto {
+  token: string;
+  displayName: string;
+  password: string;
+  confirmPassword: string;
+}

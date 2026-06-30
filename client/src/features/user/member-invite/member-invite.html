@@ -1,0 +1,107 @@
+<div class="max-w-2xl mx-auto space-y-5">
+
+  <!-- Header -->
+  <div class="flex items-center gap-3">
+    <a routerLink="/" class="btn btn-ghost btn-sm btn-square">
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-5">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
+      </svg>
+    </a>
+    <div>
+      <h1 class="text-2xl font-bold">Πρόσκληση Μέλους</h1>
+      <p class="text-sm text-base-content/60 mt-0.5">Στείλτε πρόσκληση εγγραφής σε νέο μέλος της ομάδας</p>
+    </div>
+  </div>
+
+  <!-- Form card -->
+  <div class="card bg-base-100 shadow-sm border border-base-200">
+    <div class="card-body p-6">
+
+      @if (errorMessage()) {
+        <div role="alert" class="alert alert-error mb-4">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 shrink-0" viewBox="0 0 20 20" fill="currentColor">
+            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
+          </svg>
+          <span>{{ errorMessage() }}</span>
+        </div>
+      }
+
+      @if (successMessage()) {
+        <div role="alert" class="alert alert-success mb-4">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 shrink-0" viewBox="0 0 20 20" fill="currentColor">
+            <path fill-rule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clip-rule="evenodd" />
+          </svg>
+          <span>{{ successMessage() }}</span>
+        </div>
+      }
+
+      <form [formGroup]="form" (ngSubmit)="onInvite()" class="space-y-6">
+
+        <div>
+          <h3 class="text-sm font-semibold text-base-content/50 uppercase tracking-widest mb-4">Στοιχεία Μέλους</h3>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+            <!-- Όνομα -->
+            <label class="form-control w-full">
+              <div class="label pb-1"><span class="label-text font-medium">Όνομα <span class="text-error">*</span></span></div>
+              <input type="text" formControlName="firstName" placeholder="Γεώργιος"
+                class="input input-bordered w-full"
+                [class.input-error]="f['firstName'].invalid && f['firstName'].touched" />
+              @if (f['firstName'].invalid && f['firstName'].touched) {
+                <div class="label pt-1"><span class="label-text-alt text-error">Υποχρεωτικό πεδίο</span></div>
+              }
+            </label>
+
+            <!-- Επώνυμο -->
+            <label class="form-control w-full">
+              <div class="label pb-1"><span class="label-text font-medium">Επώνυμο <span class="text-error">*</span></span></div>
+              <input type="text" formControlName="lastName" placeholder="Παπαδόπουλος"
+                class="input input-bordered w-full"
+                [class.input-error]="f['lastName'].invalid && f['lastName'].touched" />
+              @if (f['lastName'].invalid && f['lastName'].touched) {
+                <div class="label pt-1"><span class="label-text-alt text-error">Υποχρεωτικό πεδίο</span></div>
+              }
+            </label>
+
+            <!-- Email -->
+            <label class="form-control w-full md:col-span-2">
+              <div class="label pb-1"><span class="label-text font-medium">Email <span class="text-error">*</span></span></div>
+              <input type="email" formControlName="email" placeholder="email@example.com"
+                class="input input-bordered w-full"
+                [class.input-error]="f['email'].invalid && f['email'].touched" />
+              @if (f['email'].invalid && f['email'].touched) {
+                <div class="label pt-1">
+                  <span class="label-text-alt text-error">
+                    @if (f['email'].errors?.['required']) { Υποχρεωτικό πεδίο }
+                    @else if (f['email'].errors?.['email']) { Μη έγκυρη μορφή email }
+                  </span>
+                </div>
+              }
+            </label>
+
+            <!-- Ρόλος -->
+            <label class="form-control w-full">
+              <div class="label pb-1"><span class="label-text font-medium">Ρόλος <span class="text-error">*</span></span></div>
+              <select formControlName="role" class="select select-bordered w-full">
+                <option value="Member">Μέλος</option>
+                <option value="Admin">Διαχειριστής</option>
+              </select>
+            </label>
+
+          </div>
+        </div>
+
+        <!-- Actions -->
+        <div class="flex gap-3 justify-end pt-2">
+          <a routerLink="/" class="btn btn-ghost">Ακύρωση</a>
+          <button type="submit" class="btn btn-primary gap-2" [disabled]="loading()">
+            @if (loading()) { <span class="loading loading-spinner loading-sm"></span> }
+            Αποστολή Πρόσκλησης
+          </button>
+        </div>
+
+      </form>
+    </div>
+  </div>
+
+</div>

@@ -1,0 +1,107 @@
+<div class="min-h-screen flex items-center justify-center bg-base-200 py-10">
+  <div class="card w-full max-w-md bg-base-100 shadow-xl">
+    <div class="card-body gap-4">
+
+      <!-- Logo / Title -->
+      <div class="text-center mb-2">
+        <h1 class="text-3xl font-bold text-primary">Rent-ERP</h1>
+        <p class="text-base-content/60 mt-1">Ολοκλήρωση εγγραφής μέλους</p>
+      </div>
+
+      @if (loadingInvite()) {
+        <div class="flex justify-center py-8">
+          <span class="loading loading-spinner loading-lg text-primary"></span>
+        </div>
+      } @else if (inviteError()) {
+        <div role="alert" class="alert alert-error">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 shrink-0" viewBox="0 0 20 20" fill="currentColor">
+            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
+          </svg>
+          <span>{{ inviteError() }}</span>
+        </div>
+        <p class="text-center text-sm text-base-content/70 mt-2">
+          <a routerLink="/login" class="link link-primary font-medium">Επιστροφή στη σύνδεση</a>
+        </p>
+      } @else if (inviteInfo(); as invite) {
+
+        <!-- Invite summary -->
+        <div class="bg-base-200/60 rounded-xl p-4 text-sm space-y-1">
+          <p class="text-base-content/60">Προσκαλείστε στην ομάδα</p>
+          <p class="font-semibold">{{ invite.tenantName }}</p>
+          <p class="text-base-content/60 mt-2">{{ invite.firstName }} {{ invite.lastName }} · {{ invite.email }}</p>
+        </div>
+
+        <!-- Error Alert -->
+        @if (errorMessage()) {
+          <div role="alert" class="alert alert-error">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 shrink-0" viewBox="0 0 20 20" fill="currentColor">
+              <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
+            </svg>
+            <span>{{ errorMessage() }}</span>
+          </div>
+        }
+
+        <form [formGroup]="form" (ngSubmit)="onRegister()" class="flex flex-col gap-4">
+
+          <div class="form-control">
+            <label class="label" for="displayName">
+              <span class="label-text font-medium">Όνομα Χρήστη <span class="text-error">*</span></span>
+            </label>
+            <input id="displayName" type="text" formControlName="displayName"
+                   placeholder="UserGeo13"
+                   class="input input-bordered"
+                   [class.input-error]="f['displayName'].invalid && f['displayName'].touched" />
+            @if (f['displayName'].invalid && f['displayName'].touched) {
+              <div class="label">
+                <span class="label-text-alt text-error">Υποχρεωτικό πεδίο</span>
+              </div>
+            }
+          </div>
+
+          <div class="form-control">
+            <label class="label" for="password">
+              <span class="label-text font-medium">Κωδικός <span class="text-error">*</span></span>
+            </label>
+            <input id="password" type="password" formControlName="password"
+                   placeholder="••••••••"
+                   class="input input-bordered"
+                   [class.input-error]="f['password'].invalid && f['password'].touched" />
+            @if (f['password'].invalid && f['password'].touched) {
+              <div class="label">
+                <span class="label-text-alt text-error">
+                  @if (f['password'].errors?.['required']) { Ο κωδικός είναι υποχρεωτικός }
+                  @else if (f['password'].errors?.['minlength']) { Τουλάχιστον 6 χαρακτήρες }
+                </span>
+              </div>
+            }
+          </div>
+
+          <div class="form-control">
+            <label class="label" for="confirmPassword">
+              <span class="label-text font-medium">Επιβεβαίωση Κωδικού <span class="text-error">*</span></span>
+            </label>
+            <input id="confirmPassword" type="password" formControlName="confirmPassword"
+                   placeholder="••••••••"
+                   class="input input-bordered"
+                   [class.input-error]="f['confirmPassword'].touched && form.errors?.['passwordMismatch']" />
+            @if (f['confirmPassword'].touched && form.errors?.['passwordMismatch']) {
+              <div class="label">
+                <span class="label-text-alt text-error">Οι κωδικοί δεν ταιριάζουν</span>
+              </div>
+            }
+          </div>
+
+          <button type="submit" class="btn btn-primary mt-2"
+                  [disabled]="form.invalid || loading()">
+            @if (loading()) {
+              <span class="loading loading-spinner loading-sm"></span>
+            }
+            Ολοκλήρωση Εγγραφής
+          </button>
+
+        </form>
+      }
+
+    </div>
+  </div>
+</div>

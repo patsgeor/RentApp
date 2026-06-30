@@ -33,7 +33,7 @@ public class UnitOfWork(
         _contractRepository ??= new ContractRepository(context);
  
     public IMemberRepository MemberRepository =>
-        _memberRepository ??= new MemberRepository(context, userManager, emailService, tenantProvider);
+        _memberRepository ??= new MemberRepository(context, userManager, emailService, tenantProvider );
  
     public async Task<bool> Complete()
     {

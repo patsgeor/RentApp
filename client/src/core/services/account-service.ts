@@ -1,7 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { computed, inject, Injectable, signal } from '@angular/core';
 import { environment } from '../../environments/environment';
-import { LoginDto, TenantRegisterDto,  UserDto } from '../../types/user';
+import { LoginDto, MemberInviteDto, MemberInviteInfoDto, MemberRegisterFromInviteDto, TenantRegisterDto,  UserDto } from '../../types/user';
 import { catchError, tap, throwError } from 'rxjs';
 import { Router } from '@angular/router';
 
@@ -40,6 +40,21 @@ export class AccountService {
     );
   }
 
+  invite(dto: MemberInviteDto) {
+    return this.http.post<{ message: string }>(`${this.baseUrl}account/invite`, dto);
+  }
+
+  getInviteInfo(token: string) {
+    return this.http.get<MemberInviteInfoDto>(`${this.baseUrl}account/invite`, { params: { token } });
+  }
+
+  registerFromInvite(dto: MemberRegisterFromInviteDto) {
+    return this.http.post<UserDto>(`${this.baseUrl}account/MemberRegister`, dto).pipe(
+      tap(user => this.setCurrentUser(user))
+    );
+  }
+
+
   logout() {
     localStorage.removeItem('user');
     this.currentUserSignal.set(null);
@@ -56,7 +71,6 @@ export class AccountService {
     const userJson = localStorage.getItem('user');
     return userJson ? JSON.parse(userJson) : null;
   }
-
 
 
   private getRolesFromToken(user :UserDto) :string[]{
