@@ -164,7 +164,7 @@
           </summary>
           <ul>
             <li><a routerLink="/assets/new" routerLinkActive="active" (click)="closeSidebar()">Νέο Πάγιο</a></li>
-            <li><a routerLink="/Rent-view" routerLinkActive="active" (click)="closeSidebar()">Όλα τα Πάγια</a></li>
+            <li><a routerLink="/assets" routerLinkActive="active" [routerLinkActiveOptions]="{exact:true}" (click)="closeSidebar()">Όλα τα Πάγια</a></li>
             <li><a routerLink="/asset-categories" routerLinkActive="active" (click)="closeSidebar()">Κατηγορίες Παγίων</a></li>
           </ul>
         </details>

@@ -11,6 +11,9 @@ import { ServerError } from '../shared/errors/server-error/server-error';
 import { NotFound } from '../shared/errors/not-found/not-found';
 import { MemberRegister } from '../features/user/member-register/member-register';
 import { MemberInvite } from '../features/user/member-invite/member-invite';
+import { AssetList } from '../features/asset/asset-list/asset-list';
+import { AssetForm } from '../features/asset/asset-form/asset-form';
+import { AssetDetail } from '../features/asset/asset-detail/asset-detail';
 
 export const routes: Routes = [
   {path: '',component: LandingPage,canActivate: [guestGuard],runGuardsAndResolvers: 'always'},
@@ -36,10 +39,17 @@ export const routes: Routes = [
     canActivate: [authGuard],
     children: [
       { path: 'home', component: Home },
+      
       { path: 'customer', component: CustomerList },
       { path: 'customer/new', component: CustomerForm },
       { path: 'customer/:id/edit', component: CustomerForm },
       { path: 'customer/:id', component: CustomerList },
+
+      { path: 'assets', component: AssetList },
+      { path: 'assets/new', component: AssetForm },
+      { path: 'assets/:id/edit', component: AssetForm },
+      { path: 'assets/:id', component: AssetDetail },
+
       { path: 'invite', component: MemberInvite }
     ]
    }, 

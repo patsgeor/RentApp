@@ -1,0 +1,71 @@
+<div class="space-y-5">
+
+  <!-- Header -->
+  <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+    <div>
+      <h1 class="text-2xl font-bold">Πάγια</h1>
+      <p class="text-sm text-base-content/60 mt-0.5">Διαχείριση εξοπλισμού και παγίων</p>
+    </div>
+    <a routerLink="/assets/new" class="btn btn-primary gap-2 shrink-0">
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-5">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+      </svg>
+      Νέο Πάγιο
+    </a>
+  </div>
+
+  <!-- Filters -->
+  <div class="flex flex-col sm:flex-row gap-3">
+    <!-- Search -->
+    <label class="input input-bordered input-sm flex items-center gap-2 flex-1 min-w-0">
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4 opacity-50 shrink-0">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+      </svg>
+      <input type="text" placeholder="Αναζήτηση παγίου..." class="grow" (input)="onSearch($any($event.target).value)" />
+    </label>
+    <!-- AssetType filter -->
+    <select class="select select-bordered select-sm w-full sm:w-52"
+      (change)="onAssetTypeChange($any($event.target).value)">
+      <option value="">Όλες οι κατηγορίες</option>
+      @for (t of assetTypes(); track t.id) {
+        <option [value]="t.id">{{ t.name }}</option>
+      }
+    </select>
+    <!-- Status filter -->
+    <select class="select select-bordered select-sm w-full sm:w-44"
+      (change)="onStatusChange($any($event.target).value)">
+      <option value="">Όλες οι καταστάσεις</option>
+      <option value="0">Διαθέσιμο</option>
+      <option value="1">Ενοικιασμένο</option>
+      <option value="2">Συντήρηση</option>
+      <option value="3">Κατεστραμμένο</option>
+    </select>
+  </div>
+
+  <!-- Error -->
+  @if (error()) {
+    <div role="alert" class="alert alert-error">
+      <span>{{ error() }}</span>
+    </div>
+  }
+
+  <!-- Loading skeleton -->
+  @if (loading()) {
+    <div class="card bg-base-100 shadow-sm border border-base-200">
+      <div class="card-body p-4">
+        <div class="space-y-3">
+          @for (_ of [1,2,3,4,5]; track $index) {
+            <div class="skeleton h-10 w-full rounded-lg"></div>
+          }
+        </div>
+      </div>
+    </div>
+  } @else {
+    <app-asset-table
+      [items]="result()?.items ?? []"
+      [pagination]="result()?.metadata ?? null"
+      (pageChange)="onPageChange($event)"
+      (deleted)="onDeleted()" />
+  }
+
+</div>

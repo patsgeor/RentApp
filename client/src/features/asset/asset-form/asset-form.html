@@ -1,0 +1,223 @@
+<div class="max-w-3xl mx-auto space-y-5">
+
+  <!-- Header -->
+  <div class="flex items-center gap-3">
+    <a routerLink="/assets" class="btn btn-ghost btn-sm btn-square">
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-5">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
+      </svg>
+    </a>
+    <div>
+      <h1 class="text-2xl font-bold">{{ isEdit() ? 'Επεξεργασία Παγίου' : 'Νέο Πάγιο' }}</h1>
+      <p class="text-sm text-base-content/60 mt-0.5">{{ isEdit() ? 'Ενημερώστε τα στοιχεία παγίου' : 'Συμπληρώστε τα στοιχεία νέου παγίου' }}</p>
+    </div>
+  </div>
+
+  <!-- Form card -->
+  <div class="card bg-base-100 shadow-sm border border-base-200">
+    <div class="card-body p-6">
+
+      @if (errorMsg()) {
+        <div role="alert" class="alert alert-error mb-4">
+          <span>{{ errorMsg() }}</span>
+        </div>
+      }
+
+      <form [formGroup]="form" (ngSubmit)="onSubmit()" class="space-y-6">
+
+        <!-- Section: Βασικά Στοιχεία -->
+        <div>
+          <h3 class="text-sm font-semibold text-base-content/50 uppercase tracking-widest mb-4">Βασικά Στοιχεία</h3>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+            <!-- Κατηγορία -->
+            <label class="form-control w-full md:col-span-2">
+              <div class="label pb-1"><span class="label-text font-medium">Κατηγορία Παγίου <span class="text-error">*</span></span></div>
+              @if (isEdit()) {
+                <select formControlName="assetTypeId" class="select select-bordered w-full" >
+                  @for (t of assetTypes(); track t.id) {
+                    <option [value]="t.id">{{ t.name }}</option>
+                  }
+                </select>
+                <div class="label pt-1"><span class="label-text-alt text-base-content/50">Η κατηγορία δεν αλλάζει μετά τη δημιουργία</span></div>
+              } @else {
+                <select formControlName="assetTypeId" class="select select-bordered w-full"
+                  [class.select-error]="f['assetTypeId'].invalid && f['assetTypeId'].touched">
+                  <option value="">— Επιλέξτε κατηγορία —</option>
+                  @for (t of assetTypes(); track t.id) {
+                    <option [value]="t.id">{{ t.name }}</option>
+                  }
+                </select>
+                @if (f['assetTypeId'].invalid && f['assetTypeId'].touched) {
+                  <div class="label pt-1"><span class="label-text-alt text-error">Υποχρεωτικό πεδίο</span></div>
+                }
+              }
+            </label>
+
+            <!-- Όνομα -->
+            <label class="form-control w-full md:col-span-2">
+              <div class="label pb-1"><span class="label-text font-medium">Ονομασία <span class="text-error">*</span></span></div>
+              <input type="text" formControlName="name" placeholder="π.χ. Σκαλωσιά Αλουμινίου Νο.1"
+                class="input input-bordered w-full"
+                [class.input-error]="f['name'].invalid && f['name'].touched" />
+              @if (f['name'].invalid && f['name'].touched) {
+                <div class="label pt-1"><span class="label-text-alt text-error">Υποχρεωτικό πεδίο</span></div>
+              }
+            </label>
+
+            <!-- Σημειώσεις -->
+            <label class="form-control w-full md:col-span-2">
+              <div class="label pb-1"><span class="label-text font-medium">Σημειώσεις</span></div>
+              <textarea formControlName="notes" placeholder="Προαιρετικές σημειώσεις..."
+                class="textarea textarea-bordered w-full resize-none" rows="2"></textarea>
+            </label>
+
+          </div>
+        </div>
+
+        <div class="divider my-0"></div>
+
+        <!-- Section: Στοιχεία Απόκτησης -->
+        <div>
+          <h3 class="text-sm font-semibold text-base-content/50 uppercase tracking-widest mb-4">Στοιχεία Απόκτησης</h3>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+            <!-- Τύπος Απόκτησης -->
+            <label class="form-control w-full">
+              <div class="label pb-1"><span class="label-text font-medium">Τύπος Απόκτησης <span class="text-error">*</span></span></div>
+              <select formControlName="acquisitionType" class="select select-bordered w-full">
+                <option [ngValue]="AcquisitionType.Purchase">Αγορά</option>
+                <option [ngValue]="AcquisitionType.Leasing">Leasing</option>
+              </select>
+            </label>
+
+            <!-- Κόστος Απόκτησης -->
+            <label class="form-control w-full">
+              <div class="label pb-1"><span class="label-text font-medium">Κόστος Απόκτησης (€) <span class="text-error">*</span></span></div>
+              <input type="number" formControlName="acquisitionCost" min="0" step="0.01" placeholder="0.00"
+                class="input input-bordered w-full"
+                [class.input-error]="f['acquisitionCost'].invalid && f['acquisitionCost'].touched" />
+              @if (f['acquisitionCost'].invalid && f['acquisitionCost'].touched) {
+                <div class="label pt-1"><span class="label-text-alt text-error">Απαιτείται έγκυρο ποσό</span></div>
+              }
+            </label>
+
+            <!-- Μηνιαίο Κόστος Leasing (conditional) -->
+            @if (isLeasing) {
+              <label class="form-control w-full">
+                <div class="label pb-1"><span class="label-text font-medium">Μηνιαία Δόση Leasing (€)</span></div>
+                <input type="number" formControlName="monthlyLeaseCost" min="0" step="0.01" placeholder="0.00"
+                  class="input input-bordered w-full" />
+              </label>
+            }
+
+          </div>
+        </div>
+
+        <!-- Section: Χαρακτηριστικά (Dynamic EAV) -->
+        @if (isEdit() || f['assetTypeId'].value) {
+          <div class="divider my-0"></div>
+          <div>
+            <h3 class="text-sm font-semibold text-base-content/50 uppercase tracking-widest mb-4">Χαρακτηριστικά</h3>
+
+            @if (schemaLoading()) {
+              <div class="flex items-center gap-3 text-base-content/50 text-sm py-4">
+                <span class="loading loading-spinner loading-sm"></span>
+                Φόρτωση σχήματος...
+              </div>
+            } @else if (schema().length === 0) {
+              <p class="text-sm text-base-content/40 italic">Η κατηγορία δεν έχει επιπλέον χαρακτηριστικά.</p>
+            } @else {
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4" formGroupName="attributes">
+                @for (field of schema(); track field.id) {
+                  <label class="form-control w-full" [class.md:col-span-2]="field.dataType === FieldDataType.Text && field.options.length === 0">
+
+                    <div class="label pb-1">
+                      <span class="label-text font-medium">
+                        {{ field.label }}
+                        @if (field.isRequired) { <span class="text-error">*</span> }
+                      </span>
+                    </div>
+
+                    @switch (field.dataType) {
+
+                      @case (FieldDataType.Boolean) {
+                        <div class="flex items-center gap-2 mt-1">
+                          <input type="checkbox" [formControlName]="field.name" class="checkbox checkbox-primary checkbox-sm" [id]="'attr_' + field.name" />
+                          <label class="label-text text-sm cursor-pointer" [for]="'attr_' + field.name">{{ field.label }}</label>
+                        </div>
+                      }
+
+                      @case (FieldDataType.Number) {
+                        <input type="number" [formControlName]="field.name"
+                          [placeholder]="field.placeholder ?? ''"
+                          [min]="field.minValue ?? null"
+                          [max]="field.maxValue ?? null"
+                          step="any"
+                          class="input input-bordered w-full input-sm"
+                          [class.input-error]="attrs.get(field.name)?.invalid && attrs.get(field.name)?.touched" />
+                      }
+
+                      @case (FieldDataType.Date) {
+                        <input type="date" [formControlName]="field.name"
+                          class="input input-bordered w-full input-sm"
+                          [class.input-error]="attrs.get(field.name)?.invalid && attrs.get(field.name)?.touched" />
+                      }
+
+                      @case (FieldDataType.DateTime) {
+                        <input type="datetime-local" [formControlName]="field.name"
+                          class="input input-bordered w-full input-sm"
+                          [class.input-error]="attrs.get(field.name)?.invalid && attrs.get(field.name)?.touched" />
+                      }
+
+                      @default {
+                        @if (field.options.length > 0) {
+                          <select [formControlName]="field.name" class="select select-bordered select-sm w-full"
+                            [class.select-error]="attrs.get(field.name)?.invalid && attrs.get(field.name)?.touched">
+                            <option [value]="null">— Επιλέξτε —</option>
+                            @for (opt of field.options; track opt.id) {
+                              <option [value]="opt.value">{{ opt.label }}</option>
+                            }
+                          </select>
+                        } @else {
+                          <input type="text" [formControlName]="field.name"
+                            [placeholder]="field.placeholder ?? ''"
+                            class="input input-bordered w-full input-sm"
+                            [class.input-error]="attrs.get(field.name)?.invalid && attrs.get(field.name)?.touched" />
+                        }
+                      }
+
+                    }
+
+                    @if (attrs.get(field.name)?.invalid && attrs.get(field.name)?.touched) {
+                      <div class="label pt-1">
+                        <span class="label-text-alt text-error">
+                          @if (attrs.get(field.name)?.errors?.['required']) { Υποχρεωτικό πεδίο }
+                          @else if (attrs.get(field.name)?.errors?.['min']) { Τιμή κάτω από το ελάχιστο ({{ field.minValue }}) }
+                          @else if (attrs.get(field.name)?.errors?.['max']) { Τιμή πάνω από το μέγιστο ({{ field.maxValue }}) }
+                          @else if (attrs.get(field.name)?.errors?.['pattern']) { Μη έγκυρη μορφή }
+                        </span>
+                      </div>
+                    }
+
+                  </label>
+                }
+              </div>
+            }
+          </div>
+        }
+
+        <!-- Actions -->
+        <div class="flex gap-3 justify-end pt-2">
+          <a routerLink="/assets" class="btn btn-ghost">Ακύρωση</a>
+          <button type="submit" class="btn btn-primary gap-2" [disabled]="loading()">
+            @if (loading()) { <span class="loading loading-spinner loading-sm"></span> }
+            {{ isEdit() ? 'Αποθήκευση' : 'Δημιουργία Παγίου' }}
+          </button>
+        </div>
+
+      </form>
+    </div>
+  </div>
+
+</div>
