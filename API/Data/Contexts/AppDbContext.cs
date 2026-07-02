@@ -15,7 +15,8 @@ public class AppDbContext(
     AuditChannel auditChannel
 ) : IdentityDbContext<AppUser>(options)
 {
-    protected Guid CurrentTenantId => tenantProvider.TenantId; 
+    protected Guid CurrentTenantId => tenantProvider.TenantId;
+
     public DbSet<Asset> Assets { get; set; }
     public DbSet<AssetAttributeValue> AssetAttributeValues { get; set; }
     public DbSet<AssetType> AssetTypes { get; set; }
@@ -25,139 +26,192 @@ public class AppDbContext(
     public DbSet<Contact> Contacts { get; set; }
     public DbSet<Contract> Contracts { get; set; }
     public DbSet<ContractAsset> ContractAssets { get; set; }
-    public DbSet<CostAssetHist> CostAssetHists { get; set; }
     public DbSet<Customer> Customers { get; set; }
     public DbSet<FileAttachment> FileAttachments { get; set; }
+    public DbSet<Photo> Photos { get; set; }
     public DbSet<Invoice> Invoices { get; set; }
     public DbSet<Member> Members { get; set; }
     public DbSet<MemberInvite> MemberInvites { get; set; }
     public DbSet<Payment> Payments { get; set; }
-    public DbSet<Photo> Photos { get; set; }
-   public DbSet<Tenant> Tenants { get; set; }
-   
+    public DbSet<PaymentAsset> PaymentAssets { get; set; }
+    public DbSet<PaymentContract> PaymentContracts { get; set; }
+    public DbSet<PaymentAllocation> PaymentAllocations { get; set; }
+    public DbSet<Tenant> Tenants { get; set; }
+
     protected override void OnModelCreating(ModelBuilder builder)
     {
-        // ⚠️ ΑΥΤΗ Η ΓΡΑΜΜΗ ΕΙΝΑΙ ΤΟ ΚΛΕΙΔΙ! Πρέπει να είναι ΠΡΩΤΗ!
         base.OnModelCreating(builder);
 
         builder.ApplyConfigurationsFromAssembly(typeof(AppDbContext).Assembly);
 
-         builder.Entity<IdentityRole>().HasData(// για να προσθέσουμε κάποιους ρόλους στη βάση δεδομένων κατά την δημιουργία της
-            new IdentityRole {Id="super-admin-id",Name = "SuperAdmin", NormalizedName = "SUPERADMIN" , ConcurrencyStamp = "0"},
-            new IdentityRole {Id="admin-id",Name = "Admin", NormalizedName = "ADMIN" , ConcurrencyStamp = "1"},
-            new IdentityRole {Id="moderator-id", Name = "Moderator", NormalizedName = "MODERATOR", ConcurrencyStamp = "2" },
-            new IdentityRole {Id="member-id", Name = "Member", NormalizedName = "MEMBER" , ConcurrencyStamp = "3"},
-            new IdentityRole {Id="viewer-id", Name = "Viewer", NormalizedName = "VIEWER" , ConcurrencyStamp = "4"}
+        builder.Entity<IdentityRole>().HasData(
+            new IdentityRole { Id = "super-admin-id", Name = "SuperAdmin", NormalizedName = "SUPERADMIN", ConcurrencyStamp = "0" },
+            new IdentityRole { Id = "admin-id", Name = "Admin", NormalizedName = "ADMIN", ConcurrencyStamp = "1" },
+            new IdentityRole { Id = "moderator-id", Name = "Moderator", NormalizedName = "MODERATOR", ConcurrencyStamp = "2" },
+            new IdentityRole { Id = "member-id", Name = "Member", NormalizedName = "MEMBER", ConcurrencyStamp = "3" },
+            new IdentityRole { Id = "viewer-id", Name = "Viewer", NormalizedName = "VIEWER", ConcurrencyStamp = "4" }
         );
 
-   // 1. Ρύθμιση 1-προς-1 σχέσης AppUser με Member
         builder.Entity<AppUser>()
             .HasOne(a => a.Member)
             .WithOne(m => m.User)
             .HasForeignKey<Member>(m => m.Id)
             .OnDelete(DeleteBehavior.Cascade);
 
-
-        // 2. Global Query Filters για Multi-Tenancy & Soft Delete
-        // Εφαρμόζουμε δυναμικά σε όσες κλάσεις κάνουν implement το IMustHaveTenant
+        // Global Query Filters: Multi-Tenancy & Soft Delete
         foreach (var entityType in builder.Model.GetEntityTypes())
         {
             if (typeof(IMustHaveTenant).IsAssignableFrom(entityType.ClrType))
             {
-                // Φιλτράρισμα βάσει TenantId. Αν είναι και BaseEntity, προσθέτουμε και το Soft Delete.
                 if (typeof(BaseEntity).IsAssignableFrom(entityType.ClrType))
                 {
                     builder.Entity(entityType.ClrType)
-                        .HasQueryFilter(ConvertFilterExpression<IMustHaveTenant>(e => 
+                        .HasQueryFilter(ConvertFilterExpression<IMustHaveTenant>(e =>
                             e.TenantId == CurrentTenantId && !((BaseEntity)e).IsDeleted, entityType.ClrType));
                 }
                 else
                 {
                     builder.Entity(entityType.ClrType)
-                        .HasQueryFilter(ConvertFilterExpression<IMustHaveTenant>(e => 
+                        .HasQueryFilter(ConvertFilterExpression<IMustHaveTenant>(e =>
                             e.TenantId == CurrentTenantId, entityType.ClrType));
                 }
-               
             }
 
-            // 3. PostgreSQL Concurrency: Ρύθμιση xmin ως Concurrency Token για τις BaseEntities
+            // PostgreSQL Concurrency: xmin as Concurrency Token for BaseEntities
             if (typeof(BaseEntity).IsAssignableFrom(entityType.ClrType))
             {
                 builder.Entity(entityType.ClrType)
                     .Property<uint>("xmin")
-                    .IsRowVersion(); // Απαιτεί Npgsql.EntityFrameworkCore.PostgreSQL
+                    .IsRowVersion();
             }
         }
 
-        
-        // Ρύθμιση της σχέσης Many-to-Many μέσω του ContractAsset
+        // ── ContractAsset ───────────────────────────────────────────────
         builder.Entity<ContractAsset>()
-            .HasOne(ri => ri.Contract)
-            .WithMany(r => r.ContractAssets)
-            .HasForeignKey(ri => ri.ContractId)
-            // Αν διαγραφεί το Contract (hard delete), σβήνουμε και τις γραμμές του από τον ενδιάμεσο πίνακα
-            .OnDelete(DeleteBehavior.Cascade); 
+            .HasOne(ca => ca.Contract)
+            .WithMany(c => c.ContractAssets)
+            .HasForeignKey(ca => ca.ContractId)
+            .OnDelete(DeleteBehavior.Cascade);
 
         builder.Entity<ContractAsset>()
-            .HasOne(ri => ri.Asset)
+            .HasOne(ca => ca.Asset)
             .WithMany(a => a.ContractAssets)
-            .HasForeignKey(ri => ri.AssetId)
-            // ΔΕΝ επιτρέπουμε να διαγραφεί ένα Asset αν υπάρχει σε ContractAssets (έστω και παλιά)
-            .OnDelete(DeleteBehavior.Restrict);
-
-        // Το Customer προς Contract παραμένει Restrict
-        builder.Entity<Contract>()
-            .HasOne(r => r.Customer)
-            .WithMany(c => c.Contracts)
-            .HasForeignKey(r => r.CustomerId)
+            .HasForeignKey(ca => ca.AssetId)
             .OnDelete(DeleteBehavior.Restrict);
 
         builder.Entity<ContractAsset>()
-            .HasIndex(x => new{x.ContractId,x.AssetId})
+            .HasIndex(x => new { x.ContractId, x.AssetId })
             .IsUnique();
 
-        // 1. Το όνομα του Field πρέπει να είναι μοναδικό ΑΝΑ Τύπο Παγίου (και ανά Tenant εννοείται)
+        // ── Contract ────────────────────────────────────────────────────
+        builder.Entity<Contract>()
+            .HasOne(c => c.Customer)
+            .WithMany(cu => cu.Contracts)
+            .HasForeignKey(c => c.CustomerId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        // ReferenceCode unique per tenant (filtered: only non-null values)
+        builder.Entity<Contract>()
+            .HasIndex(c => new { c.TenantId, c.ReferenceCode })
+            .IsUnique()
+            .HasFilter("\"ReferenceCode\" IS NOT NULL");
+
+        builder.Entity<Contract>()
+            .HasIndex(c => c.TenantId);
+
+        // ── PaymentContract (many-to-many, no tenant filter) ─────────────
+        builder.Entity<PaymentContract>()
+            .HasKey(pc => new { pc.PaymentId, pc.ContractId });
+
+        builder.Entity<PaymentContract>()
+            .HasOne(pc => pc.Payment)
+            .WithMany(p => p.PaymentContracts)
+            .HasForeignKey(pc => pc.PaymentId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.Entity<PaymentContract>()
+            .HasOne(pc => pc.Contract)
+            .WithMany(c => c.PaymentContracts)
+            .HasForeignKey(pc => pc.ContractId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        // ── PaymentAllocation ───────────────────────────────────────────
+        builder.Entity<PaymentAllocation>()
+            .HasOne(pa => pa.Payment)
+            .WithMany(p => p.Allocations)
+            .HasForeignKey(pa => pa.PaymentId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.Entity<PaymentAllocation>()
+            .HasOne(pa => pa.Invoice)
+            .WithMany(i => i.Allocations)
+            .HasForeignKey(pa => pa.InvoiceId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        // ── PaymentAsset ────────────────────────────────────────────────
+        builder.Entity<PaymentAsset>()
+            .HasKey(pa => new { pa.PaymentId, pa.AssetId });
+
+        builder.Entity<PaymentAsset>()
+            .HasOne(pa => pa.Payment)
+            .WithMany(p => p.PaymentAssets)
+            .HasForeignKey(pa => pa.PaymentId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.Entity<PaymentAsset>()
+            .HasOne(pa => pa.Asset)
+            .WithMany()
+            .HasForeignKey(pa => pa.AssetId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        // ── Invoice (Installment) ───────────────────────────────────────
+        builder.Entity<Invoice>()
+            .HasIndex(i => new { i.ContractId, i.InstallmentNumber })
+            .IsUnique();
+
+        builder.Entity<Invoice>()
+            .HasIndex(i => i.TenantId);
+
+        // ── Payment ─────────────────────────────────────────────────────
+        builder.Entity<Payment>()
+            .HasIndex(p => p.TenantId);
+
+        builder.Entity<Payment>()
+            .HasIndex(p => p.MatchStatus);
+
+        // ── AssetTypeField ───────────────────────────────────────────────
         builder.Entity<AssetTypeField>()
-            .HasIndex(f => new{f.TenantId,f.AssetTypeId,f.Name})
-            .IsUnique();
-        
-        builder.Entity<Customer>()
-            .HasIndex(x => new{x.TenantId,x.Afm})
-            .IsUnique();
-        
-        builder.Entity<AssetType>()
-            .HasIndex(x => new{x.TenantId,x.Name})
+            .HasIndex(f => new { f.TenantId, f.AssetTypeId, f.Name })
             .IsUnique();
 
-        // 2. Ένα Πάγιο (Asset) μπορεί να έχει ΜΟΝΟ ΜΙΑ τιμή για κάθε Συγκεκριμένο Πεδίο (Field)
+        // ── Customer ─────────────────────────────────────────────────────
+        builder.Entity<Customer>()
+            .HasIndex(x => new { x.TenantId, x.Afm })
+            .IsUnique();
+
+        // ── AssetType ────────────────────────────────────────────────────
+        builder.Entity<AssetType>()
+            .HasIndex(x => new { x.TenantId, x.Name })
+            .IsUnique();
+
+        // ── AssetAttributeValue ──────────────────────────────────────────
         builder.Entity<AssetAttributeValue>()
             .HasIndex(av => new { av.AssetId, av.AssetTypeFieldId })
             .IsUnique();
 
-        // 3. Ευρετήρια (Indexes) για γρήγορη αναζήτηση στα EAV values
         builder.Entity<AssetAttributeValue>()
             .HasIndex(av => av.StringValue);
-            
+
         builder.Entity<AssetAttributeValue>()
             .HasIndex(av => av.DecimalValue);
 
         builder.Entity<AssetAttributeValue>()
             .HasIndex(av => av.DateValue);
 
+        // ── Asset ────────────────────────────────────────────────────────
         builder.Entity<Asset>()
-            .HasIndex(x => x.TenantId);
+            .HasIndex(a => a.TenantId);
 
-        builder.Entity<Contract>()
-            .HasIndex(x => x.TenantId);
-
-        builder.Entity<Invoice>()
-            .HasIndex(x => x.TenantId);
-
-        builder.Entity<Payment>()
-            .HasIndex(x => x.TenantId);
-
-        // // 4. Εξασφάλιση ότι το PropertiesJson θα είναι όντως JSONB στην PostgreSQL
-        // // (Αν χρησιμοποιείς Npgsql)
         builder.Entity<Asset>()
             .Property(a => a.PropertiesJson)
             .HasColumnType("jsonb");
@@ -166,12 +220,11 @@ public class AppDbContext(
             .HasIndex(a => new { a.TenantId, a.AssetTypeId })
             .HasDatabaseName("idx_asset_tenant_type");
 
-        // Index για JSONB (PostgreSQL)
         builder.Entity<Asset>()
             .HasIndex(a => a.PropertiesJson, "idx_asset_properties_jsonb")
             .HasMethod("GIN");
 
-        // Photo: 1 Asset → N Photos
+        // ── Photo ────────────────────────────────────────────────────────
         builder.Entity<Photo>()
             .HasOne(p => p.Asset)
             .WithMany(a => a.Photos)
@@ -182,10 +235,18 @@ public class AppDbContext(
             .HasIndex(p => p.AssetId);
     }
 
-    
-
     public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {
+        // Normalize all DateTime to Utc before saving
+        foreach (var entry in ChangeTracker.Entries())
+        {
+            foreach (var prop in entry.Properties)
+            {
+                if (prop.CurrentValue is DateTime dt && dt.Kind == DateTimeKind.Unspecified)
+                    prop.CurrentValue = DateTime.SpecifyKind(dt, DateTimeKind.Utc);
+            }
+        }
+
         var logs = BuildAuditEntries();
         var result = await base.SaveChangesAsync(cancellationToken);
         foreach (var log in logs)
@@ -246,8 +307,6 @@ public class AppDbContext(
         return JsonSerializer.Serialize(dict);
     }
 
-
-    // Helper method για την κατασκευή δυναμικών lambda expressions στα Query Filters
     private LambdaExpression ConvertFilterExpression<TInterface>(
         System.Linq.Expressions.Expression<Func<TInterface, bool>> filterExpression, Type entityType)
     {
@@ -257,7 +316,6 @@ public class AppDbContext(
     }
 }
 
-// Βοηθητική κλάση για το expression tree 
 internal class ReplacingExpressionVisitor : System.Linq.Expressions.ExpressionVisitor
 {
     private readonly System.Linq.Expressions.Expression _oldValue;

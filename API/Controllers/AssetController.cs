@@ -75,14 +75,9 @@ public class AssetController(IAssetService assetService) : BaseApiController
             var updated = await assetService.UpdateAsync(id, dto, User.GetMemberId().ToString());
             return Ok(updated);
         }
-        catch (NotFoundException ex)
-        {
-            return NotFound(new { message = ex.Message });
-        }
-        catch (BadRequestException ex)
-        {
-            return BadRequest(new { message = ex.Message });
-        }
+        catch (ConflictException ex) { return Conflict(new { message = ex.Message }); }
+        catch (NotFoundException ex){ return NotFound(new { message = ex.Message });}
+        catch (BadRequestException ex) {return BadRequest(new { message = ex.Message });}
     }
 
     // PATCH api/asset/{id}/attribute

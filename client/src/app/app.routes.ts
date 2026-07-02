@@ -15,8 +15,9 @@ import { AssetList } from '../features/asset/asset-list/asset-list';
 import { AssetForm } from '../features/asset/asset-form/asset-form';
 import { AssetDetail } from '../features/asset/asset-detail/asset-detail';
 import { QrScanner } from '../shared/qr-scanner/qr-scanner';
-import { AssetCategoryList } from '../features/Category/asset-category-list/asset-category-list';
-import { AssetCategoryDetail } from '../features/Category/asset-category-detail/asset-category-detail';
+import { PaymentPage } from '../features/payment/payment-page/payment-page';
+import { AssetCategoryList } from '../features/category/asset-category-list/asset-category-list';
+import { AssetCategoryDetail } from '../features/category/asset-category-detail/asset-category-detail';
 
 export const routes: Routes = [
   {path: '',component: LandingPage,canActivate: [guestGuard],runGuardsAndResolvers: 'always'},
@@ -55,6 +56,9 @@ export const routes: Routes = [
 
       { path: 'asset-categories', component: AssetCategoryList },
       { path: 'asset-categories/:id', component: AssetCategoryDetail },
+
+      { path: 'payments', component: PaymentPage },
+      { path: 'payments/new', component: PaymentPage },
 
       { path: 'scan', component: QrScanner },
 

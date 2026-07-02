@@ -12,7 +12,8 @@ public class UnitOfWork(
     AppDbContext context,
     UserManager<AppUser> userManager,
     IEmailService emailService,
-    ITenantProvider tenantProvider
+    ITenantProvider tenantProvider    
+
     ) : IUnitOfWork
 {
     // Lazy-init: each repo is only constructed if a service actually asks for it,
@@ -22,6 +23,7 @@ public class UnitOfWork(
     private IAssetRepository? _assetRepository;
     private IContractRepository? _contractRepository;
     private IMemberRepository? _memberRepository;
+    private IPaymentRepository? _paymentRepository;
     
     public ICustomerRepository CustomerRepository =>
         _customerRepository ??= new CustomerRepository(context);
@@ -34,6 +36,9 @@ public class UnitOfWork(
  
     public IMemberRepository MemberRepository =>
         _memberRepository ??= new MemberRepository(context, userManager, emailService, tenantProvider );
+
+    public IPaymentRepository PaymentRepository =>
+        _paymentRepository ??= new PaymentRepository(context);
  
     public async Task<bool> Complete()
     {

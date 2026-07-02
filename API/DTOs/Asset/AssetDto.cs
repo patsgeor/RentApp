@@ -23,8 +23,7 @@ public class AssetDto
 
     public string? PhotoUrl { get; set; }
  
-    // key = AssetTypeField.Name (machine key), value = the actual stored value
-    // (string/number/bool/date already coerced to its natural CLR type)
+    public uint RowVersion { get; set; }   
     public Dictionary<string, object?> Attributes { get; set; } = new();
 }
  
@@ -55,6 +54,7 @@ public class AssetCreateDto
  
 public class AssetUpdateDto
 {
+    public uint RowVersion { get; set; }   
     public required string Name { get; set; }
     public string? Notes { get; set; }
     public RateUnit RateUnit { get; set; }

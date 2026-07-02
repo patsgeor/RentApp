@@ -54,10 +54,7 @@ public interface IAssetRepository
  
     // ---------------- CostAssetHist (maintenance) ----------------
     Task<PaginatedResult<CostAssetHistDto>> GetMaintenanceHistoryAsync(Guid assetId, PagingParams pagingParams);
-    Task AddMaintenanceRecordAsync(CostAssetHist record);
-    Task<CostAssetHist?> GetMaintenanceRecordByIdAsync(Guid recordId);
-    void UpdateMaintenanceRecord(CostAssetHist record);
-    void RemoveMaintenanceRecord(CostAssetHist record);
+    
 
     // ---------------- Contract history (per asset) ----------------
     Task<PaginatedResult<AssetContractHistDto>> GetContractHistoryAsync(Guid assetId, PagingParams pagingParams);

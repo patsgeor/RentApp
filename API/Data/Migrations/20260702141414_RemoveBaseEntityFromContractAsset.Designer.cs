@@ -4,6 +4,7 @@ using System.Text.Json;
 using API.Data.Contexts;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -12,9 +13,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace API.Data.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260702141414_RemoveBaseEntityFromContractAsset")]
+    partial class RemoveBaseEntityFromContractAsset
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -616,14 +619,8 @@ namespace API.Data.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)");
 
-                    b.Property<decimal>("DiscountAmount")
-                        .HasColumnType("decimal(18,2)");
-
                     b.Property<DateTime>("EndDate")
                         .HasColumnType("timestamp with time zone");
-
-                    b.Property<int>("InstallmentFrequency")
-                        .HasColumnType("integer");
 
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("boolean");
@@ -631,10 +628,6 @@ namespace API.Data.Migrations
                     b.Property<string>("Notes")
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)");
-
-                    b.Property<string>("ReferenceCode")
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
 
                     b.Property<DateTime?>("SignedDate")
                         .HasColumnType("timestamp with time zone");
@@ -682,10 +675,6 @@ namespace API.Data.Migrations
 
                     b.HasIndex("UpdatedBy");
 
-                    b.HasIndex("TenantId", "ReferenceCode")
-                        .IsUnique()
-                        .HasFilter("\"ReferenceCode\" IS NOT NULL");
-
                     b.ToTable("Contracts");
                 });
 
@@ -698,27 +687,12 @@ namespace API.Data.Migrations
                     b.Property<Guid>("AssetId")
                         .HasColumnType("uuid");
 
-                    b.Property<decimal>("CalculatedAmount")
-                        .HasColumnType("decimal(18,2)");
-
                     b.Property<Guid>("ContractId")
                         .HasColumnType("uuid");
-
-                    b.Property<DateTime>("EndDate")
-                        .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("Notes")
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)");
-
-                    b.Property<int>("RateUnit")
-                        .HasColumnType("integer");
-
-                    b.Property<DateTime>("StartDate")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<decimal>("UnitCost")
-                        .HasColumnType("decimal(18,2)");
 
                     b.HasKey("Id");
 
@@ -728,6 +702,79 @@ namespace API.Data.Migrations
                         .IsUnique();
 
                     b.ToTable("ContractAssets");
+                });
+
+            modelBuilder.Entity("API.Entities.CostAssetHist", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("AssetId")
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("Cost")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<DateTime>("Date")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("DeletedBy")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(250)
+                        .HasColumnType("character varying(250)");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("MaintainedBy")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<uint>("xmin")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AssetId");
+
+                    b.HasIndex("CreatedBy");
+
+                    b.HasIndex("DeletedBy");
+
+                    b.HasIndex("TenantId");
+
+                    b.HasIndex("UpdatedBy");
+
+                    b.ToTable("CostAssetHists");
                 });
 
             modelBuilder.Entity("API.Entities.Customer", b =>
@@ -834,9 +881,6 @@ namespace API.Data.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)");
 
-                    b.Property<Guid>("EntityId")
-                        .HasColumnType("uuid");
-
                     b.Property<string>("EntityType")
                         .IsRequired()
                         .HasMaxLength(50)
@@ -893,12 +937,6 @@ namespace API.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
-                    b.Property<decimal>("AllocatedAmount")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<decimal>("Amount")
-                        .HasColumnType("decimal(18,2)");
-
                     b.Property<Guid>("ContractId")
                         .HasColumnType("uuid");
 
@@ -917,31 +955,29 @@ namespace API.Data.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)");
 
-                    b.Property<DateTime>("DueDate")
+                    b.Property<DateTime?>("DueDate")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<int>("InstallmentNumber")
-                        .HasColumnType("integer");
-
                     b.Property<string>("InvoiceNumber")
+                        .IsRequired()
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)");
 
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("boolean");
 
+                    b.Property<bool>("IsPaid")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime>("IssueDate")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<string>("Notes")
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)");
 
-                    b.Property<DateTime>("PeriodEnd")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateTime>("PeriodStart")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<int>("Status")
-                        .HasColumnType("integer");
+                    b.Property<decimal>("OutstandingBalance")
+                        .HasColumnType("decimal(18,2)");
 
                     b.Property<decimal>("TaxAmount")
                         .HasColumnType("decimal(18,2)");
@@ -967,6 +1003,8 @@ namespace API.Data.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("ContractId");
+
                     b.HasIndex("CreatedBy");
 
                     b.HasIndex("DeletedBy");
@@ -974,9 +1012,6 @@ namespace API.Data.Migrations
                     b.HasIndex("TenantId");
 
                     b.HasIndex("UpdatedBy");
-
-                    b.HasIndex("ContractId", "InstallmentNumber")
-                        .IsUnique();
 
                     b.ToTable("Invoices");
                 });
@@ -1119,15 +1154,11 @@ namespace API.Data.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)");
 
-                    b.Property<string>("Description")
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)");
+                    b.Property<Guid>("InvoiceId")
+                        .HasColumnType("uuid");
 
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("boolean");
-
-                    b.Property<int>("MatchStatus")
-                        .HasColumnType("integer");
 
                     b.Property<string>("Notes")
                         .HasMaxLength(500)
@@ -1142,83 +1173,8 @@ namespace API.Data.Migrations
                     b.Property<Guid>("TenantId")
                         .HasColumnType("uuid");
 
-                    b.Property<string>("TenantReferenceCode")
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
-
                     b.Property<int>("TransactionType")
                         .HasColumnType("integer");
-
-                    b.Property<decimal>("UnallocatedAmount")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("UpdatedBy")
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
-
-                    b.Property<uint>("xmin")
-                        .IsConcurrencyToken()
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("xid")
-                        .HasColumnName("xmin");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CreatedBy");
-
-                    b.HasIndex("DeletedBy");
-
-                    b.HasIndex("MatchStatus");
-
-                    b.HasIndex("TenantId");
-
-                    b.HasIndex("UpdatedBy");
-
-                    b.ToTable("Payments");
-                });
-
-            modelBuilder.Entity("API.Entities.PaymentAllocation", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<decimal>("AllocatedAmount")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("CreatedBy")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
-
-                    b.Property<DateTime?>("DeletedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("DeletedBy")
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
-
-                    b.Property<Guid>("InvoiceId")
-                        .HasColumnType("uuid");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("boolean");
-
-                    b.Property<string>("Notes")
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)");
-
-                    b.Property<Guid>("PaymentId")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("TenantId")
-                        .HasColumnType("uuid");
 
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -1241,46 +1197,11 @@ namespace API.Data.Migrations
 
                     b.HasIndex("InvoiceId");
 
-                    b.HasIndex("PaymentId");
-
                     b.HasIndex("TenantId");
 
                     b.HasIndex("UpdatedBy");
 
-                    b.ToTable("PaymentAllocations");
-                });
-
-            modelBuilder.Entity("API.Entities.PaymentAsset", b =>
-                {
-                    b.Property<Guid>("PaymentId")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("AssetId")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("TenantId")
-                        .HasColumnType("uuid");
-
-                    b.HasKey("PaymentId", "AssetId");
-
-                    b.HasIndex("AssetId");
-
-                    b.ToTable("PaymentAssets");
-                });
-
-            modelBuilder.Entity("API.Entities.PaymentContract", b =>
-                {
-                    b.Property<Guid>("PaymentId")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("ContractId")
-                        .HasColumnType("uuid");
-
-                    b.HasKey("PaymentId", "ContractId");
-
-                    b.HasIndex("ContractId");
-
-                    b.ToTable("PaymentContracts");
+                    b.ToTable("Payments");
                 });
 
             modelBuilder.Entity("API.Entities.Photo", b =>
@@ -1782,6 +1703,45 @@ namespace API.Data.Migrations
                     b.Navigation("Contract");
                 });
 
+            modelBuilder.Entity("API.Entities.CostAssetHist", b =>
+                {
+                    b.HasOne("API.Entities.Asset", "Asset")
+                        .WithMany("MaintenanceHistory")
+                        .HasForeignKey("AssetId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("API.Entities.Member", "CreatedByMember")
+                        .WithMany()
+                        .HasForeignKey("CreatedBy")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("API.Entities.Member", "DeletedByMember")
+                        .WithMany()
+                        .HasForeignKey("DeletedBy");
+
+                    b.HasOne("API.Entities.Tenant", "Tenant")
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("API.Entities.Member", "UpdatedByMember")
+                        .WithMany()
+                        .HasForeignKey("UpdatedBy");
+
+                    b.Navigation("Asset");
+
+                    b.Navigation("CreatedByMember");
+
+                    b.Navigation("DeletedByMember");
+
+                    b.Navigation("Tenant");
+
+                    b.Navigation("UpdatedByMember");
+                });
+
             modelBuilder.Entity("API.Entities.Customer", b =>
                 {
                     b.HasOne("API.Entities.Member", "CreatedByMember")
@@ -1937,46 +1897,9 @@ namespace API.Data.Migrations
                         .WithMany()
                         .HasForeignKey("DeletedBy");
 
-                    b.HasOne("API.Entities.Tenant", "Tenant")
-                        .WithMany()
-                        .HasForeignKey("TenantId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("API.Entities.Member", "UpdatedByMember")
-                        .WithMany()
-                        .HasForeignKey("UpdatedBy");
-
-                    b.Navigation("CreatedByMember");
-
-                    b.Navigation("DeletedByMember");
-
-                    b.Navigation("Tenant");
-
-                    b.Navigation("UpdatedByMember");
-                });
-
-            modelBuilder.Entity("API.Entities.PaymentAllocation", b =>
-                {
-                    b.HasOne("API.Entities.Member", "CreatedByMember")
-                        .WithMany()
-                        .HasForeignKey("CreatedBy")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("API.Entities.Member", "DeletedByMember")
-                        .WithMany()
-                        .HasForeignKey("DeletedBy");
-
                     b.HasOne("API.Entities.Invoice", "Invoice")
-                        .WithMany("Allocations")
+                        .WithMany("Payments")
                         .HasForeignKey("InvoiceId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("API.Entities.Payment", "Payment")
-                        .WithMany("Allocations")
-                        .HasForeignKey("PaymentId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
@@ -1996,49 +1919,9 @@ namespace API.Data.Migrations
 
                     b.Navigation("Invoice");
 
-                    b.Navigation("Payment");
-
                     b.Navigation("Tenant");
 
                     b.Navigation("UpdatedByMember");
-                });
-
-            modelBuilder.Entity("API.Entities.PaymentAsset", b =>
-                {
-                    b.HasOne("API.Entities.Asset", "Asset")
-                        .WithMany()
-                        .HasForeignKey("AssetId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("API.Entities.Payment", "Payment")
-                        .WithMany("PaymentAssets")
-                        .HasForeignKey("PaymentId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Asset");
-
-                    b.Navigation("Payment");
-                });
-
-            modelBuilder.Entity("API.Entities.PaymentContract", b =>
-                {
-                    b.HasOne("API.Entities.Contract", "Contract")
-                        .WithMany("PaymentContracts")
-                        .HasForeignKey("ContractId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("API.Entities.Payment", "Payment")
-                        .WithMany("PaymentContracts")
-                        .HasForeignKey("PaymentId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Contract");
-
-                    b.Navigation("Payment");
                 });
 
             modelBuilder.Entity("API.Entities.Photo", b =>
@@ -2115,6 +1998,8 @@ namespace API.Data.Migrations
 
                     b.Navigation("ContractAssets");
 
+                    b.Navigation("MaintenanceHistory");
+
                     b.Navigation("Photos");
                 });
 
@@ -2137,8 +2022,6 @@ namespace API.Data.Migrations
                     b.Navigation("ContractAssets");
 
                     b.Navigation("Invoices");
-
-                    b.Navigation("PaymentContracts");
                 });
 
             modelBuilder.Entity("API.Entities.Customer", b =>
@@ -2150,16 +2033,7 @@ namespace API.Data.Migrations
 
             modelBuilder.Entity("API.Entities.Invoice", b =>
                 {
-                    b.Navigation("Allocations");
-                });
-
-            modelBuilder.Entity("API.Entities.Payment", b =>
-                {
-                    b.Navigation("Allocations");
-
-                    b.Navigation("PaymentAssets");
-
-                    b.Navigation("PaymentContracts");
+                    b.Navigation("Payments");
                 });
 
             modelBuilder.Entity("API.Entities.Tenant", b =>

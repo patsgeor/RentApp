@@ -1,6 +1,7 @@
 using API.DTOs.Asset;
 using API.Entities;
 using API.Errors;
+using API.Extensions;
 using API.Helper;
 using static API.Entities.Enums;
  
@@ -55,7 +56,7 @@ namespace API.Services;
     {
         var asset = await unitOfWork.AssetRepository.GetEntityByIdAsync(id)
             ?? throw new NotFoundException($"Asset '{id}' was not found.");
- 
+        
         var schema = await unitOfWork.AssetRepository.GetFieldsForTypeAsync(asset.AssetTypeId);
         var field = schema.FirstOrDefault(f => f.Name == dto.FieldName)
             ?? throw new BadRequestException(
@@ -76,6 +77,13 @@ namespace API.Services;
     {
         var asset = await unitOfWork.AssetRepository.GetEntityByIdAsync(id)
             ?? throw new NotFoundException($"Asset '{id}' was not found.");
+        
+        // Έλεγχος optimistic concurrency: αν ο client έχει παλιό xmin,
+        // κάποιος άλλος έχει ήδη αλλάξει το record
+        if (dto.RowVersion != 0 && asset.xmin != dto.RowVersion)
+            throw new ConflictException("Το πάγιο τροποποιήθηκε από άλλο χρήστη. Ανανεώστε τη σελίδα και δοκιμάστε ξανά.");
+
+ 
 
         var schema = await unitOfWork.AssetRepository.GetFieldsForTypeAsync(asset.AssetTypeId);
 
@@ -153,11 +161,8 @@ namespace API.Services;
     }
 
     // ==================================================================
-    //  MAINTENANCE HISTORY
+    //  CONTRACT HISTORY
     // ==================================================================
-    public async Task<PaginatedResult<CostAssetHistDto>> GetMaintenanceHistoryAsync(Guid assetId, PagingParams pagingParams)
-        => await unitOfWork.AssetRepository.GetMaintenanceHistoryAsync(assetId, pagingParams);
-
     public async Task<PaginatedResult<AssetContractHistDto>> GetContractHistoryAsync(Guid assetId, PagingParams pagingParams)
         => await unitOfWork.AssetRepository.GetContractHistoryAsync(assetId, pagingParams);
 
@@ -255,79 +260,94 @@ namespace API.Services;
     }
 
 
-    //CostAssetHist
-    public async Task<CostAssetHistDto> AddMaintenanceRecordAsync(Guid assetId, CostAssetHistCreateDto dto, string currentUserId)
+     // ==================================================================
+    //  MAINTENANCE HISTORY — backed by Payment (Expense + PaymentAsset)
+    // ==================================================================
+
+    public Task<PaginatedResult<CostAssetHistDto>> GetMaintenanceHistoryAsync(Guid assetId, PagingParams pagingParams)
+        => unitOfWork.AssetRepository.GetMaintenanceHistoryAsync(assetId, pagingParams);
+    public async Task<CostAssetHistDto> AddMaintenanceRecordAsync(
+        Guid assetId, CostAssetHistCreateDto dto, string currentUserId)
     {
         var asset = await unitOfWork.AssetRepository.GetEntityByIdAsync(assetId)
             ?? throw new NotFoundException($"Asset '{assetId}' was not found.");
 
-        var record = new CostAssetHist
+        var payment = new Payment
         {
-            TenantId = asset.TenantId,
-            AssetId = assetId,
-            // Same Npgsql UTC requirement as AssetAttributeValue.DateValue —
-            // System.Text.Json deserializes a plain "2026-06-01" into
-            // Kind=Unspecified, which Npgsql rejects for timestamptz columns.
-            Date = DateTime.SpecifyKind(dto.Date, DateTimeKind.Utc),
-            Description = dto.Description,
-            Cost = dto.Cost,
-            MaintainedBy = dto.MaintainedBy,
-            CreatedBy = currentUserId
+            TenantId          = asset.TenantId,
+            Amount            = dto.Cost,
+            UnallocatedAmount = dto.Cost,
+            PaymentDate       = DateTime.SpecifyKind(dto.Date, DateTimeKind.Utc),
+            PaymentMethod     = PaymentMethod.Cash,
+            Description       = dto.Description,
+            Notes             = dto.MaintainedBy,
+            TransactionType   = TransactionType.Expense,
+            CreatedBy         = currentUserId,
+            PaymentAssets     = new List<PaymentAsset>
+            {
+                new() { AssetId = assetId, TenantId = asset.TenantId }
+            }
         };
 
-        await unitOfWork.AssetRepository.AddMaintenanceRecordAsync(record);
+        await unitOfWork.PaymentRepository.AddAsync(payment);
         await unitOfWork.Complete();
 
         return new CostAssetHistDto
         {
-            Id = record.Id,
-            Date = record.Date,
-            Description = record.Description,
-            Cost = record.Cost,
-            MaintainedBy = record.MaintainedBy
+            Id           = payment.Id,
+            Date         = payment.PaymentDate,
+            Description  = payment.Description ?? string.Empty,
+            Cost         = payment.Amount,
+            MaintainedBy = payment.Notes
         };
     }
 
-    
-    public async Task<CostAssetHistDto> UpdateMaintenanceRecordAsync(Guid assetId, Guid recordId, CostAssetHistUpdateDto dto, string currentUserId)
+    public async Task<CostAssetHistDto> UpdateMaintenanceRecordAsync(
+        Guid assetId, Guid recordId, CostAssetHistUpdateDto dto, string currentUserId)
     {
-        var record = await unitOfWork.AssetRepository.GetMaintenanceRecordByIdAsync(recordId)
+        var payment = await unitOfWork.PaymentRepository.GetEntityByIdAsync(recordId)
             ?? throw new NotFoundException($"Maintenance record '{recordId}' was not found.");
 
-        if (record.AssetId != assetId)
+        if (payment.TransactionType != TransactionType.Expense)
+            throw new NotFoundException($"Maintenance record '{recordId}' was not found.");
+
+        if (!payment.PaymentAssets.Any(pa => pa.AssetId == assetId))
             throw new NotFoundException($"Maintenance record '{recordId}' does not belong to this asset.");
 
-        record.Date         = DateTime.SpecifyKind(dto.Date, DateTimeKind.Utc);
-        record.Description  = dto.Description;
-        record.Cost         = dto.Cost;
-        record.MaintainedBy = dto.MaintainedBy;
-        record.UpdatedBy    = currentUserId;
+        payment.PaymentDate       = DateTime.SpecifyKind(dto.Date, DateTimeKind.Utc);
+        payment.Description       = dto.Description;
+        payment.Amount            = dto.Cost;
+        payment.UnallocatedAmount = dto.Cost;
+        payment.Notes             = dto.MaintainedBy;
+        payment.UpdatedAt         = DateTime.UtcNow;
+        payment.UpdatedBy         = currentUserId;
 
-        unitOfWork.AssetRepository.UpdateMaintenanceRecord(record);
         await unitOfWork.Complete();
 
         return new CostAssetHistDto
         {
-            Id           = record.Id,
-            Date         = record.Date,
-            Description  = record.Description,
-            Cost         = record.Cost,
-            MaintainedBy = record.MaintainedBy
+            Id           = payment.Id,
+            Date         = payment.PaymentDate,
+            Description  = payment.Description ?? string.Empty,
+            Cost         = payment.Amount,
+            MaintainedBy = payment.Notes
         };
     }
 
-    public async Task DeleteMaintenanceRecordAsync(Guid assetId, Guid recordId, string currentUserId)
-     {
-        var record = await unitOfWork.AssetRepository.GetMaintenanceRecordByIdAsync(recordId)
+    public async Task DeleteMaintenanceRecordAsync(
+        Guid assetId, Guid recordId, string currentUserId)
+    {
+        var payment = await unitOfWork.PaymentRepository.GetEntityByIdAsync(recordId)
             ?? throw new NotFoundException($"Maintenance record '{recordId}' was not found.");
 
-        if (record.AssetId != assetId)
+        if (payment.TransactionType != TransactionType.Expense)
+            throw new NotFoundException($"Maintenance record '{recordId}' was not found.");
+
+        if (!payment.PaymentAssets.Any(pa => pa.AssetId == assetId))
             throw new NotFoundException($"Maintenance record '{recordId}' does not belong to this asset.");
 
-        record.DeletedBy = currentUserId;
-        unitOfWork.AssetRepository.RemoveMaintenanceRecord(record);
+        payment.DeletedBy = currentUserId;
+        unitOfWork.PaymentRepository.SoftDelete(payment, currentUserId);
         await unitOfWork.Complete();
     }
-
-    
 }

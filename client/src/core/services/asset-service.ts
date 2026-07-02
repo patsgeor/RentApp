@@ -51,6 +51,14 @@ getAssets(pageNumber: number, pageSize: number, searchTerm?: string, assetTypeId
 
   delete(id: string) { return this.http.delete(`${this.base}/${id}`); }
 
+  getAssetLookup(search?: string, assetTypeId?: string) {
+    let params = new HttpParams();
+    if (search) params = params.set('search', search);
+    if (assetTypeId) params = params.set('assetTypeId', assetTypeId);
+    return this.http.get<AssetLookupDto[]>(`${this.base}/lookup`, { params });
+  }
+
+
   searchAssets(req: AssetSearchRequest) {
     const body = {
       assetTypeId: req.assetTypeId,

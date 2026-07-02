@@ -47,8 +47,7 @@ public class Asset: BaseEntity
     // Ένα asset μπορεί να έχει πολλά  συμβόλαια ενοικιασησ και ενα συμβολαιο μπορει να έχει πολλά  παγια
     [JsonIgnore]
     public ICollection<ContractAsset> ContractAssets { get; set; } = new List<ContractAsset>();
-    [JsonIgnore]
-    public ICollection<CostAssetHist> MaintenanceHistory { get; set; } = new List<CostAssetHist>();
+    
     
     [JsonIgnore]
     public List<Photo> Photos { get; set; } = new List<Photo>();

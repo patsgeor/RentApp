@@ -8,6 +8,7 @@ public interface IUnitOfWork
     IAssetRepository AssetRepository { get; }
     IContractRepository ContractRepository { get; }
     IMemberRepository MemberRepository { get; }
+    IPaymentRepository PaymentRepository { get; }
  
     Task<bool> Complete();
     bool HasChanges();

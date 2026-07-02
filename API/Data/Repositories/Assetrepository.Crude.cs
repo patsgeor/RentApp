@@ -295,45 +295,30 @@ public partial class AssetRepository
     }
  
     // ==================================================================
-    //  MAINTENANCE HISTORY (CostAssetHist)
+    //  MAINTENANCE HISTORY — queries Payment (Expense) + PaymentAsset
     // ==================================================================
- 
+
     public async Task<PaginatedResult<CostAssetHistDto>> GetMaintenanceHistoryAsync(Guid assetId, PagingParams pagingParams)
     {
-         var query = context.CostAssetHists
+        var query = context.Payments
             .AsNoTracking()
-            .Where(h => h.AssetId == assetId)
-            .OrderByDescending(h => h.Date)
-            .Select(h => new CostAssetHistDto
+            .Where(p => p.TransactionType == TransactionType.Expense
+                     && p.PaymentAssets.Any(pa => pa.AssetId == assetId))
+            .OrderByDescending(p => p.PaymentDate)
+            .Select(p => new CostAssetHistDto
             {
-                Id          = h.Id,
-                Date        = h.Date,
-                Description = h.Description,
-                Cost        = h.Cost,
-                MaintainedBy = h.MaintainedBy
+                Id           = p.Id,
+                Date         = p.PaymentDate,
+                Description  = p.Description ?? string.Empty,
+                Cost         = p.Amount,
+                MaintainedBy = p.Notes
             });
         return await PaginationHelper.CreateAsync(query, pagingParams.PageNumber, pagingParams.PageSize);
     }
- 
-    public async Task AddMaintenanceRecordAsync(CostAssetHist record)
-    {
-        await context.CostAssetHists.AddAsync(record);
-    }
 
-      public  async Task<CostAssetHist?> GetMaintenanceRecordByIdAsync(Guid recordId)
-        => await context.CostAssetHists.FirstOrDefaultAsync(h => h.Id == recordId);
-
-    public void UpdateMaintenanceRecord(CostAssetHist record)
-        =>  context.CostAssetHists.Update(record);
-
-    public void RemoveMaintenanceRecord(CostAssetHist record)
-    {
-        record.IsDeleted = true;
-        record.DeletedAt = DateTime.UtcNow;
-        context.Entry(record).State = EntityState.Modified;
-    }
-
-
+    // ==================================================================
+    //  CONTRACT HISTORY — queries ContractAsset + Contract + Customer  
+    // ==================================================================
     public async Task<PaginatedResult<AssetContractHistDto>> GetContractHistoryAsync(Guid assetId, PagingParams pagingParams)
     {
         var query = context.ContractAssets
@@ -387,6 +372,7 @@ public partial class AssetRepository
     private static AssetDto MapToDto(Asset asset) => new()
     {
          Id           = asset.Id,
+        RowVersion   = asset.xmin, 
         AssetTypeId  = asset.AssetTypeId,
         AssetTypeName= asset.AssetType?.Name ?? string.Empty,
         Name         = asset.Name,
