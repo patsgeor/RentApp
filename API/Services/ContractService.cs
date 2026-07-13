@@ -68,7 +68,7 @@ public class ContractService(IUnitOfWork uow, ITenantProvider tenantProvider) : 
             ?? throw new Exception("Αδυναμία ανάκτησης συμβολαίου μετά τη δημιουργία.");
     }
 
-public async Task<ContractDetailDto> UpdateAsync(Guid id, ContractUpdateDto dto, string memberId)
+   public async Task<ContractDetailDto> UpdateAsync(Guid id, ContractUpdateDto dto, string memberId)
 {
     if (dto.EndDate <= dto.StartDate)
         throw new BadRequestException("Η ημερομηνία λήξης πρέπει να είναι μετά την έναρξη.");
@@ -82,16 +82,14 @@ public async Task<ContractDetailDto> UpdateAsync(Guid id, ContractUpdateDto dto,
     await using var tx = await uow.BeginTransactionAsync();
     try
     {
-        // Raw DELETE — no xmin WHERE clause, no change-tracker involvement
         await uow.ContractRepository.DeleteAllAssetsAsync(id);
 
         var newAssets = dto.Assets.Select(a => new ContractAsset
         {
             ContractId       = id,
-            TenantId         = tenantProvider.TenantId,
             AssetId          = a.AssetId,
-            StartDate        = a.StartDate,
-            EndDate          = a.EndDate,
+            StartDate        = DateTime.SpecifyKind(a.StartDate, DateTimeKind.Utc),
+            EndDate          = DateTime.SpecifyKind(a.EndDate,   DateTimeKind.Utc),
             UnitCost         = a.UnitCost,
             RateUnit         = a.RateUnit,
             CalculatedAmount = a.CalculatedAmount,
@@ -102,9 +100,11 @@ public async Task<ContractDetailDto> UpdateAsync(Guid id, ContractUpdateDto dto,
         var totalAmount = dto.Assets.Sum(a => a.CalculatedAmount) - dto.DiscountAmount + dto.TaxAmount;
 
         contract.CustomerId           = dto.CustomerId;
-        contract.StartDate            = dto.StartDate;
-        contract.EndDate              = dto.EndDate;
-        contract.SignedDate           = dto.SignedDate;
+        contract.StartDate            = DateTime.SpecifyKind(dto.StartDate, DateTimeKind.Utc);
+        contract.EndDate              = DateTime.SpecifyKind(dto.EndDate,   DateTimeKind.Utc);
+        contract.SignedDate           = dto.SignedDate.HasValue
+                                            ? DateTime.SpecifyKind(dto.SignedDate.Value, DateTimeKind.Utc)
+                                            : null;
         contract.ReferenceCode        = string.IsNullOrWhiteSpace(dto.ReferenceCode) ? null : dto.ReferenceCode.Trim();
         contract.AadeNumber           = dto.AadeNumber;
         contract.TaxAmount            = dto.TaxAmount;
@@ -129,6 +129,7 @@ public async Task<ContractDetailDto> UpdateAsync(Guid id, ContractUpdateDto dto,
     return await uow.ContractRepository.GetByIdAsync(id)
         ?? throw new Exception("Αδυναμία ανάκτησης συμβολαίου μετά την ενημέρωση.");
 }
+
     public async Task DeleteAsync(Guid id, string memberId)
     {
         var contract = await uow.ContractRepository.FindAsync(id)

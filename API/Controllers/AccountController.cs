@@ -73,7 +73,8 @@ namespace API.Controllers
         public async Task<IActionResult> Invite(MemberInviteDto dto)
         {
             var tenantId = User.GetTenantId();
-            await uow.MemberRepository.InviteMemberAsync(dto, tenantId);
+            await uow.MemberRepository.InviteMemberAsync(dto, tenantId, User.GetMemberId().ToString(),
+                cc: new List<string> { User.GetEmail() });
 
             return Ok(new { message = "Invite sent" });
         }

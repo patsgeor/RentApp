@@ -49,8 +49,8 @@ public partial class AssetRepository
         // Materialize entities first (attribute flattening needs in-memory work),
         // then page manually since PaginationHelper expects IQueryable<TDto> —
         // here we project to DTO via AsEnumerable to call the local mapper.
-        var countQuery = ordered;
-        var totalCount = await countQuery.CountAsync();
+        //var countQuery = ordered;
+        var totalCount = await ordered.CountAsync();
  
         var pageEntities = await ordered
             .Skip((pagingParams.PageNumber - 1) * pagingParams.PageSize)

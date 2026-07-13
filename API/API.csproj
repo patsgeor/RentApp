@@ -31,11 +31,9 @@
     <Folder Include="Data\Migrations\" />
     <Folder Include="DTOs\Asset\" />
     <Folder Include="DTOs\Contacts\" />
-    <Folder Include="DTOs\Customer\" />
     <Folder Include="DTOs\Dashboard\" />
     <Folder Include="Errors\" />
     <Folder Include="Extensions\" />
-    <Folder Include="Helper\" />
     <Folder Include="Middleware\" />
   </ItemGroup>
 

@@ -12,7 +12,7 @@ public interface IMemberRepository
 
     Task<AppUser> AddTenantAsync(TenantRegisterDto tenantRegisterDto);
     
-    Task InviteMemberAsync(MemberInviteDto dto, Guid tenantId);
+    Task InviteMemberAsync(MemberInviteDto dto, Guid tenantId, string InvitedBy, IEnumerable<string>? cc = null);
     Task<MemberInviteInfoDto?> GetInviteInfoAsync(string token);
     Task<AppUser> RegisterFromInviteAsync(MemberRegisterFromInviteDto dto);
 

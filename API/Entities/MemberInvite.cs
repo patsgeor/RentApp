@@ -13,7 +13,5 @@ public class MemberInvite :BaseEntity
     public DateTime ExpiresAt { get; set; } 
     public bool IsUsed { get; set; } = false;
 
-    //navigation property
-    public Tenant Tenant { get; set; } =null!;
-   
+
 }

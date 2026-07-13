@@ -26,7 +26,6 @@ public class Asset: BaseEntity
     [Column(TypeName = "decimal(18,2)")]
     public decimal Cost { get; set; }
 
-
     public AssetStatus Status { get; set; } = AssetStatus.Available;
 
     public string? PhotoUrl { get; set; }
@@ -47,8 +46,7 @@ public class Asset: BaseEntity
     // Ένα asset μπορεί να έχει πολλά  συμβόλαια ενοικιασησ και ενα συμβολαιο μπορει να έχει πολλά  παγια
     [JsonIgnore]
     public ICollection<ContractAsset> ContractAssets { get; set; } = new List<ContractAsset>();
-    
-    
+      
     [JsonIgnore]
     public List<Photo> Photos { get; set; } = new List<Photo>();
 }

@@ -52,6 +52,10 @@ builder.Services.AddScoped<IPhotoService, PhotoService>();
 builder.Services.AddScoped<IPaymentService, PaymentService>();
 builder.Services.AddScoped<IDashboardService, DashboardService>();
 builder.Services.AddScoped<IContractService, ContractService>();
+builder.Services.AddScoped<IInstallmentService, InstallmentService>();
+builder.Services.AddHttpClient();
+builder.Services.AddScoped<AadeService>();
+
 
 
 
@@ -109,6 +113,10 @@ builder.Services.AddCors();
 //  Identity configuration
 builder.Services.AddIdentityCore<AppUser>(options =>
     {
+        options.Password.RequiredLength = 6;
+        options.Password.RequireUppercase = true;
+        options.Password.RequireLowercase = true;
+        options.Password.RequireDigit = true;
         options.Password.RequireNonAlphanumeric = false;// για να μην απαιτείται ειδικός χαρακτήρας στο password
         options.User.RequireUniqueEmail = true;// για να απαιτείται μοναδικό email
     })

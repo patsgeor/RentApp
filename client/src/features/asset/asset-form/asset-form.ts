@@ -43,7 +43,7 @@ export class AssetForm implements OnInit {
 
 
   form = this.fb.group({
-       assetTypeId: ['', Validators.required],
+    assetTypeId: ['', Validators.required],
     name:        ['', [Validators.required, Validators.maxLength(150)]],
     notes:       ['', Validators.maxLength(500)],
     rateUnit:    [RateUnit.PerDay as RateUnit, Validators.required],

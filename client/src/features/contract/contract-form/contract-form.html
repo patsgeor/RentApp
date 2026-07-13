@@ -79,7 +79,7 @@
                    class="input input-bordered input-sm" maxlength="50" />
           </div>
           <div class="form-control">
-            <label class="label"><span class="label-text">Αριθμός ΑΔΩΑ</span></label>
+            <label class="label"><span class="label-text">Αριθμός ΑΑΔΕ</span></label>
             <input type="text" formControlName="aadeNumber" class="input input-bordered input-sm" maxlength="100" />
           </div>
           <div class="form-control">
@@ -287,7 +287,7 @@
             <input type="number" formControlName="discountAmount" class="input input-bordered input-sm w-36" min="0" step="0.01" />
           </div>
           <div class="form-control">
-            <label class="label"><span class="label-text">ΦΠΑ / Φόρος (€)</span></label>
+            <label class="label"><span class="label-text"> Φορολογικό ποσό (€)</span></label>
             <input type="number" formControlName="taxAmount" class="input input-bordered input-sm w-36" min="0" step="0.01" />
           </div>
 
@@ -301,10 +301,10 @@
               <span class="text-base-content/60">Έκπτωση:</span>
               <span class="font-mono text-error">- {{ (form.get('discountAmount')?.value ?? 0) | number:'1.2-2' }} €</span>
             </div>
-            <div class="flex justify-between text-sm">
+            <!-- <div class="flex justify-between text-sm">
               <span class="text-base-content/60">ΦΠΑ/Φόρος:</span>
               <span class="font-mono">+ {{ (form.get('taxAmount')?.value ?? 0) | number:'1.2-2' }} €</span>
-            </div>
+            </div> -->
             <div class="divider my-0.5"></div>
             <div class="flex justify-between text-base font-bold">
               <span>Σύνολο:</span>

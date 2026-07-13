@@ -1,0 +1,275 @@
+<div class="space-y-5">
+
+  <!-- Header -->
+  <div class="flex flex-wrap items-center gap-3">
+    <a routerLink="/contracts" class="btn btn-ghost btn-sm btn-square">
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-5">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" />
+      </svg>
+    </a>
+    <h1 class="text-2xl font-bold flex-1">Πρόγραμμα Δόσεων</h1>
+    @if (contract()) {
+      <a [routerLink]="['/contracts', contractId, 'edit']" class="btn btn-outline btn-sm">
+        Επεξεργασία Συμβολαίου
+      </a>
+    }
+  </div>
+
+  @if (loading()) {
+    <div class="flex justify-center py-16"><span class="loading loading-spinner loading-lg"></span></div>
+  } @else {
+
+    <!-- Contract info -->
+    @if (contract(); as c) {
+      <div class="card bg-base-200 shadow-sm">
+        <div class="card-body py-3 px-5">
+          <div class="flex flex-wrap gap-x-8 gap-y-2 text-sm">
+            <div>
+              <p class="text-base-content/50 text-xs">Πελάτης</p>
+              <p class="font-semibold">{{ c.customerName }}</p>
+            </div>
+            @if (c.referenceCode) {
+              <div>
+                <p class="text-base-content/50 text-xs">Κωδικός</p>
+                <p class="font-mono font-semibold">{{ c.referenceCode }}</p>
+              </div>
+            }
+            <div>
+              <p class="text-base-content/50 text-xs">Περίοδος</p>
+              <p class="font-semibold">{{ c.startDate | date:'dd/MM/yyyy' }} – {{ c.endDate | date:'dd/MM/yyyy' }}</p>
+            </div>
+            <div>
+              <p class="text-base-content/50 text-xs">Αξία Συμβολαίου</p>
+              <p class="font-mono font-semibold">{{ c.totalAmount | currency:'EUR':'symbol':'1.2-2':'el' }}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    }
+
+    <!-- Messages -->
+    @if (errorMsg()) {
+      <div class="alert alert-error text-sm py-2">{{ errorMsg() }}</div>
+    }
+    @if (successMsg()) {
+      <div class="alert alert-success text-sm py-2">{{ successMsg() }}</div>
+    }
+
+    <!-- Empty state -->
+    @if (lines().length === 0) {
+      <div class="card bg-base-200">
+        <div class="card-body items-center text-center gap-4 py-10">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-12 text-base-content/20">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5" />
+          </svg>
+          <div>
+            <p class="font-medium">Δεν υπάρχουν δόσεις</p>
+            <p class="text-sm text-base-content/50 mt-1">Δημιουργήστε αυτόματα βάσει συχνότητας ή προσθέστε χειροκίνητα.</p>
+          </div>
+          <div class="flex gap-3">
+            <button class="btn btn-primary btn-sm gap-2" [disabled]="generating()" (click)="generate()">
+              @if (generating()) { <span class="loading loading-spinner loading-xs"></span> }
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09Z" />
+              </svg>
+              Αυτόματη Δημιουργία
+            </button>
+            <button class="btn btn-outline btn-sm gap-2" (click)="addLine()">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+              </svg>
+              Χειροκίνητη Δόση
+            </button>
+          </div>
+        </div>
+      </div>
+
+    } @else {
+
+      <!-- Progress stats -->
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div class="stat bg-base-200 rounded-box py-3 px-4">
+          <div class="stat-title text-xs">Σύνολο Δόσεων</div>
+          <div class="stat-value text-lg">{{ lines().length }}</div>
+          <div class="stat-desc">{{ paidCount() }} εξοφλ. · {{ overdueCount() }} ληξ/θεσμες</div>
+        </div>
+        <div class="stat bg-base-200 rounded-box py-3 px-4">
+          <div class="stat-title text-xs">Εξοφλημένο</div>
+          <div class="stat-value text-lg text-success">{{ totalPaid() | currency:'EUR':'symbol':'1.0-0':'el' }}</div>
+          <div class="stat-desc">{{ paidCount() }} δόσεις</div>
+        </div>
+        <div class="stat bg-base-200 rounded-box py-3 px-4">
+          <div class="stat-title text-xs">Εκκρεμές</div>
+          <div class="stat-value text-lg" [class.text-error]="outstanding() > 0">{{ outstanding() | currency:'EUR':'symbol':'1.0-0':'el' }}</div>
+          <div class="stat-desc">{{ pendingCount() }} εκκρεμείς</div>
+        </div>
+        <div class="stat bg-base-200 rounded-box py-3 px-4">
+          <div class="stat-title text-xs">Πρόοδος</div>
+          <div class="stat-value text-lg">{{ progress() }}%</div>
+          <progress class="progress progress-success w-full mt-1" [value]="progress()" max="100"></progress>
+        </div>
+      </div>
+
+      <!-- Toolbar -->
+      <div class="flex flex-wrap items-center gap-2">
+        <button class="btn btn-primary btn-sm gap-2" [disabled]="saving() || !isDirty()" (click)="save()">
+          @if (saving()) { <span class="loading loading-spinner loading-xs"></span> }
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+          </svg>
+          Αποθήκευση
+        </button>
+        @if (isDirty()) {
+          <button class="btn btn-ghost btn-sm" (click)="revert()">Ακύρωση αλλαγών</button>
+          <span class="badge badge-warning badge-sm">Ανεπίσημες αλλαγές</span>
+        }
+        <div class="flex-1"></div>
+        <button class="btn btn-outline btn-sm gap-2" (click)="addLine()">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+          </svg>
+          Νέα Δόση
+        </button>
+      </div>
+
+      <!-- Editable table -->
+      <div class="overflow-x-auto rounded-box border border-base-200">
+        <table class="table table-xs">
+          <thead class="bg-base-200">
+            <tr>
+              <th class="w-8">#</th>
+              <th>Έναρξη Περ.</th>
+              <th>Λήξη Περ.</th>
+              <th>Πληρωμή έως</th>
+              <th class="text-right">Ποσό (€)</th>
+              <th class="text-right">ΦΠΑ (€)</th>
+              <th class="text-right">Σύνολο</th>
+              <th class="text-right">Εξοφλ.</th>
+              <th class="text-right">Εκκρεμές</th>
+              <th>Κατάσταση</th>
+              <th class="w-16"></th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (line of lines(); track line.id ?? ('new-' + $index); let i = $index) {
+              <tr [class]="!line.id ? 'bg-warning/5' : (line.status === IS.Cancelled ? 'opacity-50' : '')">
+
+                <td class="font-mono text-xs text-base-content/50">{{ line.installmentNumber }}</td>
+
+                <!-- Period start -->
+                <td>
+                  <input type="date" class="input input-bordered input-xs w-32"
+                         [value]="line.periodStart"
+                         [disabled]="line.status === IS.Paid"
+                         (change)="updateLine(i, 'periodStart', $any($event.target).value)">
+                </td>
+
+                <!-- Period end -->
+                <td>
+                  <input type="date" class="input input-bordered input-xs w-32"
+                         [value]="line.periodEnd"
+                         [disabled]="line.status === IS.Paid"
+                         (change)="updateLine(i, 'periodEnd', $any($event.target).value)">
+                </td>
+
+                <!-- Due date -->
+                <td>
+                  <input type="date" class="input input-xs w-32"
+                         [class.input-bordered]="line.status !== IS.Overdue"
+                         [class.input-error]="line.status === IS.Overdue"
+                         [value]="line.dueDate"
+                         [disabled]="line.status === IS.Paid"
+                         (change)="updateLine(i, 'dueDate', $any($event.target).value)">
+                </td>
+
+                <!-- Amount -->
+                <td class="text-right">
+                  <input type="number" step="0.01" min="0"
+                         class="input input-bordered input-xs w-24 text-right font-mono"
+                         [value]="line.amount"
+                         [disabled]="!canEditAmounts(line)"
+                         (change)="updateLine(i, 'amount', +$any($event.target).value)">
+                </td>
+
+                <!-- Tax amount -->
+                <td class="text-right">
+                  <input type="number" step="0.01" min="0"
+                         class="input input-bordered input-xs w-24 text-right font-mono"
+                         [value]="line.taxAmount"
+                         [disabled]="!canEditAmounts(line)"
+                         (change)="updateLine(i, 'taxAmount', +$any($event.target).value)">
+                </td>
+
+                <!-- Total (computed) -->
+                <td class="text-right font-mono font-semibold whitespace-nowrap">
+                  {{ lineTotal(line) | currency:'EUR':'symbol':'1.2-2':'el' }}
+                </td>
+
+                <!-- Allocated -->
+                <td class="text-right font-mono text-success whitespace-nowrap">
+                  {{ line.allocatedAmount | currency:'EUR':'symbol':'1.2-2':'el' }}
+                </td>
+
+                <!-- Outstanding -->
+                <td class="text-right font-mono whitespace-nowrap"
+                    [class.text-error]="lineTotal(line) - line.allocatedAmount > 0 && line.status !== IS.Paid">
+                  {{ (lineTotal(line) - line.allocatedAmount) | currency:'EUR':'symbol':'1.2-2':'el' }}
+                </td>
+
+                <!-- Status -->
+                <td>
+                  @if (!line.id) {
+                    <span class="badge badge-sm badge-ghost">Νέα</span>
+                  } @else {
+                    <span [class]="statusBadge(line.status)">{{ statusLabel(line.status) }}</span>
+                  }
+                </td>
+
+                <!-- Actions -->
+                <td>
+                  <div class="flex gap-0.5">
+                    @if (line.id && line.status !== IS.Paid && line.status !== IS.Cancelled) {
+                      <button class="btn btn-ghost btn-xs text-primary"
+                              title="Email υπενθύμιση"
+                              [disabled]="notifying() === line.id"
+                              (click)="sendEmail(line.id!)">
+                        @if (notifying() === line.id) {
+                          <span class="loading loading-spinner loading-xs"></span>
+                        } @else {
+                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-3.5">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 0 1-2.25 2.25h-15a2.25 2.25 0 0 1-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25m19.5 0v.243a2.25 2.25 0 0 1-1.07 1.916l-7.5 4.615a2.25 2.25 0 0 1-2.36 0L3.32 8.91a2.25 2.25 0 0 1-1.07-1.916V6.75" />
+                          </svg>
+                        }
+                      </button>
+                    }
+                    <button class="btn btn-ghost btn-xs text-error"
+                            title="Διαγραφή δόσης"
+                            [disabled]="line.allocatedAmount > 0"
+                            (click)="removeLine(i)">
+                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-3.5">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
+                </td>
+
+              </tr>
+            }
+          </tbody>
+          <tfoot class="bg-base-200 font-semibold">
+            <tr>
+              <td colspan="6" class="text-sm">Σύνολο</td>
+              <td class="text-right font-mono">{{ totalScheduled() | currency:'EUR':'symbol':'1.2-2':'el' }}</td>
+              <td class="text-right font-mono text-success">{{ totalPaid() | currency:'EUR':'symbol':'1.2-2':'el' }}</td>
+              <td class="text-right font-mono" [class.text-error]="outstanding() > 0">{{ outstanding() | currency:'EUR':'symbol':'1.2-2':'el' }}</td>
+              <td colspan="2"></td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+
+    }
+
+  } <!-- /loading -->
+
+</div>

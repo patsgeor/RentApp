@@ -1,5 +1,5 @@
 <div class="min-h-screen flex items-center justify-center bg-base-200 py-10">
-  <div class="card w-full max-w-md bg-base-100 shadow-xl">
+  <div class="card w-full max-w-lg bg-base-100 shadow-xl">
     <div class="card-body gap-4">
 
       <!-- Logo / Title -->
@@ -41,9 +41,9 @@
           </div>
         }
 
-        <form [formGroup]="form" (ngSubmit)="onRegister()" class="flex flex-col gap-4">
+        <form [formGroup]="form" (ngSubmit)="onRegister()" class="flex flex-col gap-4 w-full">
 
-          <div class="form-control">
+          <div class="form-control flex flex-col gap-0 w-full">
             <label class="label" for="displayName">
               <span class="label-text font-medium">Όνομα Χρήστη <span class="text-error">*</span></span>
             </label>
@@ -58,7 +58,7 @@
             }
           </div>
 
-          <div class="form-control">
+          <div class="form-control flex flex-col gap-0 w-full">
             <label class="label" for="password">
               <span class="label-text font-medium">Κωδικός <span class="text-error">*</span></span>
             </label>
@@ -71,12 +71,22 @@
                 <span class="label-text-alt text-error">
                   @if (f['password'].errors?.['required']) { Ο κωδικός είναι υποχρεωτικός }
                   @else if (f['password'].errors?.['minlength']) { Τουλάχιστον 6 χαρακτήρες }
+                  @else if (f['password'].errors?.['pattern']) { 
+                      <div> Το password πρέπει να περιέχει:
+                        <ul>
+                          <li>τουλάχιστον ένα κεφαλαίο γράμμα</li>
+                          <li>τουλάχιστον ένα πεζό γράμμα</li>
+                          <li>τουλάχιστον έναν αριθμό</li>
+                          <li>τουλάχιστον ένα σύμβολο</li>
+                        </ul>
+                      </div>
+                  }
                 </span>
               </div>
             }
           </div>
 
-          <div class="form-control">
+          <div class="form-control flex flex-col gap-0 w-full">
             <label class="label" for="confirmPassword">
               <span class="label-text font-medium">Επιβεβαίωση Κωδικού <span class="text-error">*</span></span>
             </label>

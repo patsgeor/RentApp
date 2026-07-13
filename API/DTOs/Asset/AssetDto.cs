@@ -49,6 +49,7 @@ public class AssetCreateDto
  
     // key = AssetTypeField.Name, value = raw value from the Angular form
     // (always sent as JSON; server parses/validates against the field's DataType)
+    // e.g. { "Color": "Red", "Mileage": 12345, "FirstRegistration": "2020-01-01" }
     public Dictionary<string, object?> Attributes { get; set; } = new();
 }
  

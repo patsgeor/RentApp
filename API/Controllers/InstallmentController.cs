@@ -15,13 +15,8 @@ public class InstallmentController(IInstallmentService installmentService) : Bas
     [HttpPost("generate/{contractId:guid}")]
     public async Task<IActionResult> Generate(Guid contractId)
     {
-        try
-        {
-            await installmentService.GenerateInstallmentsAsync(contractId, User.GetMemberId().ToString());
-            return Ok(new { message = "Installments generated successfully." });
-        }
-        catch (NotFoundException ex) { return NotFound(new { message = ex.Message }); }
-        catch (BadRequestException ex) { return BadRequest(new { message = ex.Message }); }
+        await installmentService.GenerateInstallmentsAsync(contractId, User.GetMemberId().ToString());
+        return Ok(new { message = "Οι δόσεις δημιουργήθηκαν επιτυχώς." });
     }
 
     // GET api/installment/contract/{contractId}
@@ -32,7 +27,15 @@ public class InstallmentController(IInstallmentService installmentService) : Bas
         return Ok(result);
     }
 
-    // GET api/installment/overdue?page=1&pageSize=20
+    // GET api/installment/debts?month=6&year=2026&status=3&search=...
+    [HttpGet("debts")]
+    public async Task<IActionResult> GetDebts([FromQuery] DebtParams p)
+    {
+        var result = await installmentService.GetDebtsAsync(p);
+        return Ok(result);
+    }
+
+    // GET api/installment/overdue
     [HttpGet("overdue")]
     public async Task<IActionResult> GetOverdue([FromQuery] PagingParams pagingParams)
     {
@@ -40,17 +43,20 @@ public class InstallmentController(IInstallmentService installmentService) : Bas
         return Ok(result);
     }
 
+    // POST api/installment/{id}/notify-email
+    [HttpPost("{id:guid}/notify-email")]
+    public async Task<IActionResult> NotifyEmail(Guid id)
+    {
+        await installmentService.NotifyByEmailAsync(id, User.GetMemberId().ToString());
+        return Ok(new { message = "Το email υπενθύμισης εστάλη επιτυχώς." });
+    }
+
     // POST api/installment/auto-match/{paymentId}
     [HttpPost("auto-match/{paymentId:guid}")]
     public async Task<ActionResult<MatchResultDto>> AutoMatch(Guid paymentId)
     {
-        try
-        {
-            var result = await installmentService.AutoMatchAsync(paymentId, User.GetMemberId().ToString());
-            return Ok(result);
-        }
-        catch (NotFoundException ex) { return NotFound(new { message = ex.Message }); }
-        catch (Exception ex) { return BadRequest(new { message = ex.Message }); }
+        var result = await installmentService.AutoMatchAsync(paymentId, User.GetMemberId().ToString());
+        return Ok(result);
     }
 
     // POST api/installment/allocate/{paymentId}
@@ -58,37 +64,42 @@ public class InstallmentController(IInstallmentService installmentService) : Bas
     public async Task<IActionResult> AllocateManually(
         Guid paymentId, [FromBody] List<AllocationItemDto> items)
     {
-        try
-        {
-            await installmentService.AllocateManuallyAsync(paymentId, items, User.GetMemberId().ToString());
-            return Ok(new { message = "Allocation saved." });
-        }
-        catch (NotFoundException ex) { return NotFound(new { message = ex.Message }); }
-        catch (BadRequestException ex) { return BadRequest(new { message = ex.Message }); }
+        await installmentService.AllocateManuallyAsync(paymentId, items, User.GetMemberId().ToString());
+        return Ok(new { message = "Η κατανομή αποθηκεύτηκε." });
     }
 
     // DELETE api/installment/allocation/{allocationId}
     [HttpDelete("allocation/{allocationId:guid}")]
     public async Task<IActionResult> Deallocate(Guid allocationId)
     {
-        try
-        {
-            await installmentService.DeallocateAsync(allocationId, User.GetMemberId().ToString());
-            return NoContent();
-        }
-        catch (NotFoundException ex) { return NotFound(new { message = ex.Message }); }
+        await installmentService.DeallocateAsync(allocationId, User.GetMemberId().ToString());
+        return NoContent();
     }
 
     // DELETE api/installment/{invoiceId}/cancel
     [HttpDelete("{invoiceId:guid}/cancel")]
     public async Task<IActionResult> Cancel(Guid invoiceId)
     {
-        try
-        {
-            await installmentService.CancelInstallmentAsync(invoiceId, User.GetMemberId().ToString());
-            return NoContent();
-        }
-        catch (NotFoundException ex) { return NotFound(new { message = ex.Message }); }
-        catch (BadRequestException ex) { return BadRequest(new { message = ex.Message }); }
+        await installmentService.CancelInstallmentAsync(invoiceId, User.GetMemberId().ToString());
+        return NoContent();
+    }
+
+    // PUT api/installment/contract/{contractId}/schedule
+    [HttpPut("contract/{contractId:guid}/schedule")]
+    public async Task<IActionResult> UpdateSchedule(
+        Guid contractId, [FromBody] List<ScheduleInstallmentDto> schedule)
+    {
+        await installmentService.UpdateScheduleAsync(
+            contractId, schedule, User.GetMemberId().ToString());
+        return Ok(new { message = "Το πρόγραμμα δόσεων αποθηκεύτηκε." });
+    }
+
+    // GET api/installment/stats?month=6&year=2026
+    [HttpGet("stats")]
+    public async Task<ActionResult<DebtStatsDto>> GetStats(
+        [FromQuery] int? month, [FromQuery] int? year)
+    {
+        var result = await installmentService.GetStatsAsync(month, year);
+        return Ok(result);
     }
 }

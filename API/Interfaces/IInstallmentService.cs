@@ -13,6 +13,9 @@ public interface IInstallmentService
 
     // Εκπρόθεσμες (cross-contract)
     Task<PaginatedResult<InstallmentDto>> GetOverdueAsync(PagingParams pagingParams);
+    
+    // Οφειλές με φίλτρα (cross-contract)
+    Task<PaginatedResult<InstallmentDto>> GetDebtsAsync(DebtParams p);
 
     // Batch: ενημέρωση status σε Overdue όσων πέρασε η DueDate
     Task RefreshOverdueStatusesAsync();
@@ -28,4 +31,8 @@ public interface IInstallmentService
 
     // Ακύρωση οφειλής
     Task CancelInstallmentAsync(Guid invoiceId, string userId);
+    Task NotifyByEmailAsync(Guid invoiceId, string userId);
+
+    Task UpdateScheduleAsync(Guid contractId, List<ScheduleInstallmentDto> schedule, string userId);
+    Task<DebtStatsDto> GetStatsAsync(int? month, int? year);
 }

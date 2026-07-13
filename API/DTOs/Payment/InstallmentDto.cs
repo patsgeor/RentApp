@@ -7,6 +7,7 @@ public class InstallmentDto
 {
     public Guid Id { get; set; }
     public Guid ContractId { get; set; }
+    public string? ContractReferenceCode { get; set; }
     public string CustomerName { get; set; } = null!;
     public int InstallmentNumber { get; set; }
     public DateTime PeriodStart { get; set; }
@@ -46,4 +47,26 @@ public class MatchResultDto
     public decimal Unallocated { get; set; }
     public List<AllocationSummaryDto> Allocations { get; set; } = [];
     public string? Message { get; set; }
+}
+
+public class ScheduleInstallmentDto
+{
+    public Guid? Id { get; set; }
+    public int InstallmentNumber { get; set; }
+    public DateTime PeriodStart { get; set; }
+    public DateTime PeriodEnd { get; set; }
+    public DateTime DueDate { get; set; }
+    public decimal Amount { get; set; }
+    public decimal TaxAmount { get; set; }
+    public string? Notes { get; set; }
+}
+
+public class DebtStatsDto
+{
+    public decimal ExpectedThisMonth { get; set; }
+    public decimal TotalOutstanding { get; set; }
+    public int    OverdueCount { get; set; }
+    public decimal OverdueAmount { get; set; }
+    public int    PendingCount { get; set; }
+    public int    PartiallyPaidCount { get; set; }
 }

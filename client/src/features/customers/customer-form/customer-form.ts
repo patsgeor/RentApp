@@ -154,4 +154,20 @@ export class CustomerForm implements OnInit {
       next: () => this.contacts.update(list => list.filter(c => c.id !== id))
     });
   }
+
+  lookupAfm() {
+  const afm = this.form.get('afm')?.value;
+  if (!afm || afm.length !== 9) return;
+
+  this.service.getAadeCompany(afm).subscribe({
+    next: (data) => {
+      this.form.patchValue({
+        name: data.name ?? '',
+        dou:  data.doyDescription ?? '',
+        address: `${data.address ?? ''} ${data.addressNo ?? ''}`.trim(),
+      });
+    },
+    error: () => this.errorMsg.set('Δεν βρέθηκαν στοιχεία ΑΑΔΕ.')
+  });
+}
 }

@@ -86,7 +86,7 @@ public class MemberRepository (
     // -- RegisterFromInviteAsync
         // παίρνει το invite token και τα στοιχεία του νέου μέλους (display name, password) και δημιουργεί το νέο μέλος στο database. 
         // Το invite token γίνεται used και δεν μπορεί να χρησιμοποιηθεί ξανά.
-    public async Task InviteMemberAsync(MemberInviteDto dto, Guid tenantId)
+    public async Task InviteMemberAsync(MemberInviteDto dto, Guid tenantId, string InvitedBy, IEnumerable<string>? cc = null)
     {
         var invite = new MemberInvite
         {
@@ -95,6 +95,7 @@ public class MemberRepository (
             LastName = dto.LastName,
             Role = dto.Role,
             TenantId = tenantId,
+            CreatedBy = InvitedBy,
             Token = Guid.NewGuid().ToString("N"),
             ExpiresAt = DateTime.UtcNow.AddDays(7)
         };
@@ -111,7 +112,7 @@ public class MemberRepository (
             $"Γεια σας {dto.FirstName},\n\nΈχετε προσκληθεί να εγγραφείτε στην πλατφόρμα.\n\n" +
             $"Κάντε κλικ στον παρακάτω σύνδεσμο για να ολοκληρώσετε την εγγραφή σας:\n\n" +
             $"{registerLink}\n\n" +
-            $"Το link λήγει σε 7 ημέρες.");
+            $"Το link λήγει σε 7 ημέρες.", isHtml: true, cc: cc);
 
     }
 

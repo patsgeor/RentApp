@@ -94,10 +94,6 @@ public class AppDbContext(
             .OnDelete(DeleteBehavior.Cascade);
         
         builder.Entity<ContractAsset>()
-            .Property<uint>("xmin")
-            .IsConcurrencyToken(false);
-
-        builder.Entity<ContractAsset>()
             .HasOne(ca => ca.Asset)
             .WithMany(a => a.ContractAssets)
             .HasForeignKey(ca => ca.AssetId)

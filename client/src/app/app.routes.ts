@@ -24,6 +24,8 @@ import { TransactionList } from '../features/transactions/transaction-list/trans
 import { Dashboard } from '../home/dashboard/dashboard';
 import { ContractList } from '../features/contract/contract-list/contract-list';
 import { ContractForm } from '../features/contract/contract-form/contract-form';
+import { DebtMonitor } from '../features/debts/debt-monitor/debt-monitor';
+import { ContractInstallments } from '../features/contract/contract-installments/contract-installments';
 
 export const routes: Routes = [
   {path: '',component: LandingPage,canActivate: [guestGuard],runGuardsAndResolvers: 'always'},
@@ -77,6 +79,9 @@ export const routes: Routes = [
       { path: 'contracts', component: ContractList },
       { path: 'contracts/new', component: ContractForm },
       { path: 'contracts/:id/edit', component: ContractForm },
+
+      { path: 'contracts/:id/installments', component: ContractInstallments },
+      { path: 'debts', component: DebtMonitor },
 
       { path: 'scan', component: QrScanner },
 

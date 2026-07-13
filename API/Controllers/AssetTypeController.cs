@@ -21,6 +21,7 @@ public class AssetTypeController(IAssetService assetService) : BaseApiController
     }
 
     // GET api/assettype/lookup   (dropdown for "create asset" / "search" pickers)
+    // αναζητα τισ κατηγοριες περιουσιακων στοιχειων για να τις εμφανισει σε ενα dropdown menu
     [HttpGet("lookup")]
     public async Task<IActionResult> GetLookup()
     {
@@ -30,6 +31,8 @@ public class AssetTypeController(IAssetService assetService) : BaseApiController
 
     // GET api/assettype/{id}   (includes the full field schema, for the
     // Angular EAV field-renderer to build the create/edit form dynamically)
+    // επιστρεφει μια κατηγορια περιουσιακων στοιχειων με ολα τα πεδια της για να εμφανιστει σε μια δυναμικη φορμα δημιουργιας/επεξεργασιας
+    //πχ για id=123 => Αυτοκινητα με ολα τα πεδια της κατηγοριας (πχ Χιλιομετρα, Χρωμα, Πρωτη Εγγραφη)
     [HttpGet("{id:guid}")]
     public async Task<ActionResult<AssetTypeDto>> GetById(Guid id)
     {

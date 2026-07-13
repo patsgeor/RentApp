@@ -50,3 +50,17 @@ export interface CustomerLookupDto {
   afm: string;
 }
 
+
+export interface AadeCompanyDto {
+  afm: string;
+  name: string | null;
+  nameEn: string | null;
+  doy: string | null;
+  doyDescription: string | null;
+  address: string | null;
+  addressNo: string | null;
+  zipCode: string | null;
+  city: string | null;
+  companyType: string | null;
+  isActive: boolean;
+}

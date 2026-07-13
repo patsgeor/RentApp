@@ -1,7 +1,7 @@
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { environment } from '../../environments/environment';
-import { ContactDto, CreateCustomerDto, CustomerDto, CustomerLookupDto, CustomerStatsDto } from '../../types/customers';
+import { AadeCompanyDto, ContactDto, CreateCustomerDto, CustomerDto, CustomerLookupDto, CustomerStatsDto } from '../../types/customers';
 import { CustomersParams, PaginatedResult } from '../../types/pagination';
 import { tap } from 'rxjs';
 
@@ -50,5 +50,9 @@ export class CustomerService {
   }
   deleteContact(customerId: string, contactId: string) {
     return this.http.delete(`${this.baseUrl}customer/${customerId}/contacts/${contactId}`);
+  }
+
+  getAadeCompany(afm: string) {
+    return this.http.get<AadeCompanyDto>(`${this.baseUrl}aade/lookup/${afm}`);
   }
 }

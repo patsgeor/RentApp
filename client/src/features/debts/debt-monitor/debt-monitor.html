@@ -1,0 +1,196 @@
+<div class="space-y-4">
+
+  <!-- Header -->
+  <h1 class="text-2xl font-bold">Παρακολούθηση Οφειλών</h1>
+
+  <!-- Stats cards -->
+  <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
+
+    <!-- Expected this month -->
+    <div class="stat bg-base-200 rounded-box py-3 px-4">
+      <div class="stat-title text-xs">Αναμ. Εισπράξεις
+        @if (filterMonth() !== '') {
+          <span class="font-medium">({{ months[+filterMonth() - 1]?.l }})</span>
+        }
+      </div>
+      @if (statsLoading()) {
+        <div class="loading loading-xs loading-spinner mt-2"></div>
+      } @else {
+        <div class="stat-value text-lg text-primary">
+          {{ (stats()?.expectedThisMonth ?? 0) | currency:'EUR':'symbol':'1.0-0':'el' }}
+        </div>
+      }
+      <div class="stat-desc">εκκρεμείς δόσεις μήνα</div>
+    </div>
+
+    <!-- Total outstanding -->
+    <div class="stat bg-base-200 rounded-box py-3 px-4">
+      <div class="stat-title text-xs">Συνολικό Εκκρεμές</div>
+      @if (statsLoading()) {
+        <div class="loading loading-xs loading-spinner mt-2"></div>
+      } @else {
+        <div class="stat-value text-lg">
+          {{ (stats()?.totalOutstanding ?? 0) | currency:'EUR':'symbol':'1.0-0':'el' }}
+        </div>
+      }
+      <div class="stat-desc">{{ (stats()?.pendingCount ?? 0) + (stats()?.partiallyPaidCount ?? 0) }} εκκρεμείς</div>
+    </div>
+
+    <!-- Overdue count -->
+    <div class="stat bg-base-200 rounded-box py-3 px-4">
+      <div class="stat-title text-xs">Ληξιπρόθεσμες</div>
+      @if (statsLoading()) {
+        <div class="loading loading-xs loading-spinner mt-2"></div>
+      } @else {
+        <div class="stat-value text-lg" [class.text-error]="(stats()?.overdueCount ?? 0) > 0">
+          {{ stats()?.overdueCount ?? 0 }}
+        </div>
+      }
+      <div class="stat-desc">δόσεις</div>
+    </div>
+
+    <!-- Overdue amount -->
+    <div class="stat bg-base-200 rounded-box py-3 px-4">
+      <div class="stat-title text-xs">Ληξιπρόθεσμο Ποσό</div>
+      @if (statsLoading()) {
+        <div class="loading loading-xs loading-spinner mt-2"></div>
+      } @else {
+        <div class="stat-value text-lg" [class.text-error]="(stats()?.overdueAmount ?? 0) > 0">
+          {{ (stats()?.overdueAmount ?? 0) | currency:'EUR':'symbol':'1.0-0':'el' }}
+        </div>
+      }
+      <div class="stat-desc">αξία ληξ/θεσμων</div>
+    </div>
+
+  </div>
+
+  <!-- Filters -->
+  <div class="flex flex-wrap gap-2 items-end">
+    <div class="form-control">
+      <label class="label label-text text-xs pb-0.5">Μήνας</label>
+      <select class="select select-sm select-bordered"
+              [(ngModel)]="filterMonth" (ngModelChange)="onFilterChange()">
+        <option value="">Όλοι</option>
+        @for (m of months; track m.v) {
+          <option [value]="m.v">{{ m.l }}</option>
+        }
+      </select>
+    </div>
+    <div class="form-control">
+      <label class="label label-text text-xs pb-0.5">Έτος</label>
+      <select class="select select-sm select-bordered"
+              [(ngModel)]="filterYear" (ngModelChange)="onFilterChange()">
+        @for (y of years(); track y) {
+          <option [value]="y">{{ y }}</option>
+        }
+      </select>
+    </div>
+    <div class="form-control">
+      <label class="label label-text text-xs pb-0.5">Κατάσταση</label>
+      <select class="select select-sm select-bordered"
+              [(ngModel)]="filterStatus" (ngModelChange)="onFilterChange()">
+        <option value="">Όλες</option>
+        <option value="0">Εκκρεμής</option>
+        <option value="1">Μερικώς εξοφλημένη</option>
+        <option value="3">Ληξιπρόθεσμη</option>
+      </select>
+    </div>
+    <div class="form-control">
+      <label class="label label-text text-xs pb-0.5">Αναζήτηση</label>
+      <label class="input input-sm input-bordered flex items-center gap-2 w-52">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4 opacity-60 shrink-0">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+        </svg>
+        <input type="text" placeholder="Πελάτης, κωδικός..." class="grow" (input)="onSearch($event)">
+      </label>
+    </div>
+    <span class="text-sm text-base-content/60 self-end pb-1">{{ totalCount() }} εγγραφές</span>
+  </div>
+
+  <!-- Messages -->
+  @if (errorMsg()) {
+    <div class="alert alert-error text-sm py-2">{{ errorMsg() }}</div>
+  }
+  @if (successMsg()) {
+    <div class="alert alert-success text-sm py-2">{{ successMsg() }}</div>
+  }
+
+  <!-- Table -->
+  <div class="overflow-x-auto rounded-box border border-base-200">
+    <table class="table table-sm">
+      <thead class="bg-base-200">
+        <tr>
+          <th>Πελάτης</th>
+          <th>Σύμβαση</th>
+          <th>#</th>
+          <th>Λήξη</th>
+          <th class="text-right">Σύνολο</th>
+          <th class="text-right">Εξοφλ.</th>
+          <th class="text-right">Εκκρεμές</th>
+          <th>Κατάσταση</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        @if (loading()) {
+          <tr><td colspan="9" class="text-center py-10 text-base-content/50">
+            <span class="loading loading-spinner loading-sm"></span>
+          </td></tr>
+        } @else if (items().length === 0) {
+          <tr><td colspan="9" class="text-center py-10 text-base-content/50">
+            Δεν βρέθηκαν εκκρεμείς οφειλές για τα επιλεγμένα κριτήρια.
+          </td></tr>
+        } @else {
+          @for (inv of items(); track inv.id) {
+            <tr class="hover">
+              <td class="font-medium">{{ inv.customerName }}</td>
+              <td class="font-mono text-xs text-base-content/60">{{ inv.contractReferenceCode ?? '—' }}</td>
+              <td class="font-mono text-xs text-base-content/50">{{ inv.installmentNumber }}</td>
+              <td class="font-medium" [class.text-error]="inv.status === IS.Overdue">
+                {{ inv.dueDate | date:'dd/MM/yyyy' }}
+              </td>
+              <td class="text-right font-mono">{{ inv.totalAmount | currency:'EUR':'symbol':'1.2-2':'el' }}</td>
+              <td class="text-right font-mono text-success">{{ inv.allocatedAmount | currency:'EUR':'symbol':'1.2-2':'el' }}</td>
+              <td class="text-right font-mono font-semibold" [class.text-error]="inv.outstandingAmount > 0">
+                {{ inv.outstandingAmount | currency:'EUR':'symbol':'1.2-2':'el' }}
+              </td>
+              <td><span [class]="statusBadge(inv.status)">{{ statusLabel(inv.status) }}</span></td>
+              <td>
+                <div class="flex gap-1 justify-end">
+                  <button class="btn btn-ghost btn-xs" title="Δόσεις συμβολαίου"
+                          (click)="viewInstallments(inv.contractId)">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 6.75h12M8.25 12h12m-12 5.25h12M3.75 6.75h.007v.008H3.75V6.75Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0ZM3.75 12h.007v.008H3.75V12Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm-.375 5.25h.007v.008H3.75v-.008Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z" />
+                    </svg>
+                  </button>
+                  <button class="btn btn-ghost btn-xs text-primary"
+                          title="Email υπενθύμιση"
+                          [disabled]="notifying() === inv.id"
+                          (click)="sendEmail(inv.id)">
+                    @if (notifying() === inv.id) {
+                      <span class="loading loading-spinner loading-xs"></span>
+                    } @else {
+                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 0 1-2.25 2.25h-15a2.25 2.25 0 0 1-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25m19.5 0v.243a2.25 2.25 0 0 1-1.07 1.916l-7.5 4.615a2.25 2.25 0 0 1-2.36 0L3.32 8.91a2.25 2.25 0 0 1-1.07-1.916V6.75" />
+                      </svg>
+                    }
+                  </button>
+                </div>
+              </td>
+            </tr>
+          }
+        }
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Pagination -->
+  @if (totalPages() > 1) {
+    <div class="flex justify-center gap-1">
+      @for (p of pages(); track p) {
+        <button class="btn btn-xs" [class.btn-primary]="p === currentPage()" (click)="load(p)">{{ p }}</button>
+      }
+    </div>
+  }
+
+</div>

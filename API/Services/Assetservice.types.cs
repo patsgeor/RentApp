@@ -17,14 +17,14 @@ public partial class AssetService(IUnitOfWork unitOfWork, ITenantProvider tenant
     //  ASSET TYPE (category)
     // ==================================================================
  
-    public Task<List<AssetTypeDto>> GetAssetTypesAsync()
-        => unitOfWork.AssetRepository.GetAssetTypesAsync();
+    public async Task<List<AssetTypeDto>> GetAssetTypesAsync()
+        => await unitOfWork.AssetRepository.GetAssetTypesAsync();
  
-    public Task<List<AssetTypeLookupDto>> GetAssetTypeLookupAsync()
-        => unitOfWork.AssetRepository.GetAssetTypeLookupAsync();
+    public async Task<List<AssetTypeLookupDto>> GetAssetTypeLookupAsync()
+        => await unitOfWork.AssetRepository.GetAssetTypeLookupAsync();
  
-    public Task<AssetTypeDto?> GetAssetTypeByIdAsync(Guid id)
-        => unitOfWork.AssetRepository.GetAssetTypeByIdAsync(id);
+    public async Task<AssetTypeDto?> GetAssetTypeByIdAsync(Guid id)
+        => await unitOfWork.AssetRepository.GetAssetTypeByIdAsync(id);
  
     public async Task<AssetTypeDto> CreateAssetTypeAsync(AssetTypeCreateDto dto, string currentUserId)
     {

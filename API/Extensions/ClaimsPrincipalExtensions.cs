@@ -5,15 +5,12 @@ namespace API.Extensions;
 
 public static class ClaimsPrincipalExtensions
 {
-    public static Guid GetMemberId(this ClaimsPrincipal user)
+    public static string GetMemberId(this ClaimsPrincipal user)
     {
         var userId= user.FindFirstValue(ClaimTypes.NameIdentifier) ??
             throw new Exception("Cannot get User id from claims - token");
-        
-        if (!Guid.TryParse(userId, out var guid))
-            throw new Exception("Invalid User id in token");
-
-        return guid;
+       
+        return userId;
     }
 
     public static Guid GetTenantId(this ClaimsPrincipal user)
@@ -26,5 +23,15 @@ public static class ClaimsPrincipalExtensions
 
         return guid;
     }
+
+
+    public static string GetEmail(this ClaimsPrincipal user)
+    {
+        var email = user.FindFirstValue(ClaimTypes.Email)
+        ?? throw new Exception("Cannot get email from claims - token");
+
+        return email;
+    }
+
 
 }

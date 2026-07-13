@@ -11,17 +11,18 @@ namespace API.Services;
 
 public class InstallmentService(
     AppDbContext context,
-    ITenantProvider tenantProvider) : IInstallmentService
+    ITenantProvider tenantProvider,
+    IEmailService emailService) : IInstallmentService
 {
     public async Task GenerateInstallmentsAsync(Guid contractId, string userId)
     {
         var contract = await context.Contracts
             .Include(c => c.Invoices)
             .FirstOrDefaultAsync(c => c.Id == contractId)
-            ?? throw new NotFoundException($"Contract '{contractId}' was not found.");
+            ?? throw new NotFoundException($"Συμβόλαιο '{contractId}' δεν βρέθηκε.");
 
         if (contract.Invoices.Any())
-            throw new BadRequestException("Installments have already been generated for this contract.");
+            throw new BadRequestException("Οι δόσεις για αυτό το συμβόλαιο έχουν ήδη δημιουργηθεί.");
 
         var installments = BuildInstallments(contract, userId);
         await context.Invoices.AddRangeAsync(installments);
@@ -36,20 +37,21 @@ public class InstallmentService(
             .OrderBy(i => i.InstallmentNumber)
             .Select(i => new InstallmentDto
             {
-                Id                 = i.Id,
-                ContractId         = i.ContractId,
-                CustomerName       = i.Contract.Customer.Name,
-                InstallmentNumber  = i.InstallmentNumber,
-                PeriodStart        = i.PeriodStart,
-                PeriodEnd          = i.PeriodEnd,
-                DueDate            = i.DueDate,
-                Amount             = i.Amount,
-                TaxAmount          = i.TaxAmount,
-                TotalAmount        = i.TotalAmount,
-                AllocatedAmount    = i.AllocatedAmount,
-                Status             = i.Status,
-                Notes              = i.Notes,
-                Allocations        = i.Allocations.Select(a => new AllocationSummaryDto
+                Id                   = i.Id,
+                ContractId           = i.ContractId,
+                ContractReferenceCode = i.Contract.ReferenceCode,
+                CustomerName         = i.Contract.Customer.Name,
+                InstallmentNumber    = i.InstallmentNumber,
+                PeriodStart          = i.PeriodStart,
+                PeriodEnd            = i.PeriodEnd,
+                DueDate              = i.DueDate,
+                Amount               = i.Amount,
+                TaxAmount            = i.TaxAmount,
+                TotalAmount          = i.TotalAmount,
+                AllocatedAmount      = i.AllocatedAmount,
+                Status               = i.Status,
+                Notes                = i.Notes,
+                Allocations = i.Allocations.Select(a => new AllocationSummaryDto
                 {
                     AllocationId    = a.Id,
                     PaymentId       = a.PaymentId,
@@ -60,7 +62,7 @@ public class InstallmentService(
             .ToListAsync();
     }
 
-    public async Task<PaginatedResult<InstallmentDto>> GetOverdueAsync(PagingParams pagingParams)
+    public async Task<PaginatedResult<InstallmentDto>> GetOverdueAsync(PagingParams p)
     {
         var query = context.Invoices
             .AsNoTracking()
@@ -68,35 +70,97 @@ public class InstallmentService(
             .OrderBy(i => i.DueDate)
             .Select(i => new InstallmentDto
             {
-                Id                = i.Id,
-                ContractId        = i.ContractId,
-                CustomerName      = i.Contract.Customer.Name,
-                InstallmentNumber = i.InstallmentNumber,
-                PeriodStart       = i.PeriodStart,
-                PeriodEnd         = i.PeriodEnd,
-                DueDate           = i.DueDate,
-                Amount            = i.Amount,
-                TaxAmount         = i.TaxAmount,
-                TotalAmount       = i.TotalAmount,
-                AllocatedAmount   = i.AllocatedAmount,
-                Status            = i.Status,
-                Notes             = i.Notes,
+                Id                   = i.Id,
+                ContractId           = i.ContractId,
+                ContractReferenceCode = i.Contract.ReferenceCode,
+                CustomerName         = i.Contract.Customer.Name,
+                InstallmentNumber    = i.InstallmentNumber,
+                PeriodStart          = i.PeriodStart,
+                PeriodEnd            = i.PeriodEnd,
+                DueDate              = i.DueDate,
+                Amount               = i.Amount,
+                TaxAmount            = i.TaxAmount,
+                TotalAmount          = i.TotalAmount,
+                AllocatedAmount      = i.AllocatedAmount,
+                Status               = i.Status,
+                Notes                = i.Notes,
             });
 
-        return await PaginationHelper.CreateAsync(query, pagingParams.PageNumber, pagingParams.PageSize);
+        return await PaginationHelper.CreateAsync(query, p.PageNumber, p.PageSize);
+    }
+
+    public async Task<PaginatedResult<InstallmentDto>> GetDebtsAsync(DebtParams p)
+    {
+        var query = context.Invoices
+            .AsNoTracking()
+            .Where(i => i.Status != InstallmentStatus.Paid &&
+                        i.Status != InstallmentStatus.Cancelled);
+
+        if (p.Status.HasValue)
+            query = query.Where(i => i.Status == p.Status.Value);
+
+        if (p.Month.HasValue)
+        {
+            var year = p.Year ?? DateTime.UtcNow.Year;
+            var monthStart = new DateTime(year, p.Month.Value, 1, 0, 0, 0, DateTimeKind.Utc);
+            var monthEnd   = monthStart.AddMonths(1);
+            query = query.Where(i => i.DueDate >= monthStart && i.DueDate < monthEnd);
+        }
+        else if (p.Year.HasValue)
+        {
+            var yearStart = new DateTime(p.Year.Value, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+            var yearEnd   = yearStart.AddYears(1);
+            query = query.Where(i => i.DueDate >= yearStart && i.DueDate < yearEnd);
+        }
+
+        if (p.CustomerId.HasValue)
+            query = query.Where(i => i.Contract.CustomerId == p.CustomerId.Value);
+
+        if (p.ContractId.HasValue)
+            query = query.Where(i => i.ContractId == p.ContractId.Value);
+
+        if (!string.IsNullOrWhiteSpace(p.Search))
+        {
+            var s = p.Search.Trim().ToLower();
+            query = query.Where(i =>
+                i.Contract.Customer.Name.ToLower().Contains(s) ||
+                (i.Contract.ReferenceCode != null && i.Contract.ReferenceCode.ToLower().Contains(s)));
+        }
+
+        var projected = query
+            .OrderBy(i => i.DueDate)
+            .Select(i => new InstallmentDto
+            {
+                Id                   = i.Id,
+                ContractId           = i.ContractId,
+                ContractReferenceCode = i.Contract.ReferenceCode,
+                CustomerName         = i.Contract.Customer.Name,
+                InstallmentNumber    = i.InstallmentNumber,
+                PeriodStart          = i.PeriodStart,
+                PeriodEnd            = i.PeriodEnd,
+                DueDate              = i.DueDate,
+                Amount               = i.Amount,
+                TaxAmount            = i.TaxAmount,
+                TotalAmount          = i.TotalAmount,
+                AllocatedAmount      = i.AllocatedAmount,
+                Status               = i.Status,
+                Notes                = i.Notes,
+            });
+
+        return await PaginationHelper.CreateAsync(projected, p.PageNumber, p.PageSize);
     }
 
     public async Task RefreshOverdueStatusesAsync()
     {
         var now = DateTime.UtcNow;
-        var overdueInstallments = await context.Invoices
+        var overdue = await context.Invoices
             .Where(i => i.Status == InstallmentStatus.Pending && i.DueDate < now)
             .ToListAsync();
 
-        foreach (var inv in overdueInstallments)
+        foreach (var inv in overdue)
             inv.Status = InstallmentStatus.Overdue;
 
-        if (overdueInstallments.Count > 0)
+        if (overdue.Count > 0)
             await context.SaveChangesAsync();
     }
 
@@ -106,24 +170,22 @@ public class InstallmentService(
             .Include(p => p.PaymentContracts)
             .Include(p => p.Allocations)
             .FirstOrDefaultAsync(p => p.Id == paymentId)
-            ?? throw new NotFoundException($"Payment '{paymentId}' was not found.");
+            ?? throw new NotFoundException($"Πληρωμή '{paymentId}' δεν βρέθηκε.");
 
         if (string.IsNullOrWhiteSpace(payment.TenantReferenceCode))
             return new MatchResultDto
             {
-                Matched    = false,
+                Matched     = false,
                 Unallocated = payment.UnallocatedAmount,
-                Message    = "Payment has no TenantReferenceCode — cannot auto-match."
+                Message     = "Η πληρωμή δεν έχει TenantReferenceCode — δεν είναι δυνατή η αυτόματη αντιστοίχιση."
             };
 
         var contract = await context.Contracts
             .FirstOrDefaultAsync(c =>
                 c.TenantId == payment.TenantId &&
                 c.ReferenceCode == payment.TenantReferenceCode)
-            ?? throw new NotFoundException(
-                $"No contract found with ReferenceCode '{payment.TenantReferenceCode}'.");
+            ?? throw new NotFoundException($"Δεν βρέθηκε συμβόλαιο με ReferenceCode '{payment.TenantReferenceCode}'.");
 
-        // Link payment to contract if not already linked
         if (!payment.PaymentContracts.Any(pc => pc.ContractId == contract.Id))
         {
             payment.PaymentContracts.Add(new PaymentContract
@@ -134,26 +196,24 @@ public class InstallmentService(
             payment.MatchStatus = PaymentMatchStatus.AutoMatched;
         }
 
-        // FIFO: allocate to oldest unpaid/partially-paid installments
-        var unpaidInstallments = await context.Invoices
+        var unpaid = await context.Invoices
             .Where(i => i.ContractId == contract.Id &&
                         i.Status != InstallmentStatus.Paid &&
                         i.Status != InstallmentStatus.Cancelled)
             .OrderBy(i => i.DueDate)
             .ToListAsync();
 
-        var remaining = payment.UnallocatedAmount;
+        var remaining  = payment.UnallocatedAmount;
         var allocations = new List<AllocationSummaryDto>();
 
-        foreach (var inv in unpaidInstallments)
+        foreach (var inv in unpaid)
         {
             if (remaining <= 0) break;
-
             var outstanding = inv.TotalAmount - inv.AllocatedAmount;
             if (outstanding <= 0) continue;
 
             var toAllocate = Math.Min(remaining, outstanding);
-            var allocation = new PaymentAllocation
+            var alloc = new PaymentAllocation
             {
                 TenantId        = payment.TenantId,
                 PaymentId       = payment.Id,
@@ -162,17 +222,15 @@ public class InstallmentService(
                 CreatedBy       = userId
             };
 
-            await context.PaymentAllocations.AddAsync(allocation);
-
+            await context.PaymentAllocations.AddAsync(alloc);
             inv.AllocatedAmount += toAllocate;
             inv.Status = inv.AllocatedAmount >= inv.TotalAmount
-                ? InstallmentStatus.Paid
-                : InstallmentStatus.PartiallyPaid;
+                ? InstallmentStatus.Paid : InstallmentStatus.PartiallyPaid;
 
             remaining -= toAllocate;
             allocations.Add(new AllocationSummaryDto
             {
-                AllocationId    = allocation.Id,
+                AllocationId    = alloc.Id,
                 PaymentId       = payment.Id,
                 PaymentDate     = payment.PaymentDate,
                 AllocatedAmount = toAllocate
@@ -184,40 +242,39 @@ public class InstallmentService(
 
         return new MatchResultDto
         {
-            Matched              = true,
-            ContractId           = contract.Id,
+            Matched               = true,
+            ContractId            = contract.Id,
             ContractReferenceCode = contract.ReferenceCode,
-            TotalAllocated       = payment.Amount - remaining,
-            Unallocated          = remaining,
-            Allocations          = allocations,
-            Message              = $"Auto-matched to contract '{contract.ReferenceCode}'. Allocated {allocations.Count} installments."
+            TotalAllocated        = payment.Amount - remaining,
+            Unallocated           = remaining,
+            Allocations           = allocations,
+            Message               = $"Αντιστοιχίστηκε σε '{contract.ReferenceCode}'. Κατανεμήθηκαν {allocations.Count} δόσεις."
         };
     }
 
-    public async Task AllocateManuallyAsync(
-        Guid paymentId, List<AllocationItemDto> items, string userId)
+    public async Task AllocateManuallyAsync(Guid paymentId, List<AllocationItemDto> items, string userId)
     {
         var payment = await context.Payments
             .Include(p => p.Allocations)
             .FirstOrDefaultAsync(p => p.Id == paymentId)
-            ?? throw new NotFoundException($"Payment '{paymentId}' was not found.");
+            ?? throw new NotFoundException($"Πληρωμή '{paymentId}' δεν βρέθηκε.");
 
-        var totalToAllocate = items.Sum(i => i.Amount);
-        if (totalToAllocate > payment.UnallocatedAmount)
+        var total = items.Sum(i => i.Amount);
+        if (total > payment.UnallocatedAmount)
             throw new BadRequestException(
-                $"Total allocation ({totalToAllocate:N2}) exceeds unallocated amount ({payment.UnallocatedAmount:N2}).");
+                $"Το σύνολο κατανομής ({total:N2}) υπερβαίνει το διαθέσιμο ποσό ({payment.UnallocatedAmount:N2}).");
 
         foreach (var item in items)
         {
             var invoice = await context.Invoices.FindAsync(item.InvoiceId)
-                ?? throw new NotFoundException($"Installment '{item.InvoiceId}' was not found.");
+                ?? throw new NotFoundException($"Δόση '{item.InvoiceId}' δεν βρέθηκε.");
 
             var outstanding = invoice.TotalAmount - invoice.AllocatedAmount;
             if (item.Amount > outstanding)
                 throw new BadRequestException(
-                    $"Amount {item.Amount:N2} exceeds outstanding balance {outstanding:N2} for installment {invoice.InstallmentNumber}.");
+                    $"Ποσό {item.Amount:N2} υπερβαίνει το εκκρεμές υπόλοιπο {outstanding:N2} για δόση #{invoice.InstallmentNumber}.");
 
-            var allocation = new PaymentAllocation
+            var alloc = new PaymentAllocation
             {
                 TenantId        = payment.TenantId,
                 PaymentId       = payment.Id,
@@ -227,15 +284,13 @@ public class InstallmentService(
                 CreatedBy       = userId
             };
 
-            await context.PaymentAllocations.AddAsync(allocation);
-
+            await context.PaymentAllocations.AddAsync(alloc);
             invoice.AllocatedAmount += item.Amount;
             invoice.Status = invoice.AllocatedAmount >= invoice.TotalAmount
-                ? InstallmentStatus.Paid
-                : InstallmentStatus.PartiallyPaid;
+                ? InstallmentStatus.Paid : InstallmentStatus.PartiallyPaid;
         }
 
-        payment.UnallocatedAmount -= totalToAllocate;
+        payment.UnallocatedAmount -= total;
         if (payment.MatchStatus == PaymentMatchStatus.Unmatched)
             payment.MatchStatus = PaymentMatchStatus.ManuallyMatched;
 
@@ -244,22 +299,20 @@ public class InstallmentService(
 
     public async Task DeallocateAsync(Guid allocationId, string userId)
     {
-        var allocation = await context.PaymentAllocations
+        var alloc = await context.PaymentAllocations
             .Include(a => a.Payment)
             .Include(a => a.Invoice)
             .FirstOrDefaultAsync(a => a.Id == allocationId)
-            ?? throw new NotFoundException($"Allocation '{allocationId}' was not found.");
+            ?? throw new NotFoundException($"Κατανομή '{allocationId}' δεν βρέθηκε.");
 
-        allocation.Invoice.AllocatedAmount -= allocation.AllocatedAmount;
-        allocation.Invoice.Status = allocation.Invoice.AllocatedAmount <= 0
-            ? InstallmentStatus.Pending
-            : InstallmentStatus.PartiallyPaid;
+        alloc.Invoice.AllocatedAmount -= alloc.AllocatedAmount;
+        alloc.Invoice.Status = alloc.Invoice.AllocatedAmount <= 0
+            ? InstallmentStatus.Pending : InstallmentStatus.PartiallyPaid;
 
-        allocation.Payment.UnallocatedAmount += allocation.AllocatedAmount;
-
-        allocation.IsDeleted  = true;
-        allocation.DeletedAt  = DateTime.UtcNow;
-        allocation.DeletedBy  = userId;
+        alloc.Payment.UnallocatedAmount += alloc.AllocatedAmount;
+        alloc.IsDeleted = true;
+        alloc.DeletedAt = DateTime.UtcNow;
+        alloc.DeletedBy = userId;
 
         await context.SaveChangesAsync();
     }
@@ -267,10 +320,10 @@ public class InstallmentService(
     public async Task CancelInstallmentAsync(Guid invoiceId, string userId)
     {
         var invoice = await context.Invoices.FindAsync(invoiceId)
-            ?? throw new NotFoundException($"Installment '{invoiceId}' was not found.");
+            ?? throw new NotFoundException($"Δόση '{invoiceId}' δεν βρέθηκε.");
 
         if (invoice.AllocatedAmount > 0)
-            throw new BadRequestException("Cannot cancel an installment that has been partially or fully paid.");
+            throw new BadRequestException("Δεν επιτρέπεται ακύρωση δόσης που έχει εξοφληθεί εν μέρει ή πλήρως.");
 
         invoice.Status    = InstallmentStatus.Cancelled;
         invoice.UpdatedAt = DateTime.UtcNow;
@@ -279,7 +332,41 @@ public class InstallmentService(
         await context.SaveChangesAsync();
     }
 
-    // ── Helpers ─────────────────────────────────────────────────────────
+    public async Task NotifyByEmailAsync(Guid invoiceId, string userId)
+    {
+        var invoice = await context.Invoices
+            .Include(i => i.Contract)
+                .ThenInclude(c => c.Customer)
+                    .ThenInclude(cu => cu.Contacts)
+            .FirstOrDefaultAsync(i => i.Id == invoiceId)
+            ?? throw new NotFoundException($"Δόση '{invoiceId}' δεν βρέθηκε.");
+
+        var email = invoice.Contract.Customer.Contacts
+            .FirstOrDefault(c => !string.IsNullOrWhiteSpace(c.Email))?.Email;
+
+        if (string.IsNullOrWhiteSpace(email))
+            throw new BadRequestException("Δεν υπάρχει email για τον πελάτη.");
+
+        var outstanding = invoice.TotalAmount - invoice.AllocatedAmount;
+        var subject = $"Υπενθύμιση Οφειλής — Δόση #{invoice.InstallmentNumber}";
+        var body = $"""
+            Αγαπητέ/ή {invoice.Contract.Customer.Name},<br><br>
+            Σας υπενθυμίζουμε ότι η <strong>Δόση #{invoice.InstallmentNumber}</strong>
+            {(invoice.Contract.ReferenceCode != null ? $"(Σύμβαση: {invoice.Contract.ReferenceCode})" : "")}
+            είναι εκκρεμής.<br><br>
+            <table style="border-collapse:collapse;font-size:14px">
+              <tr><td style="padding:4px 12px 4px 0"><b>Ημερομηνία λήξης:</b></td><td>{invoice.DueDate:dd/MM/yyyy}</td></tr>
+              <tr><td style="padding:4px 12px 4px 0"><b>Συνολικό ποσό:</b></td><td>{invoice.TotalAmount:N2} €</td></tr>
+              <tr><td style="padding:4px 12px 4px 0"><b>Εξοφλημένο:</b></td><td>{invoice.AllocatedAmount:N2} €</td></tr>
+              <tr><td style="padding:4px 12px 4px 0"><b>Εκκρεμές:</b></td><td><strong>{outstanding:N2} €</strong></td></tr>
+            </table>
+            <br>Παρακαλούμε επικοινωνήστε μαζί μας για οποιαδήποτε διευκρίνιση.
+            """;
+
+        await emailService.SendEmailAsync(email, subject, body, isHtml: true);
+    }
+
+    // ── Private helpers ────────────────────────────────────────────────────
 
     private static List<Invoice> BuildInstallments(Contract contract, string userId)
     {
@@ -287,23 +374,21 @@ public class InstallmentService(
         var n = periods.Count;
         if (n == 0) return [];
 
-        var netTotal = contract.TotalAmount - contract.TaxAmount - contract.DiscountAmount;
+        var netTotal = contract.TotalAmount - contract.TaxAmount;
         var taxTotal = contract.TaxAmount;
         var perNet   = Math.Round(netTotal / n, 2);
         var perTax   = Math.Round(taxTotal / n, 2);
 
-        var installments = new List<Invoice>();
-
+        var list = new List<Invoice>();
         for (int i = 0; i < n; i++)
         {
             var (start, end) = periods[i];
             var isLast = i == n - 1;
 
-            // Last installment absorbs rounding difference
             var amount    = isLast ? netTotal - perNet * (n - 1) : perNet;
             var taxAmount = isLast ? taxTotal - perTax * (n - 1) : perTax;
 
-            installments.Add(new Invoice
+            list.Add(new Invoice
             {
                 TenantId          = contract.TenantId,
                 ContractId        = contract.Id,
@@ -319,7 +404,7 @@ public class InstallmentService(
             });
         }
 
-        return installments;
+        return list;
     }
 
     private static List<(DateTime Start, DateTime End)> GetPeriods(
@@ -337,7 +422,7 @@ public class InstallmentService(
                 InstallmentFrequency.Quarterly => current.AddMonths(3),
                 InstallmentFrequency.Yearly    => current.AddYears(1),
                 InstallmentFrequency.OneTime   => end,
-                _ => end
+                _                              => end
             };
 
             var periodEnd = next > end ? end : next;
@@ -348,5 +433,104 @@ public class InstallmentService(
         }
 
         return periods;
+    }
+
+    public async Task UpdateScheduleAsync(Guid contractId, List<ScheduleInstallmentDto> schedule, string userId)
+    {
+        await using var tx = await context.Database.BeginTransactionAsync();
+        try
+        {
+            var existing = await context.Invoices
+                .Where(i => i.ContractId == contractId)
+                .ToListAsync();
+
+            var contract = await context.Contracts.FindAsync(contractId)
+                ?? throw new NotFoundException($"Συμβόλαιο '{contractId}' δεν βρέθηκε.");
+
+            var incomingIds = schedule
+                .Where(s => s.Id.HasValue)
+                .Select(s => s.Id!.Value)
+                .ToHashSet();
+
+            // Διαγραφή δόσεων που αφαιρέθηκαν από τον χρήστη
+            foreach (var inv in existing.Where(e => !incomingIds.Contains(e.Id)))
+            {
+                if (inv.AllocatedAmount > 0)
+                    throw new BadRequestException(
+                        $"Δεν μπορεί να διαγραφεί η δόση #{inv.InstallmentNumber} — έχει καταγεγραμμένες πληρωμές.");
+                context.Invoices.Remove(inv);
+            }
+
+            // Ενημέρωση υπαρχουσών ή δημιουργία νέων
+            foreach (var dto in schedule)
+            {
+                if (dto.Id.HasValue)
+                {
+                    var inv = existing.FirstOrDefault(e => e.Id == dto.Id.Value)
+                        ?? throw new NotFoundException($"Δόση '{dto.Id}' δεν βρέθηκε.");
+
+                    inv.InstallmentNumber = dto.InstallmentNumber;
+                    inv.PeriodStart       = DateTime.SpecifyKind(dto.PeriodStart, DateTimeKind.Utc);
+                    inv.PeriodEnd         = DateTime.SpecifyKind(dto.PeriodEnd,   DateTimeKind.Utc);
+                    inv.DueDate           = DateTime.SpecifyKind(dto.DueDate,     DateTimeKind.Utc);
+                    inv.Amount            = dto.Amount;
+                    inv.TaxAmount         = dto.TaxAmount;
+                    inv.TotalAmount       = dto.Amount + dto.TaxAmount;
+                    inv.Notes             = dto.Notes;
+                    inv.UpdatedBy         = userId;
+                    inv.UpdatedAt         = DateTime.UtcNow;
+                }
+                else
+                {
+                    await context.Invoices.AddAsync(new Invoice
+                    {
+                        TenantId          = contract.TenantId,
+                        ContractId        = contractId,
+                        InstallmentNumber = dto.InstallmentNumber,
+                        PeriodStart       = DateTime.SpecifyKind(dto.PeriodStart, DateTimeKind.Utc),
+                        PeriodEnd         = DateTime.SpecifyKind(dto.PeriodEnd,   DateTimeKind.Utc),
+                        DueDate           = DateTime.SpecifyKind(dto.DueDate,     DateTimeKind.Utc),
+                        Amount            = dto.Amount,
+                        TaxAmount         = dto.TaxAmount,
+                        TotalAmount       = dto.Amount + dto.TaxAmount,
+                        Status            = InstallmentStatus.Pending,
+                        Notes             = dto.Notes,
+                        CreatedBy         = userId,
+                    });
+                }
+            }
+
+            await context.SaveChangesAsync();
+            await tx.CommitAsync();
+        }
+        catch { await tx.RollbackAsync(); throw; }
+    }
+
+    public async Task<DebtStatsDto> GetStatsAsync(int? month, int? year)
+    {
+        var now    = DateTime.UtcNow;
+        var m      = month ?? now.Month;
+        var y      = year  ?? now.Year;
+        var mStart = new DateTime(y, m, 1, 0, 0, 0, DateTimeKind.Utc);
+        var mEnd   = mStart.AddMonths(1);
+
+        var rows = await context.Invoices
+            .AsNoTracking()
+            .Where(i => i.Status != InstallmentStatus.Paid &&
+                        i.Status != InstallmentStatus.Cancelled)
+            .Select(i => new { i.Status, i.TotalAmount, i.AllocatedAmount, i.DueDate })
+            .ToListAsync();
+
+        return new DebtStatsDto
+        {
+            ExpectedThisMonth  = rows.Where(r => r.DueDate >= mStart && r.DueDate < mEnd)
+                                    .Sum(r => r.TotalAmount - r.AllocatedAmount),
+            TotalOutstanding   = rows.Sum(r  => r.TotalAmount - r.AllocatedAmount),
+            OverdueCount       = rows.Count(r => r.Status == InstallmentStatus.Overdue),
+            OverdueAmount      = rows.Where(r => r.Status == InstallmentStatus.Overdue)
+                                    .Sum(r   => r.TotalAmount - r.AllocatedAmount),
+            PendingCount       = rows.Count(r => r.Status == InstallmentStatus.Pending),
+            PartiallyPaidCount = rows.Count(r => r.Status == InstallmentStatus.PartiallyPaid),
+        };
     }
 }
