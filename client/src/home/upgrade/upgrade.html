@@ -1,0 +1,78 @@
+<div class="max-w-5xl mx-auto">
+  <div class="text-center max-w-2xl mx-auto mb-10">
+    <h1 class="text-3xl md:text-4xl font-bold">Αναβάθμιση Πλάνου</h1>
+    <p class="text-base-content/70 mt-3">
+      Διαλέξτε τη διάρκεια που σας ταιριάζει. Όσο μεγαλύτερη η δέσμευση, τόσο μεγαλύτερη η έκπτωση.
+    </p>
+  </div>
+
+  <!-- Billing toggle -->
+  <div class="flex justify-center mb-10">
+    <div role="tablist" class="tabs tabs-boxed bg-base-200">
+      @for (cycle of cycles; track cycle.id) {
+        <button
+          role="tab"
+          class="tab"
+          [class.tab-active]="billing() === cycle.id"
+          (click)="selectCycle(cycle.id)">
+          {{ cycle.label }}
+        </button>
+      }
+    </div>
+  </div>
+
+  <!-- Plan cards -->
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-6 items-stretch">
+    @for (plan of plans; track plan.name) {
+      <div
+        class="card bg-base-100 border transition-shadow"
+        [class.border-primary]="plan.highlighted"
+        [class.border-2]="plan.highlighted"
+        [class.shadow-xl]="plan.highlighted"
+        [class.border-base-300]="!plan.highlighted">
+
+        <div class="card-body">
+          @if (plan.highlighted) {
+            <div class="badge badge-primary self-start mb-2">Πιο δημοφιλές</div>
+          }
+
+          <h3 class="card-title text-2xl">{{ plan.name }}</h3>
+          <p class="text-sm text-base-content/60">{{ plan.tagline }}</p>
+
+          <div class="my-4">
+            <span class="text-4xl font-extrabold">€{{ priceFor(plan) }}</span>
+            <span class="text-base-content/60">/ μήνα</span>
+            @if (billing() !== 'monthly') {
+              <p class="text-xs text-success mt-1">Με την έκπτωση της επιλεγμένης διάρκειας</p>
+            }
+          </div>
+
+          <ul class="space-y-2 mb-6">
+            @for (item of plan.features; track item) {
+              <li class="flex items-start gap-2 text-sm">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-success shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+                </svg>
+                <span>{{ item }}</span>
+              </li>
+            }
+          </ul>
+
+          <div class="card-actions mt-auto">
+            <a
+              routerLink="/contact"
+              class="btn btn-block"
+              [class.btn-primary]="plan.highlighted"
+              [class.btn-outline]="!plan.highlighted">
+              {{ plan.cta }}
+            </a>
+          </div>
+        </div>
+      </div>
+    }
+  </div>
+
+  <p class="text-center text-sm text-base-content/50 mt-8">
+    Για αλλαγή πλάνου ή custom τιμολόγηση <a routerLink="/contact" class="link link-primary">επικοινωνήστε μαζί μας</a>.
+  </p>
+</div>

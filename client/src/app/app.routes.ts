@@ -33,6 +33,7 @@ import { SecurityPolicy } from '../home/LANDING/security-policy/security-policy'
 import { DataBackupPolicy } from '../home/LANDING/data-backup-policy/data-backup-policy';
 import { LandingPage } from '../home/LANDING/landing-page/landing-page';
 import { Contact } from '../home/LANDING/contact/contact';
+import { Upgrade } from '../home/upgrade/upgrade';
 
 export const routes: Routes = [
   { path: 'contact', component: Contact },
@@ -42,10 +43,10 @@ export const routes: Routes = [
     runGuardsAndResolvers: 'always',
     canActivate: [guestGuard],
     children: [
-      {path: 'landing',component: LandingPage},
-      {path: 'login',component: Login},
-      {path: 'register', component: RegisterTenant},
-      {path: 'register-invite', component: MemberRegister },
+      { path: 'landing',component: LandingPage  },
+      { path: 'login',component: Login  },
+      { path: 'register', component: RegisterTenant },
+      { path: 'register-invite', component: MemberRegister },
       { path: 'forgot-password', component: ForgotPassword },
       { path: 'reset-password',  component: ResetPassword  },
       { path: 'gdpr',     component: GdprPolicy },
@@ -98,6 +99,8 @@ export const routes: Routes = [
 
 
       { path: 'invite', component: MemberInvite },
+
+      { path: 'upgrade', component: Upgrade },
 
       { path: 'change-password', component: ChangePassword }
     ]
