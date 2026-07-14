@@ -78,6 +78,7 @@ export const routes: Routes = [
       { path: 'reset-password',  component: ResetPassword  },
       { path: 'gdpr',     component: GdprPolicy },
       { path: 'security', component: SecurityPolicy },
+    // { path: 'contact',  component: Contact },
       { path: 'backups',  component: DataBackupPolicy }
     ]
   },
@@ -96,7 +97,7 @@ export const routes: Routes = [
       { path: 'contact',  component: Contact },
       { path: 'upgrade', component: Upgrade },
       { path: 'change-password', component: ChangePassword },
-      
+
       { path: 'gdpr',     component: GdprPolicy },
       { path: 'security', component: SecurityPolicy },
       { path: 'backups',  component: DataBackupPolicy },

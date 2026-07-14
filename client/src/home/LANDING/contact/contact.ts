@@ -6,7 +6,7 @@ import { AccountService } from '../../../core/services/account-service';
 
 @Component({
   selector: 'app-contact',
-  standalone: true,
+    standalone: true,
   imports: [ FormsModule],
   templateUrl: './contact.html',
 })
