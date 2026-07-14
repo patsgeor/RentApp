@@ -1,3 +1,4 @@
+using System.Text;
 using API.Data.Repositories;
 using API.DTOs;
 using API.DTOs.User;
@@ -7,15 +8,18 @@ using API.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.EntityFrameworkCore;
 
 namespace API.Controllers
 {
     
-    public class AccountController(IUnitOfWork uow, 
-                        UserManager<AppUser> userManager, 
-                        ITokenService tokenService,
-                        ITenantProvider tenantProvider) : BaseApiController
+    public class AccountController(IUnitOfWork uow,
+                UserManager<AppUser> userManager,
+                ITokenService tokenService,
+                ITenantProvider tenantProvider,
+                IEmailService emailService,
+                IConfiguration config) : BaseApiController
     {
         [HttpPost]
         public async Task<ActionResult<UserDto>> Register(TenantRegisterDto dto)
@@ -158,5 +162,74 @@ namespace API.Controllers
             //4 αποθήκευση του refresh token στο cookie
             Response.Cookies.Append("refreshToken",refreshToken,cookieOptions); 
         }  
+    
+
+//========================================================================
+//          FORGOT PASSWORD & RESET PASSWORD
+//========================================================================
+        [HttpPost("forgot-password")]
+        public async Task<IActionResult> ForgotPassword(ForgotPasswordDto dto)
+        {
+            // Πάντα Ok — δεν αποκαλύπτουμε αν υπάρχει το email
+            var user = await userManager.Users
+                        .IgnoreQueryFilters()
+                        .SingleOrDefaultAsync(u => u.NormalizedEmail == dto.Email.ToUpper());
+            if (user is null || !user.IsActive)
+                return Ok(new { message = "Αν το email υπάρχει, θα λάβεις οδηγίες." });
+
+            var token     = await userManager.GeneratePasswordResetTokenAsync(user);// Δημιουργία token επαναφοράς κωδικού
+            // var encodedToken = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(token)); // Κωδικοποίηση του token για χρήση σε URL
+            var frontUrl  = config["Frontend:BaseUrl"] ?? "http://localhost:4200";
+            var resetLink = $"{frontUrl}/reset-password?email={Uri.EscapeDataString(dto.Email)}&token={Uri.EscapeDataString(token)}";
+            var body = $"""
+                <p>Γεια σου <strong>{user.DisplayName}</strong>,</p>
+                <p>Λάβαμε αίτημα επαναφοράς κωδικού για τον λογαριασμό σου.</p>
+                <p><a href="{resetLink}" style="padding:10px 20px;background:#4f46e5;color:#fff;border-radius:6px;text-decoration:none;">
+                Επαναφορά Κωδικού
+                </a></p>
+                <p>Ο σύνδεσμος ισχύει για <strong>24 ώρες</strong>.<br>
+                Αν δεν ζήτησες επαναφορά, αγνόησε αυτό το email.</p>
+                """;
+
+            await emailService.SendEmailAsync(dto.Email, "Επαναφορά Κωδικού", body, isHtml: true);
+
+            return Ok(new { message = "Αν το email υπάρχει, θα λάβεις οδηγίες." });
+        }
+
+        [HttpPost("reset-password")]
+        public async Task<IActionResult> ResetPassword(ResetPasswordDto dto)
+        {
+            var user = await userManager.Users
+                .IgnoreQueryFilters()
+                .SingleOrDefaultAsync(u => u.NormalizedEmail == dto.Email.ToUpper());            if (user is null)
+                return BadRequest(new { message = "Μη έγκυρο αίτημα." });
+
+            tenantProvider.SetCurrentTenant(user.TenantId);
+
+            // var decodedToken = Encoding.UTF8.GetString(WebEncoders.Base64UrlDecode(dto.Token)); 
+            var result = await userManager.ResetPasswordAsync(user, dto.Token, dto.NewPassword);
+            if (!result.Succeeded)
+            {
+                return BadRequest(new { errors = result.Errors.Select(e => e.Description).ToList() });
+            }
+
+            return Ok(new { message = "Ο κωδικός άλλαξε επιτυχώς." });
+        }
+
+        [Authorize]
+        [HttpPost("change-password")]
+        public async Task<IActionResult> ChangePassword(ChangePasswordDto dto)
+        {
+            var user = await userManager.FindByIdAsync(User.GetMemberId().ToString());
+            if (user is null) return Unauthorized();
+
+            var result = await userManager.ChangePasswordAsync(user, dto.CurrentPassword, dto.NewPassword);
+            if (!result.Succeeded)
+            {
+                return BadRequest(new { errors = result.Errors.Select(e => e.Description).ToList() });
+            }
+
+            return Ok(new { message = "Ο κωδικός άλλαξε επιτυχώς." });
+        }
     }
 }

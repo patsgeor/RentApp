@@ -1,8 +1,6 @@
 import { Component, inject, signal } from '@angular/core';
 import { RouterOutlet } from "@angular/router";
 import { AccountService } from '../core/services/account-service';
-import { LandingPage } from "../home/landing-page/landing-page";
-import { Home } from "../home/home/home";
 
 @Component({
   selector: 'app-root',

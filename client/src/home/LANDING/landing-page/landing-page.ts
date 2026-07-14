@@ -1,7 +1,7 @@
 import { Component, signal } from '@angular/core';
-import { Feature, Plan } from '../../types/generalTypes';
-import { HomeFooter } from "../home-footer/home-footer";
-import { HomeNav } from "../home-nav/home-nav";
+import { HomeFooter } from '../home-footer/home-footer';
+import { Feature, Plan } from '../../../types/generalTypes';
+import { HomeNav } from '../home-nav/home-nav';
 
 type BillingCycle = 'monthly' | 'yearly' | 'fiveYear';
 

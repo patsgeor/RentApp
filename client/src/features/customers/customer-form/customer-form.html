@@ -31,26 +31,45 @@
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
 
              <!-- ΑΦΜ -->
-            <label class="form-control w-full md:col-span-2">
-              <div class="label pb-1"><span class="label-text font-medium">ΑΦΜ <span class="text-error">*</span></span></div>
-              <input type="text" formControlName="afm" placeholder="123456789" maxlength="9" minlength="9"
-                class="input input-bordered w-full font-mono"
-                [class.input-error]="f['afm'].invalid && f['afm'].touched" />
+           <label class="form-control w-full">
+              <div class="label pb-1">
+                <span class="label-text font-medium">
+                  ΑΦΜ <span class="text-error">*</span>
+                </span>
+              </div>
+
+              <div class="flex gap-2 items-start">
+                <input
+                  type="text"
+                  formControlName="afm"
+                  placeholder="123456789"
+                  maxlength="9"
+                  minlength="9"
+                  class="input input-bordered flex-1 font-mono"
+                  [class.input-error]="f['afm'].invalid && f['afm'].touched"
+                />
+
+                <button
+                  type="button"
+                  class="btn btn-outline whitespace-nowrap"
+                  (click)="lookupAfm()">
+                  Αναζήτηση ΑΑΔΕ
+                </button>
+              </div>
+
               @if (f['afm'].invalid && f['afm'].touched) {
                 <div class="label pt-1">
                   <span class="label-text-alt text-error">
-                    @if (f['afm'].errors?.['required']) { Υποχρεωτικό πεδίο }
-                    @else { Το ΑΦΜ πρέπει να αποτελείται από 9 ψηφία }
+                    @if (f['afm'].errors?.['required']) {
+                      Υποχρεωτικό πεδίο
+                    } @else {
+                      Το ΑΦΜ πρέπει να αποτελείται από 9 ψηφία
+                    }
                   </span>
                 </div>
               }
-              <button type="button" class="btn btn-outline btn-sm" (click)="lookupAfm()">
-                Αναζήτηση ΑΑΔΕ
-              </button>
             </label>
-            
 
-            <div class="divider my-0"></div>
 
             <!-- Επωνυμία -->
             <label class="form-control w-full md:col-span-2">

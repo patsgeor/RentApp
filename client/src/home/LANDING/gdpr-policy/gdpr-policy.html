@@ -1,0 +1,103 @@
+<app-home-nav />
+
+<main class="min-h-screen bg-base-100">
+
+  <!-- Hero -->
+  <section class="bg-base-200 border-b border-base-300">
+    <div class="max-w-4xl mx-auto px-6 py-14 text-center">
+      <div class="badge badge-primary badge-outline mb-4">Νομική Πολιτική</div>
+      <h1 class="text-4xl font-extrabold">Πολιτική GDPR</h1>
+      <p class="text-base-content/70 mt-3">Τελευταία ενημέρωση: {{ lastUpdated }}</p>
+    </div>
+  </section>
+
+  <div class="max-w-4xl mx-auto px-6 py-12 space-y-8">
+
+    <!-- Alert: Ευθύνη πελάτη -->
+    <div class="alert alert-warning shadow">
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+      </svg>
+      <div>
+        <p class="font-semibold">Σημαντική ενημέρωση</p>
+        <p class="text-sm">Κάθε εταιρεία-πελάτης (Tenant) της πλατφόρμας RentApp ενεργεί ως <strong>ανεξάρτητος Υπεύθυνος Επεξεργασίας</strong> των δεδομένων που εισάγει. Η RentApp ενεργεί ως Εκτελών την Επεξεργασία και δεν φέρει ευθύνη για τη συμμόρφωση του πελάτη με τον GDPR.</p>
+      </div>
+    </div>
+
+    <!-- 1 -->
+    <div class="card bg-base-100 border border-base-300 shadow-sm">
+      <div class="card-body">
+        <h2 class="card-title text-xl">1. Ορισμοί & Ρόλοι</h2>
+        <div class="overflow-x-auto mt-2">
+          <table class="table table-zebra">
+            <thead>
+              <tr><th>Όρος</th><th>Εξήγηση</th></tr>
+            </thead>
+            <tbody>
+              <tr><td class="font-medium">RentApp</td><td>Η πλατφόρμα λογισμικού — ενεργεί ως <strong>Εκτελών την Επεξεργασία</strong> (Data Processor)</td></tr>
+              <tr><td class="font-medium">Πελάτης / Tenant</td><td>Η εταιρεία που χρησιμοποιεί την πλατφόρμα — ενεργεί ως <strong>Υπεύθυνος Επεξεργασίας</strong> (Data Controller)</td></tr>
+              <tr><td class="font-medium">Υποκείμενο</td><td>Φυσικό πρόσωπο του οποίου τα δεδομένα υποβάλλονται σε επεξεργασία (π.χ. πελάτες του Tenant)</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- 2 -->
+    <div class="card bg-base-100 border border-base-300 shadow-sm">
+      <div class="card-body">
+        <h2 class="card-title text-xl">2. Υποχρεώσεις Πελάτη (Υπεύθυνος Επεξεργασίας)</h2>
+        <p class="text-base-content/70 text-sm mb-3">Ο Πελάτης είναι αποκλειστικά υπεύθυνος για:</p>
+        <ul class="space-y-2">
+          <li class="flex gap-2 text-sm"><span class="text-error font-bold mt-0.5">•</span> Τη νόμιμη βάση επεξεργασίας των προσωπικών δεδομένων που εισάγει στην πλατφόρμα.</li>
+          <li class="flex gap-2 text-sm"><span class="text-error font-bold mt-0.5">•</span> Την ενημέρωση των υποκειμένων δεδομένων (π.χ. πελατών, συνεργατών) για την επεξεργασία των δεδομένων τους.</li>
+          <li class="flex gap-2 text-sm"><span class="text-error font-bold mt-0.5">•</span> Τη διαχείριση αιτημάτων άσκησης δικαιωμάτων GDPR (πρόσβαση, διαγραφή, φορητότητα).</li>
+          <li class="flex gap-2 text-sm"><span class="text-error font-bold mt-0.5">•</span> Τη σύναψη απαραίτητων συμφωνιών επεξεργασίας δεδομένων (DPA) εφόσον απαιτείται.</li>
+          <li class="flex gap-2 text-sm"><span class="text-error font-bold mt-0.5">•</span> Την τήρηση αρχείων δραστηριοτήτων επεξεργασίας όπου απαιτείται από τον Κανονισμό.</li>
+        </ul>
+        <div class="alert alert-error mt-4 text-sm">
+          <span>Η RentApp <strong>δεν φέρει καμία ευθύνη</strong> για πρόστιμα, κυρώσεις ή αξιώσεις τρίτων που προκύπτουν από μη συμμόρφωση του Πελάτη με τον GDPR.</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3 -->
+    <div class="card bg-base-100 border border-base-300 shadow-sm">
+      <div class="card-body">
+        <h2 class="card-title text-xl">3. Τι Δεδομένα Επεξεργαζόμαστε</h2>
+        <p class="text-base-content/70 text-sm mb-3">Η RentApp επεξεργάζεται μόνο τα δεδομένα που εισάγει ο Πελάτης, αποκλειστικά για την παροχή της υπηρεσίας:</p>
+        <ul class="space-y-1 text-sm">
+          <li class="flex gap-2"><span class="text-primary">→</span> Στοιχεία λογαριασμού χρήστη (email, όνομα, κρυπτογραφημένος κωδικός)</li>
+          <li class="flex gap-2"><span class="text-primary">→</span> Επιχειρηματικά δεδομένα (πάγια, συμβόλαια, πελάτες, πληρωμές)</li>
+          <li class="flex gap-2"><span class="text-primary">→</span> Τεχνικά δεδομένα χρήσης (logs, IP για ασφάλεια)</li>
+        </ul>
+        <p class="text-sm text-base-content/60 mt-3">Δεν πωλούμε, δεν μοιραζόμαστε και δεν αξιοποιούμε εμπορικά τα δεδομένα των Πελατών.</p>
+      </div>
+    </div>
+
+    <!-- 4 -->
+    <div class="card bg-base-100 border border-base-300 shadow-sm">
+      <div class="card-body">
+        <h2 class="card-title text-xl">4. Δικαιώματα Υποκειμένων Δεδομένων</h2>
+        <p class="text-sm text-base-content/70 mb-3">Τα αιτήματα άσκησης δικαιωμάτων (πρόσβαση, διόρθωση, διαγραφή, φορητότητα) απευθύνονται στον <strong>Πελάτη</strong> ο οποίος είναι ο Υπεύθυνος Επεξεργασίας. Η RentApp θα υποστηρίξει τον Πελάτη τεχνικά για τη συμμόρφωση εντός εύλογου χρόνου.</p>
+        <p class="text-sm text-base-content/70">Για αιτήματα που αφορούν αποκλειστικά δεδομένα λογαριασμού RentApp, αποστείλτε email στο: <strong>support@rentapp.gr</strong></p>
+      </div>
+    </div>
+
+    <!-- 5 -->
+    <div class="card bg-base-100 border border-base-300 shadow-sm">
+      <div class="card-body">
+        <h2 class="card-title text-xl">5. Διατήρηση & Διαγραφή Δεδομένων</h2>
+        <ul class="space-y-2 text-sm">
+          <li class="flex gap-2"><span class="text-primary font-bold">•</span> Τα δεδομένα διατηρούνται καθ' όλη τη διάρκεια της ενεργούς συνδρομής.</li>
+          <li class="flex gap-2"><span class="text-primary font-bold">•</span> Μετά τη λήξη/ακύρωση της συνδρομής, τα δεδομένα διατηρούνται για <strong>30 ημέρες</strong> για δυνατότητα επανενεργοποίησης.</li>
+          <li class="flex gap-2"><span class="text-error font-bold">•</span> Μετά το πέρας των 30 ημερών, <strong>όλα τα δεδομένα διαγράφονται μόνιμα</strong> και δεν είναι δυνατή η ανάκτησή τους.</li>
+          <li class="flex gap-2"><span class="text-warning font-bold">•</span> Ο Πελάτης οφείλει να εξάγει τα δεδομένα του πριν τη λήξη της συνδρομής.</li>
+        </ul>
+      </div>
+    </div>
+
+  </div>
+</main>
+
+<app-home-footer />

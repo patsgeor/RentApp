@@ -1,5 +1,5 @@
 import { Component, OnInit, inject, signal, computed } from '@angular/core';
-import { Router, RouterLink } from '@angular/router';
+import { Router } from '@angular/router';
 import { CurrencyPipe, DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { InstallmentService } from '../../../core/services/installment-service';
@@ -7,7 +7,7 @@ import { InstallmentDto, InstallmentStatus, DebtStatsDto } from '../../../types/
 
 @Component({
   selector: 'app-debt-monitor',
-  imports: [RouterLink, CurrencyPipe, DatePipe, FormsModule],
+  imports: [ CurrencyPipe, DatePipe, FormsModule],
   templateUrl: './debt-monitor.html',
 })
 export class DebtMonitor implements OnInit {

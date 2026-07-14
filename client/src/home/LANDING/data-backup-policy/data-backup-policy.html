@@ -1,0 +1,135 @@
+<app-home-nav />
+
+<main class="min-h-screen bg-base-100">
+
+  <section class="bg-base-200 border-b border-base-300">
+    <div class="max-w-4xl mx-auto px-6 py-14 text-center">
+      <div class="badge badge-warning badge-outline mb-4">Κρίσιμη Πολιτική</div>
+      <h1 class="text-4xl font-extrabold">Πολιτική Αντιγράφων Ασφαλείας</h1>
+      <p class="text-base-content/70 mt-3">Τελευταία ενημέρωση: {{ lastUpdated }}</p>
+    </div>
+  </section>
+
+  <div class="max-w-4xl mx-auto px-6 py-12 space-y-8">
+
+    <!-- ΚΡΙΣΙΜΗ ΠΡΟΕΙΔΟΠΟΙΗΣΗ -->
+    <div class="alert alert-error shadow-lg">
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+      </svg>
+      <div>
+        <p class="font-bold text-base">ΣΗΜΑΝΤΙΚΟ: Υποχρέωση Πελάτη</p>
+        <p class="text-sm mt-1">Κάθε Πελάτης <strong>οφείλει να διατηρεί δικά του αντίγραφα ασφαλείας</strong> των δεδομένων του. Η RentApp παρέχει εργαλεία εξαγωγής δεδομένων για αυτό τον σκοπό. Σε περίπτωση απώλειας δεδομένων για οποιονδήποτε λόγο, <strong>δεν παρέχεται αποζημίωση και δεν επιστρέφονται χρήματα</strong>.</p>
+      </div>
+    </div>
+
+    <!-- Τι κάνουμε εμείς -->
+    <div class="card bg-base-100 border border-base-300 shadow-sm">
+      <div class="card-body">
+        <h2 class="card-title text-xl">1. Αντίγραφα Ασφαλείας από την RentApp</h2>
+        <p class="text-sm text-base-content/70 mb-4">Η RentApp πραγματοποιεί αυτόματα αντίγραφα ασφαλείας ως μέρος της υποδομής της:</p>
+        <div class="overflow-x-auto">
+          <table class="table">
+            <thead>
+              <tr><th>Τύπος</th><th>Συχνότητα</th><th>Διατήρηση</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>Ημερήσιο backup</td><td>Κάθε 24 ώρες</td><td>7 ημέρες</td></tr>
+              <tr><td>Εβδομαδιαίο backup</td><td>Κάθε Κυριακή</td><td>4 εβδομάδες</td></tr>
+              <tr><td>Μηνιαίο backup</td><td>1η κάθε μήνα</td><td>3 μήνες</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="alert alert-warning mt-4 text-sm">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+          </svg>
+          <span>Τα παραπάνω αφορούν την <strong>υποδομή</strong> της RentApp και δεν αποτελούν εγγύηση αποκατάστασης δεδομένων του Πελάτη. Η επαναφορά από backup εξαρτάται από τεχνικές συνθήκες και δεν εγγυάται μηδενική απώλεια δεδομένων.</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Υποχρεώσεις Πελάτη -->
+    <div class="card bg-base-100 border border-error/40 shadow-sm">
+      <div class="card-body">
+        <h2 class="card-title text-xl text-error">2. Υποχρεώσεις Πελάτη — Δικά σας Backups</h2>
+        <p class="text-sm text-base-content/70 mb-3">Κάθε Πελάτης <strong>υποχρεούται</strong> να:</p>
+        <ul class="space-y-3 text-sm">
+          <li class="flex gap-2">
+            <span class="text-error font-bold text-base mt-0.5">•</span>
+            <span>Πραγματοποιεί <strong>τακτικές εξαγωγές</strong> των δεδομένων του (τουλάχιστον μία φορά τον μήνα) χρησιμοποιώντας τα εργαλεία εξαγωγής της πλατφόρμας.</span>
+          </li>
+          <li class="flex gap-2">
+            <span class="text-error font-bold text-base mt-0.5">•</span>
+            <span>Αποθηκεύει τα εξαγόμενα αρχεία σε <strong>ανεξάρτητο, ασφαλές μέσο</strong> (τοπικός server, cloud storage κ.λπ.).</span>
+          </li>
+          <li class="flex gap-2">
+            <span class="text-error font-bold text-base mt-0.5">•</span>
+            <span>Εξάγει <strong>όλα τα δεδομένα του πριν τη λήξη ή ακύρωση</strong> της συνδρομής του.</span>
+          </li>
+          <li class="flex gap-2">
+            <span class="text-error font-bold text-base mt-0.5">•</span>
+            <span>Ελέγχει περιοδικά ότι τα αντίγραφα ασφαλείας είναι πλήρη και αναγνώσιμα.</span>
+          </li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Εργαλεία εξαγωγής -->
+    <div class="card bg-base-100 border border-base-300 shadow-sm">
+      <div class="card-body">
+        <h2 class="card-title text-xl">3. Διαθέσιμα Εργαλεία Εξαγωγής</h2>
+        <p class="text-sm text-base-content/70 mb-3">Η πλατφόρμα παρέχει δυνατότητα εξαγωγής των εξής δεδομένων:</p>
+        <ul class="space-y-1 text-sm">
+          <li class="flex gap-2"><span class="text-success">✓</span> Πελάτες & Επαφές (CSV/Excel)</li>
+          <li class="flex gap-2"><span class="text-success">✓</span> Πάγια & Χαρακτηριστικά (CSV/Excel)</li>
+          <li class="flex gap-2"><span class="text-success">✓</span> Συμβόλαια & Δόσεις (CSV/Excel)</li>
+          <li class="flex gap-2"><span class="text-success">✓</span> Πληρωμές & Συναλλαγές (CSV/Excel)</li>
+        </ul>
+        <p class="text-xs text-base-content/50 mt-3">Τα εργαλεία εξαγωγής βρίσκονται στις ρυθμίσεις του λογαριασμού σας.</p>
+      </div>
+    </div>
+
+    <!-- Περιορισμός Ευθύνης -->
+    <div class="card bg-error text-error-content shadow-sm">
+      <div class="card-body">
+        <h2 class="card-title text-xl">4. Περιορισμός Ευθύνης — Μη Αποζημίωση</h2>
+        <ul class="space-y-2 text-sm mt-2">
+          <li class="flex gap-2"><span class="font-bold">→</span> Η RentApp <strong>δεν εγγυάται</strong> την πλήρη ανάκτηση δεδομένων σε περίπτωση βλάβης, διακοπής ή τεχνικού ατυχήματος.</li>
+          <li class="flex gap-2"><span class="font-bold">→</span> <strong>Δεν παρέχεται αποζημίωση</strong> οποιουδήποτε ύψους για απώλεια δεδομένων, ανεξαρτήτως αιτίας.</li>
+          <li class="flex gap-2"><span class="font-bold">→</span> <strong>Δεν γίνεται επιστροφή χρημάτων</strong> λόγω απώλειας δεδομένων ή αδυναμίας ανάκτησής τους.</li>
+          <li class="flex gap-2"><span class="font-bold">→</span> Η ευθύνη της RentApp περιορίζεται αποκλειστικά στην αξία της μηνιαίας συνδρομής και μόνο για αποδεδειγμένο σφάλμα εκ μέρους της.</li>
+          <li class="flex gap-2"><span class="font-bold">→</span> Μετά τη λήξη/ακύρωση συνδρομής, τα δεδομένα διαγράφονται μόνιμα μετά από 30 ημέρες και <strong>δεν είναι δυνατή η ανάκτησή τους</strong>.</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Σύνοψη -->
+    <div class="card bg-base-200 border border-base-300">
+      <div class="card-body">
+        <h2 class="card-title text-lg">Σύνοψη Υποχρεώσεων</h2>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-2 text-sm">
+          <div class="p-3 bg-base-100 rounded-lg">
+            <p class="font-semibold text-primary mb-1">RentApp παρέχει:</p>
+            <ul class="space-y-1 text-base-content/70">
+              <li>✓ Ημερήσια backups υποδομής</li>
+              <li>✓ Εργαλεία εξαγωγής δεδομένων</li>
+              <li>✓ Ασφαλή αποθήκευση δεδομένων</li>
+            </ul>
+          </div>
+          <div class="p-3 bg-base-100 rounded-lg">
+            <p class="font-semibold text-error mb-1">Πελάτης οφείλει:</p>
+            <ul class="space-y-1 text-base-content/70">
+              <li>✗ Δικά του τακτικά backups</li>
+              <li>✗ Εξαγωγή πριν τη λήξη</li>
+              <li>✗ Επαλήθευση αντιγράφων</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</main>
+
+<app-home-footer />

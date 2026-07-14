@@ -1,0 +1,96 @@
+<app-home-nav />
+
+<main class="min-h-screen bg-base-100">
+
+  <section class="bg-base-200 border-b border-base-300">
+    <div class="max-w-4xl mx-auto px-6 py-14 text-center">
+      <div class="badge badge-primary badge-outline mb-4">Νομική Πολιτική</div>
+      <h1 class="text-4xl font-extrabold">Πολιτική Ασφαλείας</h1>
+      <p class="text-base-content/70 mt-3">Τελευταία ενημέρωση: {{ lastUpdated }}</p>
+    </div>
+  </section>
+
+  <div class="max-w-4xl mx-auto px-6 py-12 space-y-8">
+
+    <div class="alert alert-info shadow text-sm">
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+      </svg>
+      <span>Η ασφάλεια είναι κοινή ευθύνη. Η RentApp παρέχει ασφαλή υποδομή· ο Πελάτης φέρει ευθύνη για τη σωστή χρήση και διαχείριση πρόσβασης.</span>
+    </div>
+
+    <!-- Μέτρα RentApp -->
+    <div class="card bg-base-100 border border-base-300 shadow-sm">
+      <div class="card-body">
+        <h2 class="card-title text-xl">1. Μέτρα Ασφαλείας από την RentApp</h2>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-2">
+          @for (item of [
+            {icon:'🔒', title:'HTTPS/TLS', desc:'Όλη η επικοινωνία κρυπτογραφείται με TLS 1.2+'},
+            {icon:'🔑', title:'JWT Authentication', desc:'Ασφαλής αυθεντικοποίηση με βραχύβια tokens'},
+            {icon:'🛡️', title:'Password Hashing', desc:'Κωδικοί αποθηκεύονται με bcrypt — ποτέ ως plaintext'},
+            {icon:'🏢', title:'Multi-Tenant Απομόνωση', desc:'Πλήρης απομόνωση δεδομένων ανά εταιρεία'},
+            {icon:'📋', title:'Audit Logs', desc:'Καταγραφή κρίσιμων ενεργειών για ιχνηλασιμότητα'},
+            {icon:'🔄', title:'Refresh Tokens', desc:'Ασφαλής διαχείριση session με HttpOnly cookies'}
+          ]; track item.title) {
+            <div class="flex gap-3 p-3 bg-base-200 rounded-lg">
+              <span class="text-2xl">{{ item.icon }}</span>
+              <div>
+                <p class="font-semibold text-sm">{{ item.title }}</p>
+                <p class="text-xs text-base-content/60">{{ item.desc }}</p>
+              </div>
+            </div>
+          }
+        </div>
+      </div>
+    </div>
+
+    <!-- Ευθύνες Πελάτη -->
+    <div class="card bg-base-100 border border-error/30 shadow-sm">
+      <div class="card-body">
+        <h2 class="card-title text-xl text-error">2. Ευθύνες Πελάτη</h2>
+        <p class="text-sm text-base-content/70 mb-3">Ο Πελάτης είναι αποκλειστικά υπεύθυνος για:</p>
+        <ul class="space-y-2 text-sm">
+          <li class="flex gap-2"><span class="text-error font-bold">•</span> Τη διατήρηση εμπιστευτικότητας των κωδικών πρόσβασης όλων των χρηστών του.</li>
+          <li class="flex gap-2"><span class="text-error font-bold">•</span> Τη διαχείριση ρόλων και δικαιωμάτων χρηστών εντός της πλατφόρμας.</li>
+          <li class="flex gap-2"><span class="text-error font-bold">•</span> Την άμεση απενεργοποίηση λογαριασμών χρηστών που αποχωρούν από την εταιρεία.</li>
+          <li class="flex gap-2"><span class="text-error font-bold">•</span> Τη χρήση ισχυρών κωδικών (τουλάχιστον 8 χαρακτήρες, κεφαλαία, αριθμοί).</li>
+          <li class="flex gap-2"><span class="text-error font-bold">•</span> Την ασφάλεια των συσκευών από τις οποίες προσπελαύνεται η εφαρμογή.</li>
+          <li class="flex gap-2"><span class="text-error font-bold">•</span> Τη μη κοινοποίηση credentials σε τρίτους.</li>
+        </ul>
+        <div class="alert alert-error mt-4 text-sm">
+          <span>Η RentApp <strong>δεν φέρει ευθύνη</strong> για παραβιάσεις ασφαλείας που οφείλονται σε αμέλεια ή κακή χρήση εκ μέρους του Πελάτη ή των χρηστών του.</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Περιστατικά -->
+    <div class="card bg-base-100 border border-base-300 shadow-sm">
+      <div class="card-body">
+        <h2 class="card-title text-xl">3. Περιστατικά Ασφαλείας</h2>
+        <ul class="space-y-2 text-sm">
+          <li class="flex gap-2"><span class="text-primary font-bold">•</span> Σε περίπτωση εντοπισμού παραβίασης ασφαλείας εκ μέρους της RentApp, οι Πελάτες ενημερώνονται εντός <strong>72 ωρών</strong>.</li>
+          <li class="flex gap-2"><span class="text-primary font-bold">•</span> Για αναφορά ευπαθειών: <strong>erp.rentapp@gmail.com</strong></li>
+          <li class="flex gap-2"><span class="text-warning font-bold">•</span> Περιστατικά που οφείλονται σε παραβίαση credentials του Πελάτη δεν αποζημιώνονται.</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Περιορισμός Ευθύνης -->
+    <div class="card bg-base-100 border border-error shadow-sm">
+      <div class="card-body">
+        <h2 class="card-title text-xl text-error">4. Περιορισμός Ευθύνης</h2>
+        <p class="text-sm text-base-content/70">Η RentApp δεν φέρει καμία ευθύνη για:</p>
+        <ul class="space-y-1 text-sm mt-2">
+          <li class="flex gap-2"><span class="text-error">→</span> Απώλεια εσόδων ή ζημιές που προκύπτουν από διακοπή υπηρεσίας.</li>
+          <li class="flex gap-2"><span class="text-error">→</span> Μη εξουσιοδοτημένη πρόσβαση λόγω αμέλειας του Πελάτη.</li>
+          <li class="flex gap-2"><span class="text-error">→</span> Ζημιές από κακόβουλο λογισμικό στις συσκευές του Πελάτη.</li>
+          <li class="flex gap-2"><span class="text-error">→</span> Οποιαδήποτε έμμεση ή αποθετική ζημία.</li>
+        </ul>
+        <p class="text-sm font-semibold mt-3 text-error">Δεν προβλέπεται επιστροφή χρημάτων για λόγους ασφαλείας που οφείλονται στον Πελάτη.</p>
+      </div>
+    </div>
+
+  </div>
+</main>
+
+<app-home-footer />

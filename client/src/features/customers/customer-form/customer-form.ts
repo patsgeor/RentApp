@@ -156,18 +156,27 @@ export class CustomerForm implements OnInit {
   }
 
   lookupAfm() {
-  const afm = this.form.get('afm')?.value;
-  if (!afm || afm.length !== 9) return;
+    const afm = this.form.get('afm')?.value;
+    if (!afm || afm.length !== 9) return;
 
-  this.service.getAadeCompany(afm).subscribe({
-    next: (data) => {
-      this.form.patchValue({
-        name: data.name ?? '',
-        dou:  data.doyDescription ?? '',
-        address: `${data.address ?? ''} ${data.addressNo ?? ''}`.trim(),
-      });
-    },
-    error: () => this.errorMsg.set('Δεν βρέθηκαν στοιχεία ΑΑΔΕ.')
-  });
-}
+    this.service.getAadeCompany(afm).subscribe({
+      next: (data) => {
+        this.errorMsg.set('');
+
+        this.form.patchValue({
+          name: data.name ?? '',
+          dou:  data.doyDescription ?? '',
+          address: `${data.address ?? ''} ${data.addressNo ?? ''}`.trim(),
+        });
+      },
+      error: () => {
+        this.errorMsg.set('Δεν βρέθηκαν στοιχεία ΑΑΔΕ.');
+        this.form.patchValue({
+          name: '',
+          dou:   '',
+          address: '',
+        });
+      } 
+    });
+  }
 }

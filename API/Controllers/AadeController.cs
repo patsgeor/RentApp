@@ -14,10 +14,19 @@ public class AadeController(AadeService aadeService) : BaseApiController
         if (string.IsNullOrWhiteSpace(afm) || afm.Length != 9)
             return BadRequest("Μη έγκυρο ΑΦΜ.");
 
-        var result = await aadeService.LookupByAfmAsync(afm);
-        if (result is null)
-            return NotFound("Δεν βρέθηκαν στοιχεία για το ΑΦΜ.");
+        try
+        {
+            var result = await aadeService.LookupByAfmAsync(afm);
+        
+            if (result is null)
+                return NotFound("Δεν βρέθηκαν στοιχεία για το ΑΦΜ.");
 
-        return Ok(result);
+            return Ok(result);
+        }
+        catch (Exception ex)        
+        {
+            return BadRequest( $"Σφάλμα κατά την αναζήτηση στο ΑΑΔΕ");
+        }
+        
     }
 }

@@ -3,6 +3,7 @@ import { AbstractControl, FormBuilder, ReactiveFormsModule, ValidationErrors, Va
 import { Router, RouterLink } from '@angular/router';
 import { AccountService } from '../../../core/services/account-service';
 import { TenantRegisterDto } from '../../../types/user';
+import { CustomerService } from '../../../core/services/customer-service';
 
 const passwordMatchValidator: ValidatorFn = (group: AbstractControl): ValidationErrors | null => {
   const pass = group.get('password')?.value;
@@ -20,6 +21,7 @@ export class RegisterTenant {
   
   private fb = inject(FormBuilder);
   private accountService = inject(AccountService);
+  private customerService = inject(CustomerService);
   private router = inject(Router);
 
   loading = signal(false);
@@ -60,6 +62,31 @@ export class RegisterTenant {
         }
         this.loading.set(false);
       }
+    });
+  }
+
+    lookupAfm() {
+    const vatNumber = this.form.get('vatNumber')?.value;
+    if (!vatNumber || vatNumber.length !== 9) return;
+
+    this.customerService.getAadeCompany(vatNumber).subscribe({
+      next: (data) => {
+        this.errorMessage.set('');
+
+        this.form.patchValue({
+          companyName: data.name ?? '',
+          // dou:  data.doyDescription ?? '',
+          // address: `${data.address ?? ''} ${data.addressNo ?? ''}`.trim(),
+        });
+      },
+      error: () => {
+        this.errorMessage.set('Δεν βρέθηκαν στοιχεία ΑΑΔΕ.');
+        this.form.patchValue({
+          companyName: '',
+          // dou:   '',
+          // address: '',
+        });
+      } 
     });
   }
 

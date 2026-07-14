@@ -121,7 +121,8 @@ builder.Services.AddIdentityCore<AppUser>(options =>
         options.User.RequireUniqueEmail = true;// για να απαιτείται μοναδικό email
     })
     .AddRoles<IdentityRole>() // για να προσθέσουμε υποστήριξη για ρόλους (π.χ. admin, moderator, κτλ)
-    .AddEntityFrameworkStores<AppDbContext>();// για να χρησιμοποιήσουμε το AppDbcontext για να αποθηκεύσουμε τα δεδομένα του Identity (users, roles, κτλ)
+    .AddEntityFrameworkStores<AppDbContext>()// για να χρησιμοποιήσουμε το AppDbcontext για να αποθηκεύσουμε τα δεδομένα του Identity (users, roles, κτλ)
+    .AddDefaultTokenProviders(); // για να προσθέσουμε υποστήριξη για token providers (π.χ. για reset password, email confirmation, κτλ)
 // ------------------------------------------------------------------------------
 
 builder.Services.Configure<CloudinarySettings>(builder.Configuration.GetSection("CloudinarySettings"));

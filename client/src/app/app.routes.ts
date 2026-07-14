@@ -3,7 +3,6 @@ import { Login } from '../features/user/login/login';
 import { RegisterTenant } from '../features/user/register-tenant/register-tenant';
 import { authGuard } from '../core/guards/auth-guard';
 import { Home } from '../home/home/home';
-import { LandingPage } from '../home/landing-page/landing-page';
 import { guestGuard } from '../core/guards/guest-guard';
 import { CustomerList } from '../features/customers/customer-list/customer-list';
 import { CustomerForm } from '../features/customers/customer-form/customer-form';
@@ -26,8 +25,17 @@ import { ContractList } from '../features/contract/contract-list/contract-list';
 import { ContractForm } from '../features/contract/contract-form/contract-form';
 import { DebtMonitor } from '../features/debts/debt-monitor/debt-monitor';
 import { ContractInstallments } from '../features/contract/contract-installments/contract-installments';
+import { ForgotPassword } from '../features/user/forgot-password/forgot-password';
+import { ResetPassword } from '../features/user/reset-password/reset-password';
+import { ChangePassword } from '../features/user/change-password/change-password';
+import { GdprPolicy } from '../home/LANDING/gdpr-policy/gdpr-policy';
+import { SecurityPolicy } from '../home/LANDING/security-policy/security-policy';
+import { DataBackupPolicy } from '../home/LANDING/data-backup-policy/data-backup-policy';
+import { LandingPage } from '../home/LANDING/landing-page/landing-page';
+import { Contact } from '../home/LANDING/contact/contact';
 
 export const routes: Routes = [
+  { path: 'contact', component: Contact },
   {path: '',component: LandingPage,canActivate: [guestGuard],runGuardsAndResolvers: 'always'},
  {
     path: '',
@@ -38,8 +46,11 @@ export const routes: Routes = [
       {path: 'login',component: Login},
       {path: 'register', component: RegisterTenant},
       {path: 'register-invite', component: MemberRegister },
-
-
+      { path: 'forgot-password', component: ForgotPassword },
+      { path: 'reset-password',  component: ResetPassword  },
+      { path: 'gdpr',     component: GdprPolicy },
+      { path: 'security', component: SecurityPolicy },
+      { path: 'backups',  component: DataBackupPolicy }
     ]
   },
   
@@ -86,7 +97,9 @@ export const routes: Routes = [
       { path: 'scan', component: QrScanner },
 
 
-      { path: 'invite', component: MemberInvite }
+      { path: 'invite', component: MemberInvite },
+
+      { path: 'change-password', component: ChangePassword }
     ]
    }, 
   {path:'server-error',component:ServerError},
