@@ -34,8 +34,35 @@ import { DataBackupPolicy } from '../home/LANDING/data-backup-policy/data-backup
 import { LandingPage } from '../home/LANDING/landing-page/landing-page';
 import { Contact } from '../home/LANDING/contact/contact';
 import { Upgrade } from '../home/upgrade/upgrade';
+import { PublicLayout } from '../home/public-layout/public-layout';
+import { guestCanMatchGuard } from '../core/guards/guest-can-match-guard';
 
 export const routes: Routes = [
+
+  // ══════════════════════════════════════════════════════
+  // PUBLIC LAYOUT — canMatch: μόνο για guests
+  // Αν ο χρήστης είναι logged-in, ο router παραλείπει
+  // αυτό το group και ελέγχει το επόμενο.
+  // ══════════════════════════════════════════════════════
+  {
+    path: '',
+    component: PublicLayout,
+    canMatch: [guestCanMatchGuard],
+    children: [
+      { path: '',                component: LandingPage },
+      { path: 'login',           component: Login },
+      { path: 'register',        component: RegisterTenant },
+      { path: 'register-invite', component: MemberRegister },
+      { path: 'forgot-password', component: ForgotPassword },
+      { path: 'reset-password',  component: ResetPassword  },
+      // Shared pages — εμφανίζονται με public nav/footer
+      { path: 'contact',  component: Contact },
+      { path: 'gdpr',     component: GdprPolicy },
+      { path: 'security', component: SecurityPolicy },
+      { path: 'backups',  component: DataBackupPolicy },
+      { path: 'upgrade',  component: Upgrade },
+    ]
+  },
   { path: 'contact', component: Contact },
   {path: '',component: LandingPage,canActivate: [guestGuard],runGuardsAndResolvers: 'always'},
  {
@@ -65,6 +92,15 @@ export const routes: Routes = [
       { path: '', redirectTo: 'dashboard', pathMatch: 'full' },  
       { path: 'home', component: Dashboard },    
       { path: 'dashboard', component: Dashboard }, 
+
+      { path: 'contact',  component: Contact },
+      { path: 'upgrade', component: Upgrade },
+      { path: 'change-password', component: ChangePassword },
+      
+      { path: 'gdpr',     component: GdprPolicy },
+      { path: 'security', component: SecurityPolicy },
+      { path: 'backups',  component: DataBackupPolicy },
+      { path: 'upgrade',  component: Upgrade },
       
       { path: 'customer', component: CustomerList },
       { path: 'customer/new', component: CustomerForm },
@@ -97,12 +133,7 @@ export const routes: Routes = [
 
       { path: 'scan', component: QrScanner },
 
-
-      { path: 'invite', component: MemberInvite },
-
-      { path: 'upgrade', component: Upgrade },
-
-      { path: 'change-password', component: ChangePassword }
+      { path: 'invite', component: MemberInvite }
     ]
    }, 
   {path:'server-error',component:ServerError},

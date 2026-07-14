@@ -1,5 +1,10 @@
 @import "tailwindcss";
-@plugin "daisyui";
+@plugin "daisyui"
+{
+    themes: all;
+    exclude: rootscrollgutter;
+
+}
 
 @keyframes scan-line {
   0%   { top: 0; }

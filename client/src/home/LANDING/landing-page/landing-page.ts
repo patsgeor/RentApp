@@ -1,12 +1,10 @@
 import { Component, signal } from '@angular/core';
-import { HomeFooter } from "../home-footer/home-footer";
-import { HomeNav } from "../home-nav/home-nav";
 import { BillingCycle, CYCLES, DISCOUNTS,PLANS } from  '../../../types/pricingData';
 import { Feature, Plan } from '../../../types/generalTypes';
 
 @Component({
-  selector: 'app-landing-page',
-  imports: [HomeFooter, HomeNav],
+  selector: 'app-landing-page',  
+  imports: [],
   templateUrl: './landing-page.html',
   styleUrl: './landing-page.css',
 })
