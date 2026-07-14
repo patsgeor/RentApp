@@ -23,7 +23,6 @@ export interface ContractDetailDto {
   customerId: string;
   customerName: string;
   referenceCode?: string;
-  aadeNumber?: string;
   startDate: string;
   endDate: string;
   signedDate?: string;
@@ -85,7 +84,6 @@ export interface ContractCreateDto {
   endDate: string;
   signedDate?: string;
   referenceCode?: string;
-  aadeNumber?: string;
   taxAmount: number;
   discountAmount: number;
   installmentFrequency: InstallmentFrequency;

@@ -21,8 +21,7 @@ public class PaymentRepository(AppDbContext context) : IPaymentRepository
         {
             var term = search.Trim().ToLower();
             query = query.Where(c =>
-                c.Customer.Name.ToLower().Contains(term) ||
-                (c.AadeNumber != null && c.AadeNumber.ToLower().Contains(term)));
+                c.Customer.Name.ToLower().Contains(term) );
         }
 
         if (status.HasValue)
@@ -46,8 +45,7 @@ public class PaymentRepository(AppDbContext context) : IPaymentRepository
                 Status         = c.Status,
                 CanExtend      = (c.Status == RentalStatus.Active && c.EndDate <= threshold)
                               || c.Status == RentalStatus.Completed,
-                AssetNames     = c.ContractAssets.Select(ca => ca.Asset.Name).ToList(),
-                AadeNumber     = c.AadeNumber
+                AssetNames     = c.ContractAssets.Select(ca => ca.Asset.Name).ToList()
             });
 
         return await PaginationHelper.CreateAsync(projected, pagingParams.PageNumber, pagingParams.PageSize);

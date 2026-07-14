@@ -16,7 +16,6 @@ public class ContractPaymentDto
     public RentalStatus Status { get; set; }
     public bool CanExtend { get; set; }
     public List<string> AssetNames { get; set; } = [];
-    public string? AadeNumber { get; set; }
     public string? ReferenceCode { get; set; }
 }
 

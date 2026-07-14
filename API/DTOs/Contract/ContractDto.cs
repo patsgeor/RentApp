@@ -24,7 +24,6 @@ public class ContractDetailDto
     public Guid CustomerId { get; set; }
     public string CustomerName { get; set; } = null!;
     public string? ReferenceCode { get; set; }
-    public string? AadeNumber { get; set; }
     public DateTime StartDate { get; set; }
     public DateTime EndDate { get; set; }
     public DateTime? SignedDate { get; set; }
@@ -58,7 +57,6 @@ public class ContractCreateDto
     public DateTime EndDate { get; set; }
     public DateTime? SignedDate { get; set; }
     public string? ReferenceCode { get; set; }
-    public string? AadeNumber { get; set; }
     public decimal TaxAmount { get; set; }
     public decimal DiscountAmount { get; set; }
     public InstallmentFrequency InstallmentFrequency { get; set; } = InstallmentFrequency.Monthly;
@@ -86,7 +84,6 @@ public class ContractUpdateDto
     public DateTime EndDate { get; set; }
     public DateTime? SignedDate { get; set; }
     public string? ReferenceCode { get; set; }
-    public string? AadeNumber { get; set; }
     public decimal TaxAmount { get; set; }
     public decimal DiscountAmount { get; set; }
     public RentalStatus Status { get; set; }

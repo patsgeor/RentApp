@@ -49,7 +49,6 @@ public class ContractService(IUnitOfWork uow, ITenantProvider tenantProvider) : 
                 ? DateTime.SpecifyKind(dto.SignedDate.Value, DateTimeKind.Utc)
                 : null,
             ReferenceCode        = string.IsNullOrWhiteSpace(dto.ReferenceCode) ? null : dto.ReferenceCode.Trim(),
-            AadeNumber           = dto.AadeNumber,
             TaxAmount            = dto.TaxAmount,
             DiscountAmount       = dto.DiscountAmount,
             TotalAmount          = totalAmount,
@@ -106,7 +105,6 @@ public class ContractService(IUnitOfWork uow, ITenantProvider tenantProvider) : 
                                             ? DateTime.SpecifyKind(dto.SignedDate.Value, DateTimeKind.Utc)
                                             : null;
         contract.ReferenceCode        = string.IsNullOrWhiteSpace(dto.ReferenceCode) ? null : dto.ReferenceCode.Trim();
-        contract.AadeNumber           = dto.AadeNumber;
         contract.TaxAmount            = dto.TaxAmount;
         contract.DiscountAmount       = dto.DiscountAmount;
         contract.TotalAmount          = totalAmount;

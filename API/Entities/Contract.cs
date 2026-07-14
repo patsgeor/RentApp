@@ -16,9 +16,6 @@ public class Contract : BaseEntity
     public string? Terms { get; set; }
     public DateTime? SignedDate { get; set; }
 
-    [MaxLength(100)]
-    public string? AadeNumber { get; set; }
-
     [MaxLength(500)]
     public string? Notes { get; set; }
 

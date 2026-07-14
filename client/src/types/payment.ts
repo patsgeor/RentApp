@@ -14,7 +14,6 @@ export interface ContractPaymentDto {
   status: RentalStatus;
   canExtend: boolean;
   assetNames: string[];
-  aadeNumber?: string;
 }
 
 export interface IncomeCreateDto {

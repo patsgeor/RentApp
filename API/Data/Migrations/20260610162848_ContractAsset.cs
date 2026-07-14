@@ -479,7 +479,6 @@ namespace API.Data.Migrations
                     EndDate = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     Terms = table.Column<string>(type: "text", nullable: true),
                     SignedDate = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
-                    AadeNumber = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: true),
                     Notes = table.Column<string>(type: "character varying(500)", maxLength: 500, nullable: true),
                     TotalAmount = table.Column<decimal>(type: "numeric(18,2)", nullable: false),
                     TaxAmount = table.Column<decimal>(type: "numeric(18,2)", nullable: false),

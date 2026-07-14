@@ -19,8 +19,7 @@ public class ContractRepository(AppDbContext context) : IContractRepository
             var term = p.Search.Trim().ToLower();
             query = query.Where(c =>
                 c.Customer.Name.ToLower().Contains(term) ||
-                (c.ReferenceCode != null && c.ReferenceCode.ToLower().Contains(term)) ||
-                (c.AadeNumber    != null && c.AadeNumber.ToLower().Contains(term)));
+                (c.ReferenceCode != null && c.ReferenceCode.ToLower().Contains(term)) );
         }
 
         if (p.Status.HasValue)
@@ -64,7 +63,6 @@ public class ContractRepository(AppDbContext context) : IContractRepository
                 CustomerId          = c.CustomerId,
                 CustomerName        = c.Customer.Name,
                 ReferenceCode       = c.ReferenceCode,
-                AadeNumber          = c.AadeNumber,
                 StartDate           = c.StartDate,
                 EndDate             = c.EndDate,
                 SignedDate          = c.SignedDate,

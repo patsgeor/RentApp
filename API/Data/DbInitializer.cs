@@ -412,7 +412,6 @@ public class DbInitializer
                 EndDate              = endDate,
                 SignedDate           = startDate.AddDays(-2),
                 Terms                = "Τυποποιημένοι όροι ενοικίασης παγίων...",
-                AadeNumber           = faker.Random.Replace("AADE-#########"),
                 TotalAmount          = totalAmount,
                 TaxAmount            = taxAmount,
                 DiscountAmount       = 0,
