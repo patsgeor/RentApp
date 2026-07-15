@@ -29,6 +29,7 @@ public class AppDbContext(
     public DbSet<Customer> Customers { get; set; }
     public DbSet<FileAttachment> FileAttachments { get; set; }
     public DbSet<Photo> Photos { get; set; }
+    // public DbSet<Installment>   Installments {get; set;}
     public DbSet<Invoice> Invoices { get; set; }
     public DbSet<Member> Members { get; set; }
     public DbSet<MemberInvite> MemberInvites { get; set; }

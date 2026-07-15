@@ -1,13 +1,3 @@
-export interface KpiDto {
-  activeContracts: number;
-  newContractsThisMonth: number;
-  monthlyIncome: number;
-  totalOutstandingBalance: number;
-  availableAssets: number;
-  rentedAssets: number;
-  totalAssets: number;
-}
-
 export interface OverdueContractDto {
   id: string;
   customerName: string;
@@ -32,9 +22,44 @@ export interface MonthlyChartDto {
   expenses: number;
 }
 
+export interface KpiDto {
+  activeContracts: number;
+  newContractsThisMonth: number;
+  monthlyIncome: number;
+  yearlyIncome: number;          
+  totalOutstandingBalance: number;
+  availableAssets: number;
+  rentedAssets: number;
+  totalAssets: number;
+}
+
 export interface DashboardDto {
   kpi: KpiDto;
   overdueContracts: OverdueContractDto[];
   recentTransactions: RecentTransactionDto[];
   monthlyChart: MonthlyChartDto[];
+  yearlyChart: MonthlyChartDto[];                  
+  topAssets: TopAssetDto[];                        
+  topCustomers: TopCustomerDto[];                 
+  upcomingInstallments: UpcomingInstallmentDto[];  
+}
+
+export interface TopAssetDto {
+  id: string;
+  name: string;
+  totalRevenue: number;
+  contractCount: number;
+}
+
+export interface TopCustomerDto {
+  id: string;
+  name: string;
+  outstandingBalance: number;
+  activeContracts: number;
+}
+
+export interface UpcomingInstallmentDto {
+  month: string;
+  expectedAmount: number;
+  count: number;
 }

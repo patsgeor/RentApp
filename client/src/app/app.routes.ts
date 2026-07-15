@@ -63,26 +63,7 @@ export const routes: Routes = [
       { path: 'upgrade',  component: Upgrade },
     ]
   },
-  { path: 'contact', component: Contact },
-  {path: '',component: LandingPage,canActivate: [guestGuard],runGuardsAndResolvers: 'always'},
- {
-    path: '',
-    runGuardsAndResolvers: 'always',
-    canActivate: [guestGuard],
-    children: [
-      { path: 'landing',component: LandingPage  },
-      { path: 'login',component: Login  },
-      { path: 'register', component: RegisterTenant },
-      { path: 'register-invite', component: MemberRegister },
-      { path: 'forgot-password', component: ForgotPassword },
-      { path: 'reset-password',  component: ResetPassword  },
-      { path: 'gdpr',     component: GdprPolicy },
-      { path: 'security', component: SecurityPolicy },
-    // { path: 'contact',  component: Contact },
-      { path: 'backups',  component: DataBackupPolicy }
-    ]
-  },
-  
+ 
   // αφου εχει κανει login
    {
     path: '',

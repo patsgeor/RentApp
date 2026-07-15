@@ -107,21 +107,118 @@ public class DashboardService(AppDbContext context) : IDashboardService
                 };
             }).ToList();
 
+        // ── Τζίρος τρέχοντος έτους ─────────────────────────────────
+        var startOfYear = new DateTime(now.Year, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+        var yearlyIncome = await context.Payments
+            .Where(p => p.TransactionType == TransactionType.Income && p.PaymentDate >= startOfYear)
+            .SumAsync(p => (decimal?)p.Amount) ?? 0m;
+
+        // ── Ετήσιο chart (12 μήνες τρέχοντος έτους) ────────────────
+        var yearlyPayments = await context.Payments
+            .Where(p => p.PaymentDate >= startOfYear)
+            .Select(p => new { p.PaymentDate, p.Amount, p.TransactionType })
+            .ToListAsync();
+
+        var yearlyChart = Enumerable.Range(0, 12)
+            .Select(i => new DateTime(now.Year, i + 1, 1, 0, 0, 0, DateTimeKind.Utc))
+            .Select(ms =>
+            {
+                var me = ms.AddMonths(1);
+                var slice = yearlyPayments.Where(p => p.PaymentDate >= ms && p.PaymentDate < me).ToList();
+                return new MonthlyChartDto
+                {
+                    Month    = ms.ToString("MMM", el),
+                    Income   = slice.Where(p => p.TransactionType == TransactionType.Income).Sum(p => p.Amount),
+                    Expenses = slice.Where(p => p.TransactionType == TransactionType.Expense).Sum(p => p.Amount)
+                };
+            }).ToList();
+
+        // ── Top 5 Πάγια (βάσει εισπράξεων) ────────────────────────
+        var assetRevRaw = await context.ContractAssets
+            .Select(ca => new
+            {
+                ca.AssetId,
+                AssetName = ca.Asset.Name,
+                Paid = ca.Contract.PaymentContracts
+                    .Where(pc => pc.Payment.TransactionType == TransactionType.Income && !pc.Payment.IsDeleted)
+                    .Sum(pc => (decimal?)pc.Payment.Amount) ?? 0m
+            })
+            .ToListAsync();
+
+        var topAssets = assetRevRaw
+            .GroupBy(x => new { x.AssetId, x.AssetName })
+            .Select(g => new TopAssetDto
+            {
+                Id            = g.Key.AssetId,
+                Name          = g.Key.AssetName,
+                TotalRevenue  = g.Sum(x => x.Paid),
+                ContractCount = g.Count()
+            })
+            .OrderByDescending(a => a.TotalRevenue)
+            .Take(5)
+            .ToList();
+
+        // ── Top 5 Πελάτες με υψηλό υπόλοιπο ───────────────────────
+        var topCustomers = await context.Customers
+            .Select(c => new TopCustomerDto
+            {
+                Id = c.Id,
+                Name = c.Name,
+                OutstandingBalance = c.Contracts
+                    .Where(ct => ct.Status == RentalStatus.Active || ct.Status == RentalStatus.Pending)
+                    .Sum(ct => ct.TotalAmount - (ct.PaymentContracts
+                        .Where(pc => pc.Payment.TransactionType == TransactionType.Income && !pc.Payment.IsDeleted)
+                        .Sum(pc => (decimal?)pc.Payment.Amount) ?? 0m)),
+                ActiveContracts = c.Contracts.Count(ct => ct.Status == RentalStatus.Active)
+            })
+            .Where(c => c.OutstandingBalance > 0)
+            .OrderByDescending(c => c.OutstandingBalance)
+            .Take(5)
+            .ToListAsync();
+
+        // ── Πρόβλεψη εισπράξεων επόμενων 3 μηνών (από δόσεις) ─────
+        // ΣΗΜΕΙΩΣΗ: αν το DbSet σου λέγεται διαφορετικά, άλλαξε το context.Installments
+        var next3Months = startOfMonth.AddMonths(3);
+        var upcomingRaw = await context.Invoices
+            .Where(i => //!i.IsPaid && 
+            i.DueDate >= now && i.DueDate < next3Months)
+            .Select(i => new { i.DueDate, i.Amount })
+            .ToListAsync();
+
+        var upcomingInstallments = Enumerable.Range(0, 3)
+            .Select(i => startOfMonth.AddMonths(i))
+            .Select(ms =>
+            {
+                var me = ms.AddMonths(1);
+                var slice = upcomingRaw.Where(i => i.DueDate >= ms && i.DueDate < me).ToList();
+                return new UpcomingInstallmentDto
+                {
+                    Month          = ms.ToString("MMMM yyyy", el),
+                    ExpectedAmount = slice.Sum(i => i.Amount),
+                    Count          = slice.Count
+                };
+            }).ToList();
+
         return new DashboardDto
         {
             Kpi = new KpiDto
             {
-                ActiveContracts          = activeContracts,
-                NewContractsThisMonth    = newContractsThisMonth,
-                MonthlyIncome            = monthlyIncome,
-                TotalOutstandingBalance  = outstandingBalance,
-                AvailableAssets          = availableAssets,
-                RentedAssets             = rentedAssets,
-                TotalAssets              = totalAssets
+                ActiveContracts         = activeContracts,
+                NewContractsThisMonth   = newContractsThisMonth,
+                MonthlyIncome           = monthlyIncome,
+                YearlyIncome            = yearlyIncome,   
+                TotalOutstandingBalance = outstandingBalance,
+                AvailableAssets         = availableAssets,
+                RentedAssets            = rentedAssets,
+                TotalAssets             = totalAssets
             },
-            OverdueContracts    = overdueContracts,
-            RecentTransactions  = recentTransactions,
-            MonthlyChart        = monthlyChart
+            OverdueContracts      = overdueContracts,
+            RecentTransactions    = recentTransactions,
+            MonthlyChart          = monthlyChart,
+            YearlyChart           = yearlyChart,           
+            TopAssets             = topAssets,            
+            TopCustomers          = topCustomers,          
+            UpcomingInstallments  = upcomingInstallments,  
         };
     }
 }

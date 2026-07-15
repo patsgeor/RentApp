@@ -11,4 +11,6 @@ export class DashboardService {
   get() {
     return this.http.get<DashboardDto>(this.base);
   }
+
+  
 }

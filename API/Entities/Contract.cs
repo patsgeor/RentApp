@@ -28,13 +28,13 @@ public class Contract : BaseEntity
     [Column(TypeName = "decimal(18,2)")]
     public decimal DiscountAmount { get; set; } = 0;
 
-    public RentalStatus Status { get; set; } = RentalStatus.Pending;
+    public RentalStatus Status { get; set; } = RentalStatus.Pending; // αφορα την κατάσταση του συμβολαίου (Pending, Active, Terminated, Expired)
 
     // Μοναδικός κωδικός που χρησιμοποιεί ο ενοικιαστής στις τραπεζικές καταθέσεις
     [MaxLength(50)]
     public string? ReferenceCode { get; set; }
 
-    public InstallmentFrequency InstallmentFrequency { get; set; } = InstallmentFrequency.Monthly;
+    public InstallmentFrequency InstallmentFrequency { get; set; } = InstallmentFrequency.Monthly; // αφορα την πληρωμή καθε ποτε θα γίνεται
 
     // Navigation
     public ICollection<ContractAsset>    ContractAssets   { get; set; } = new List<ContractAsset>();
