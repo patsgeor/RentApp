@@ -31,12 +31,5 @@ public static class Enums
     }
 
     // Συχνότητα δημιουργίας οφειλών
-    public enum InstallmentFrequency
-    {
-        Monthly   = 0,
-        Weekly    = 1,
-        Quarterly = 2,
-        Yearly    = 3,
-        OneTime   = 4   // ολόκληρο το ποσό σε μία οφειλή
-    }
+     public enum InstallmentFrequency { Monthly =0, Weekly =1, Quarterly =2, Yearly =3, OneTime =4 }
 }
