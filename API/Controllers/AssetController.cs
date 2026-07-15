@@ -282,6 +282,26 @@ public class AssetController(IAssetService assetService) : BaseApiController
             return NotFound(new { message = ex.Message });
         }
     }
+
+    
+    // GET api/asset/{id}/availability?from=2026-02-01&to=2026-02-15
+    [HttpGet("{id:guid}/availability")]
+    public async Task<IActionResult> CheckAvailability(Guid id, [FromQuery] DateTime from, [FromQuery] DateTime to)
+    {
+        if (from >= to) return BadRequest(new { message = "Η ημερομηνία λήξης πρέπει να είναι μετά την έναρξη." });
+        var result = await assetService.CheckAvailabilityAsync(id, from, to);
+        return Ok(result);
+    }
+
+    // GET api/asset/calendar?from=2026-01-01&to=2026-12-31
+    [HttpGet("calendar")]
+    public async Task<IActionResult> GetCalendar([FromQuery] AssetCalendarParams p)
+    {
+        if (p.From >= p.To) return BadRequest(new { message = "Η ημερομηνία λήξης πρέπει να είναι μετά την έναρξη." });
+        var result = await assetService.GetCalendarAsync(p.From, p.To);
+        return Ok(result);
+    }
+
 }
 
 

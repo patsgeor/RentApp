@@ -36,7 +36,7 @@ namespace API.Services;
             Notes       = dto.Notes,
             RateUnit    = dto.RateUnit,
             Cost        = dto.Cost,
-            Status      = AssetStatus.Available,
+            Status      = AssetStatus.Active,
             CreatedBy   = currentUserId
         };
 
@@ -121,7 +121,8 @@ namespace API.Services;
         var asset = await unitOfWork.AssetRepository.GetEntityByIdAsync(id)
             ?? throw new NotFoundException($"Asset '{id}' was not found.");
 
-        if (asset.Status == AssetStatus.Rented)
+        var isRented = await unitOfWork.AssetRepository.HasActiveContractAsync(id);
+        if (isRented)
             throw new BadRequestException("Cannot delete an asset that is currently rented.");
 
         asset.DeletedBy = currentUserId;
@@ -165,6 +166,15 @@ namespace API.Services;
     // ==================================================================
     public async Task<PaginatedResult<AssetContractHistDto>> GetContractHistoryAsync(Guid assetId, PagingParams pagingParams)
         => await unitOfWork.AssetRepository.GetContractHistoryAsync(assetId, pagingParams);
+
+    public async Task<AssetAvailabilityDto> CheckAvailabilityAsync(Guid assetId, DateTime from, DateTime to)
+    {
+        var conflicts = await unitOfWork.AssetRepository.GetOccupiedPeriodsInRangeAsync(assetId, from, to);
+        return new AssetAvailabilityDto { IsAvailable = conflicts.Count == 0, Conflicts = conflicts };
+    }
+
+    public Task<List<AssetCalendarEntryDto>> GetCalendarAsync(DateTime from, DateTime to)
+        => unitOfWork.AssetRepository.GetCalendarAsync(from, to);
 
     // ==================================================================
     //  PHOTOS

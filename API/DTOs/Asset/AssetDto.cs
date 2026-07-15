@@ -123,3 +123,30 @@ public class PhotoDto
     public string Url { get; set; } = null!;
     public bool IsMain { get; set; }
 }
+public class AssetContractPeriodDto
+{
+    public Guid ContractId { get; set; }
+    public string CustomerName { get; set; } = null!;
+    public DateTime StartDate { get; set; }
+    public DateTime EndDate { get; set; }
+    public RentalStatus Status { get; set; }
+}
+
+public class AssetAvailabilityDto
+{
+    public bool IsAvailable { get; set; }
+    public List<AssetContractPeriodDto> Conflicts { get; set; } = [];
+}
+
+public class AssetCalendarParams
+{
+    public DateTime From { get; set; }
+    public DateTime To { get; set; }
+}
+
+public class AssetCalendarEntryDto
+{
+    public Guid AssetId { get; set; }
+    public string AssetName { get; set; } = null!;
+    public List<AssetContractPeriodDto> Periods { get; set; } = [];
+}

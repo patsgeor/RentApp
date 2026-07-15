@@ -58,6 +58,9 @@ public interface IAssetRepository
 
     // ---------------- Contract history (per asset) ----------------
     Task<PaginatedResult<AssetContractHistDto>> GetContractHistoryAsync(Guid assetId, PagingParams pagingParams);
+    Task<bool> HasActiveContractAsync(Guid assetId);
+    Task<List<AssetContractPeriodDto>> GetOccupiedPeriodsInRangeAsync(Guid assetId, DateTime from, DateTime to);
+    Task<List<AssetCalendarEntryDto>> GetCalendarAsync(DateTime from, DateTime to);
 
 
     // ---------------- Photos ----------------

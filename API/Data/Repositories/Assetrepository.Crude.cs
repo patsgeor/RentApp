@@ -339,6 +339,77 @@ public partial class AssetRepository
     }
  
     
+    public Task<bool> HasActiveContractAsync(Guid assetId)
+    {
+        var today = DateTime.UtcNow;
+        return context.ContractAssets
+            .AsNoTracking()
+            .AnyAsync(ca =>
+                ca.AssetId == assetId &&
+                ca.Contract.Status == RentalStatus.Active &&
+                ca.StartDate <= today && ca.EndDate >= today);
+    }
+
+    public async Task<List<AssetContractPeriodDto>> GetOccupiedPeriodsInRangeAsync(
+        Guid assetId, DateTime from, DateTime to)
+    {
+        return await context.ContractAssets
+            .AsNoTracking()
+            .Where(ca =>
+                ca.AssetId == assetId &&
+                ca.Contract.Status != RentalStatus.Cancelled &&
+                ca.StartDate < to && ca.EndDate > from)
+            .OrderBy(ca => ca.StartDate)
+            .Select(ca => new AssetContractPeriodDto
+            {
+                ContractId   = ca.ContractId,
+                CustomerName = ca.Contract.Customer.Name,
+                StartDate    = ca.StartDate,
+                EndDate      = ca.EndDate,
+                Status       = ca.Contract.Status,
+            })
+            .ToListAsync();
+    }
+
+    public async Task<List<AssetCalendarEntryDto>> GetCalendarAsync(DateTime from, DateTime to)
+    {
+        var rows = await context.ContractAssets
+            .AsNoTracking()
+            .Where(ca =>
+                ca.Contract.Status != RentalStatus.Cancelled &&
+                ca.StartDate < to && ca.EndDate > from)
+            .OrderBy(ca => ca.AssetId).ThenBy(ca => ca.StartDate)
+            .Select(ca => new
+            {
+                ca.AssetId,
+                AssetName    = ca.Asset.Name,
+                ContractId   = ca.ContractId,
+                CustomerName = ca.Contract.Customer.Name,
+                StartDate    = ca.StartDate,
+                EndDate      = ca.EndDate,
+                Status       = ca.Contract.Status,
+            })
+            .ToListAsync();
+
+        return rows
+            .GroupBy(r => new { r.AssetId, r.AssetName })
+            .Select(g => new AssetCalendarEntryDto
+            {
+                AssetId   = g.Key.AssetId,
+                AssetName = g.Key.AssetName,
+                Periods   = g.Select(r => new AssetContractPeriodDto
+                {
+                    ContractId   = r.ContractId,
+                    CustomerName = r.CustomerName,
+                    StartDate    = r.StartDate,
+                    EndDate      = r.EndDate,
+                    Status       = r.Status
+                }).ToList()
+            })
+            .ToList();
+    }
+
+    
     // ==================================================================
     //  PHOTOS
     // ==================================================================

@@ -26,19 +26,23 @@ public class DashboardService(AppDbContext context) : IDashboardService
             .SumAsync(p => (decimal?)p.Amount) ?? 0m;
 
         var availableAssets = await context.Assets
-            .CountAsync(a => a.Status == AssetStatus.Available);
+            .CountAsync(a => a.Status == AssetStatus.Active);
 
-        var rentedAssets = await context.Assets
-            .CountAsync(a => a.Status == AssetStatus.Rented);
+        var rentedAssets = await context.ContractAssets
+            .CountAsync(ca =>
+                ca.Contract.Status == RentalStatus.Active &&
+                ca.StartDate <= now && ca.EndDate >= now);
 
-        var totalAssets = availableAssets + rentedAssets;
+        var totalAssets = await context.Assets.CountAsync();
+
 
         // Outstanding balance across active/pending contracts
         var outstandingBalance = await context.Contracts
             .Where(c => c.Status == RentalStatus.Active || c.Status == RentalStatus.Pending)
-            .Select(c => c.TotalAmount - (c.PaymentContracts
-                .Where(pc => pc.Payment.TransactionType == TransactionType.Income && !pc.Payment.IsDeleted)
-                .Sum(pc => (decimal?)pc.Payment.Amount) ?? 0m))
+            // .Select(c => c.TotalAmount - (c.PaymentContracts
+            //     .Where(pc => pc.Payment.TransactionType == TransactionType.Income && !pc.Payment.IsDeleted)
+            //     .Sum(pc => (decimal?)pc.Payment.Amount) ?? 0m))
+            .Select(c => c.TotalAmount - (c.Installments.Sum(i => (decimal?)i.AllocatedAmount) ?? 0m))
             .SumAsync(o => (decimal?)o) ?? 0m;
 
         // Overdue: Active contracts past endDate

@@ -49,8 +49,8 @@ public interface IAssetService
 
     // ---------------- Contract history (per asset) ----------------
     Task<PaginatedResult<AssetContractHistDto>> GetContractHistoryAsync(Guid assetId, PagingParams pagingParams);
-
-
+    Task<AssetAvailabilityDto> CheckAvailabilityAsync(Guid assetId, DateTime from, DateTime to);
+    Task<List<AssetCalendarEntryDto>> GetCalendarAsync(DateTime from, DateTime to);
     
     // ---------------- Photos ----------------
     Task<PhotoDto> AddPhotoAsync(Guid assetId, IFormFile file, string currentUserId);

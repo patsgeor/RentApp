@@ -26,7 +26,7 @@ public class Asset: BaseEntity
     [Column(TypeName = "decimal(18,2)")]
     public decimal Cost { get; set; }
 
-    public AssetStatus Status { get; set; } = AssetStatus.Available;
+    public AssetStatus Status { get; set; } = AssetStatus.Active;
 
     public string? PhotoUrl { get; set; }
 

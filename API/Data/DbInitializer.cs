@@ -319,7 +319,7 @@ public class DbInitializer
                     AssetTypeId   = cfg.Type.Id,
                     TenantId      = cfg.TenantId,
                     Name          = assetName,
-                    Status        = AssetStatus.Available,
+                    Status        = AssetStatus.Active,
                     Cost          = faker.Random.Decimal(10, 500),
                     RateUnit      = faker.PickRandom<RateUnit>(),
                     PropertiesJson = JsonDocument.Parse(JsonSerializer.Serialize(propertiesDict)),
@@ -373,7 +373,7 @@ public class DbInitializer
 
                 var randomAsset = faker.PickRandom(pool);
                 pool.Remove(randomAsset);
-                randomAsset.Status = AssetStatus.Rented;
+                // randomAsset.Status = AssetStatus.Active;
 
                 var unitCost   = randomAsset.Cost > 0 ? randomAsset.Cost : faker.Random.Decimal(50, 300);
                 var calculated = CalculateRentalAmount(randomAsset.RateUnit, unitCost, days);
