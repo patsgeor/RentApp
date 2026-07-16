@@ -88,6 +88,7 @@
           </div>
         }
       </div>
+      
     </div>
   </div>
 
@@ -107,6 +108,11 @@
       </div>
     </div>
   }
+  <!-- Availability calendar (collapsible) -->
+  @if (assetId()) {
+    <app-asset-calendar [assetId]="assetId()" />
+  }
+  
  <!-- QR Code (collapsible) -->
   @if (assetId()) {
     <app-asset-qr-code [assetId]="assetId()" [assetName]="asset()?.name ?? ''" />

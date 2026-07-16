@@ -21,7 +21,8 @@ public class PaymentRepository(AppDbContext context) : IPaymentRepository
         {
             var term = search.Trim().ToLower();
             query = query.Where(c =>
-                c.Customer.Name.ToLower().Contains(term) );
+                c.Customer.Name.ToLower().Contains(term) ||
+                c.Customer.Afm.Contains(term) );
         }
 
         if (status.HasValue)

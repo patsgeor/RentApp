@@ -18,6 +18,10 @@ public class Tenant
     
     [MaxLength(500)]
     public string? ContactInfo { get; set; }
+
+    public PlanType PlanType { get; set; } = PlanType.Free;
+    public DateTime? PlanExpiresAt { get; set; }
+
     
     public SubscriptionStatus SubscriptionStatus { get; set; } = SubscriptionStatus.Active;
 

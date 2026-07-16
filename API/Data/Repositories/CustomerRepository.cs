@@ -9,7 +9,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace API.Data.Repositories;
 
-public class CustomerRepository (AppDbContext context) : ICustomerRepository
+public class CustomerRepository(AppDbContext context, ITenantProvider tenantProvider) : ICustomerRepository
 {
     // ------------------------------------------------------------------
     //  READ
@@ -17,28 +17,44 @@ public class CustomerRepository (AppDbContext context) : ICustomerRepository
     //  so no manual TenantId check is needed here.
     // ------------------------------------------------------------------
  
-    public async Task<PaginatedResult<CustomerDto>> GetAllAsync(PagingParams pagingParams)
-    {
-        var query = context.Customers
-                    .Include(c => c.Contacts)
-                    .AsNoTracking().AsQueryable();
- 
-        if (!string.IsNullOrWhiteSpace(pagingParams.Search))
+        public async Task<PaginatedResult<CustomerDto>> GetAllAsync(CustomerParams p)    
         {
-            var term = pagingParams.Search.Trim().ToLower();
+         IQueryable<Customer> query;
+
+        if (p.ShowDeleted == "deleted" || p.ShowDeleted == "all")
+        {
+       // Bypass both the soft-delete and tenant global filters, then re-apply tenant manually
+            query = context.Customers
+                .IgnoreQueryFilters()
+                .Include(c => c.Contacts)
+                .AsNoTracking()
+                .Where(c => c.TenantId == tenantProvider.TenantId);
+
+            if (p.ShowDeleted == "deleted")
+                query = query.Where(c => c.IsDeleted);
+        }
+        else
+        {
+            // Default: global filter handles tenant + soft-delete
+            query = context.Customers.Include(c => c.Contacts).AsNoTracking();
+        }
+
+        if (!string.IsNullOrWhiteSpace(p.Search))
+        {
+            var term = p.Search.Trim().ToLower();
             query = query.Where(c =>
                 c.Name.ToLower().Contains(term) ||
                 c.Afm.Contains(term) ||
                 c.Contacts.Any(ct =>
                     (ct.Phone != null && ct.Phone.Contains(term)) ||
-                    (ct.Email != null && ct.Email.ToLower().Contains(term))
-                    ));
+                    (ct.Email != null && ct.Email.ToLower().Contains(term))));
         }
  
         var projected = query.OrderBy(c => c.Name).Select(ProjectToDto());
  
-        return await PaginationHelper.CreateAsync(projected, pagingParams.PageNumber, pagingParams.PageSize);
+        return await PaginationHelper.CreateAsync(projected, p.PageNumber, p.PageSize);
     }
+ 
  
     public async Task<CustomerDto?> GetByIdAsync(Guid id)
     {
@@ -71,6 +87,21 @@ public class CustomerRepository (AppDbContext context) : ICustomerRepository
         return await context.Customers
             .Include(c => c.Contacts)
             .FirstOrDefaultAsync(c => c.Id == id);
+    }
+
+    public async Task<Customer?> GetEntityByIdIgnoreFiltersAsync(Guid id)
+    {
+        return await context.Customers
+            .IgnoreQueryFilters()
+            .Include(c => c.Contacts)
+            .FirstOrDefaultAsync(c => c.Id == id && c.TenantId == tenantProvider.TenantId);
+    }
+
+    public async Task<Customer?> GetDeletedByAfmAsync(string afm)
+    {
+        return await context.Customers
+            .IgnoreQueryFilters()
+            .FirstOrDefaultAsync(c => c.Afm == afm && c.IsDeleted && c.TenantId == tenantProvider.TenantId);
     }
  
     public async Task<bool> AfmExistsAsync(string afm, Guid? excludingId = null)
@@ -143,6 +174,8 @@ public class CustomerRepository (AppDbContext context) : ICustomerRepository
             Address = c.Address,
             Representative = c.Representative,
             CreatedAt = c.CreatedAt,
+            IsDeleted = c.IsDeleted,
+            // DeletedAt = c.DeletedAt,
             Contacts = c.Contacts.Select(ct => new ContactDto
             {
                 Id = ct.Id,

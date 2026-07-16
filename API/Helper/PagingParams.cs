@@ -20,3 +20,10 @@ public class PagingParams
     public string? SortBy { get; set; }
 }
 
+public class CustomerParams : PagingParams
+{
+    /// <summary>active | deleted | all</summary>
+    public string ShowDeleted { get; set; } = "active";
+}
+
+

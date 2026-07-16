@@ -16,4 +16,5 @@ export class CustomersParams {
   pageSize = 10;
   orderBy = 'name';
   searchTerm = '';
+  showDeleted = 'active'; // 'active' | 'deleted' | 'all'
 }

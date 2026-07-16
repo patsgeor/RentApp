@@ -1,4 +1,4 @@
-import { Component, computed, input } from '@angular/core';
+import { Component, computed, input, output } from '@angular/core';
 import { CustomerDto, CustomerStatsDto } from '../../../types/customers';
 
 @Component({
@@ -8,6 +8,7 @@ import { CustomerDto, CustomerStatsDto } from '../../../types/customers';
   styleUrl: './customer-stats.css',
 })
 export class CustomerStats {
-  // Server-side στατιστικά (από όλους τους πελάτες, όχι μόνο την τρέχουσα σελίδα)
-  stats = input<CustomerStatsDto | null>(null);
+  stats       = input<CustomerStatsDto | null>(null);
+  activeFilter = input<string>('active');
+  filterChange = output<string>();
 }

@@ -26,8 +26,8 @@
           <div class="flex-1 min-w-0">
             <div class="flex items-center gap-2 flex-wrap">
               <h2 class="text-xl font-bold">{{ customer()!.name }}</h2>
-              <div [class]="customer()!.isActive ? 'badge badge-success badge-sm' : 'badge badge-ghost badge-sm'">
-                {{ customer()!.isActive ? 'Ενεργός' : 'Ανενεργός' }}
+              <div [class]="customer()!.isDeleted ? 'badge badge-success badge-sm' : 'badge badge-ghost badge-sm'">
+                {{ customer()!.isDeleted ? 'Ενεργός' : 'Ανενεργός' }}
               </div>
             </div>
             <p class="text-sm text-base-content/60 mt-1 font-mono">ΑΦΜ: {{ customer()!.afm }}</p>

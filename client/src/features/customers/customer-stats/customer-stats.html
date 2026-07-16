@@ -1,14 +1,24 @@
 <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
 
-  <div class="card bg-base-100 shadow-sm border border-base-200">
+   <!-- Σύνολο → all -->
+  <div class="card shadow-sm border cursor-pointer transition-all hover:shadow-md"
+       [class.bg-primary]="activeFilter() === 'all'"
+       [class.text-primary-content]="activeFilter() === 'all'"
+       [class.bg-base-100]="activeFilter() !== 'all'"
+       [class.border-primary]="activeFilter() === 'all'"
+       [class.border-base-200]="activeFilter() !== 'all'"
+       (click)="filterChange.emit('all')">
     <div class="card-body p-4">
       <div class="flex items-center justify-between">
         <div>
-          <p class="text-sm text-base-content/60">Σύνολο Πελατών</p>
+          <p class="text-sm opacity-60">Σύνολο Πελατών</p>
           <p class="text-3xl font-bold mt-1">{{ stats()?.total ?? '—' }}</p>
         </div>
-        <div class="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
-          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6 text-primary">
+         <div class="w-12 h-12 rounded-xl flex items-center justify-center"
+             [class.bg-primary-content]="activeFilter() !== 'all'"
+             [class.bg-base-100]="activeFilter() =='all'">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"
+               class="size-6" [class.text-primary-content]="activeFilter() === 'all'" [class.text-primary]="activeFilter() !== 'all'">
             <path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 0 0 2.625.372 9.337 9.337 0 0 0 4.121-.952 4.125 4.125 0 0 0-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 0 1 8.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0 1 11.964-3.07M12 6.375a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0Zm8.25 2.25a2.625 2.625 0 1 1-5.25 0 2.625 2.625 0 0 1 5.25 0Z" />
           </svg>
         </div>
@@ -16,16 +26,26 @@
     </div>
   </div>
 
-  <div class="card bg-base-100 shadow-sm border border-base-200">
+ <!-- Νέοι (μήνας) → active (no special filter, just resets) -->
+  <div class="card shadow-sm border cursor-pointer transition-all hover:shadow-md"
+       [class.bg-success]="activeFilter() === 'new'"
+       [class.text-success-content]="activeFilter() === 'new'"
+       [class.bg-base-100]="activeFilter() !== 'new'"
+       [class.border-success]="activeFilter() === 'new'"
+       [class.border-base-200]="activeFilter() !== 'new'"
+       (click)="filterChange.emit('new')">
     <div class="card-body p-4">
       <div class="flex items-center justify-between">
         <div>
-          <p class="text-sm text-base-content/60">Νέοι (μήνας)</p>
+          <p class="text-sm opacity-60">Νέοι (μήνας)</p>
           <p class="text-3xl font-bold mt-1">{{ stats()?.newThisMonth ?? '—' }}</p>
 
         </div>
-        <div class="w-12 h-12 rounded-xl bg-success/10 flex items-center justify-center">
-          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6 text-success">
+         <div class="w-12 h-12 rounded-xl flex items-center justify-center"
+             [class.bg-success-content]="activeFilter() !== 'new'"
+             [class.bg-base-100]="activeFilter() == 'new'">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"
+               class="size-6" [class.text-success-content]="activeFilter() === 'new'" [class.text-success]="activeFilter() !== 'new'">
             <path stroke-linecap="round" stroke-linejoin="round" d="M18 7.5v3m0 0v3m0-3h3m-3 0h-3m-2.25-4.125a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0ZM3 19.235v-.11a6.375 6.375 0 0 1 12.75 0v.109A12.318 12.318 0 0 1 9.374 21c-2.331 0-4.512-.645-6.374-1.766Z" />
           </svg>
         </div>
@@ -33,15 +53,25 @@
     </div>
   </div>
 
-  <div class="card bg-base-100 shadow-sm border border-base-200">
+ <!-- Ενεργοί → active -->
+  <div class="card shadow-sm border cursor-pointer transition-all hover:shadow-md"
+       [class.bg-info]="activeFilter() === 'active'"
+       [class.text-info-content]="activeFilter() === 'active'"
+       [class.bg-base-100]="activeFilter() !== 'active'"
+       [class.border-info]="activeFilter() === 'active'"
+       [class.border-base-200]="activeFilter() !== 'active'"
+       (click)="filterChange.emit('active')">
     <div class="card-body p-4">
       <div class="flex items-center justify-between">
         <div>
-          <p class="text-sm text-base-content/60">Ενεργοί</p>
+          <p class="text-sm opacity-60">Ενεργοί</p>
           <p class="text-3xl font-bold mt-1">{{ stats()?.active ?? '—' }}</p>
       </div>
-        <div class="w-12 h-12 rounded-xl bg-info/10 flex items-center justify-center">
-          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6 text-info">
+        <div class="w-12 h-12 rounded-xl flex items-center justify-center"
+             [class.bg-info-content]="activeFilter() !== 'active'"
+             [class.bg-base-100]="activeFilter() == 'active'">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"
+               class="size-6" [class.text-info-content]="activeFilter() === 'active'" [class.text-info]="activeFilter() !== 'active'">
             <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
           </svg>
         </div>
@@ -49,15 +79,26 @@
     </div>
   </div>
 
-  <div class="card bg-base-100 shadow-sm border border-base-200">
+<!-- Ανενεργοί/Διαγραμμένοι → deleted -->
+  <div class="card shadow-sm border cursor-pointer transition-all hover:shadow-md"
+       [class.bg-warning]="activeFilter() === 'deleted'"
+       [class.text-warning-content]="activeFilter() === 'deleted'"
+       [class.bg-base-100]="activeFilter() !== 'deleted'"
+       [class.border-warning]="activeFilter() === 'deleted'"
+       [class.border-base-200]="activeFilter() !== 'deleted'"
+       (click)="filterChange.emit('deleted')">
     <div class="card-body p-4">
       <div class="flex items-center justify-between">
         <div>
-          <p class="text-sm text-base-content/60">Ανενεργοί</p>
+          <p class="text-sm opacity-60">Διαγραμμένοι</p>
           <p class="text-3xl font-bold mt-1">{{ stats()?.inactive ?? '—' }}</p>
         </div>
-        <div class="w-12 h-12 rounded-xl bg-warning/10 flex items-center justify-center">
-          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6 text-warning">
+        <div class="w-12 h-12 rounded-xl flex items-center justify-center"
+             [class.bg-warning-content]="activeFilter() !== 'deleted'"
+             [class.bg-base-100]="activeFilter() == 'deleted'">
+              
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"
+               class="size-6" [class.text-warning-content]="activeFilter() === 'deleted'" [class.text-warning]="activeFilter() !== 'deleted'">
             <path stroke-linecap="round" stroke-linejoin="round" d="M18.364 18.364A9 9 0 0 0 5.636 5.636m12.728 12.728A9 9 0 0 1 5.636 5.636m12.728 12.728L5.636 5.636" />
           </svg>
         </div>

@@ -1,5 +1,5 @@
 export enum RateUnit { PerHour = 0, PerDay = 1, PerMonth = 2, Sale = 3 }
-export enum AssetStatus { Available = 0, Rented = 1, UnderMaintenance = 2, Damaged = 3 }
+export enum AssetStatus { Active = 0, Retired = 1, UnderMaintenance = 2, Damaged = 3 }
 export enum FieldDataType { Text = 0, Number = 1, Boolean = 2, Date = 3, DateTime = 4 }
 export enum RentalStatus { Pending = 0, Active = 1, Completed = 2, Cancelled = 3 }
 
@@ -84,6 +84,7 @@ export interface AssetUpdateDto {
   name: string;
   notes?: string;
   rateUnit: RateUnit;
+  status: AssetStatus;
   cost: number;
   attributes: Record<string, unknown>;
 }
@@ -196,4 +197,28 @@ export interface AssetSearchRequest {
   pageSize?: number;
   sortBy?: string;
   filters: AssetAttributeFilter[];
+}
+
+export interface AssetContractPeriodDto {
+  contractId: string;
+  customerName: string;
+  startDate: string;
+  endDate: string;
+  status: number;
+}
+
+export interface AssetAvailabilityDto {
+  isAvailable: boolean;
+  conflicts: AssetContractPeriodDto[];
+}
+
+export interface AssetCalendarParams {
+  from: string;
+  to: string;
+}
+
+export interface AssetCalendarEntryDto {
+  assetId: string;
+  assetName: string;
+  periods: AssetContractPeriodDto[];
 }

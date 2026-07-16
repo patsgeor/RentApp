@@ -11,8 +11,8 @@ namespace API.Services;
 
 public class CustomerService (IUnitOfWork uow, ITenantProvider tenantProvider): ICustomerService
 {
-    public Task<PaginatedResult<CustomerDto>> GetAllAsync(PagingParams pagingParams)
-        => uow.CustomerRepository.GetAllAsync(pagingParams);
+    public Task<PaginatedResult<CustomerDto>> GetAllAsync(CustomerParams p)
+        => uow.CustomerRepository.GetAllAsync(p);
  
     public Task<CustomerDto?> GetByIdAsync(Guid id)
         => uow.CustomerRepository.GetByIdAsync(id);
@@ -23,11 +23,29 @@ public class CustomerService (IUnitOfWork uow, ITenantProvider tenantProvider): 
     
     public async Task<CustomerDto> CreateAsync(CustomerCreateDto dto, string currentUserId)
     {
-        // Catching this here gives a clean 400 instead of letting the
-        // unique index (TenantId, Afm) throw a raw DbUpdateException.
+         // Active customer with this AFM already exists → plain conflict
         if (await uow.CustomerRepository.AfmExistsAsync(dto.Afm))
-            throw new BadRequestException($"A customer with AFM '{dto.Afm}' already exists.");
- 
+            throw new BadRequestException($"Πελάτης με ΑΦΜ '{dto.Afm}' υπάρχει ήδη.");
+
+        // Soft-deleted customer with same AFM → restore and update instead of creating a duplicate
+        var deleted = await uow.CustomerRepository.GetDeletedByAfmAsync(dto.Afm);
+        if (deleted != null)
+        {
+            deleted.IsDeleted    = false;
+            deleted.DeletedAt    = null;
+            deleted.DeletedBy    = null;
+            deleted.Type         = dto.Type;
+            deleted.Name         = dto.Name;
+            deleted.Dou          = dto.Dou;
+            deleted.Address      = dto.Address;
+            deleted.Representative = dto.Representative;
+            deleted.UpdatedAt    = DateTime.UtcNow;
+            deleted.UpdatedBy    = currentUserId;
+            uow.CustomerRepository.Update(deleted);
+            await uow.Complete();
+            return (await uow.CustomerRepository.GetByIdAsync(deleted.Id))!;
+        }
+
         var customer = new Customer
         {
             TenantId = tenantProvider.TenantId,
@@ -37,12 +55,12 @@ public class CustomerService (IUnitOfWork uow, ITenantProvider tenantProvider): 
             Dou = dto.Dou,
             Address = dto.Address,
             Representative = dto.Representative,
-            CreatedBy = currentUserId
+            CreatedBy      = currentUserId
         };
  
         await uow.CustomerRepository.AddAsync(customer);
         await uow.Complete();
- 
+
         return (await uow.CustomerRepository.GetByIdAsync(customer.Id))!;
     }
  
@@ -72,6 +90,27 @@ public class CustomerService (IUnitOfWork uow, ITenantProvider tenantProvider): 
  
         return (await uow.CustomerRepository.GetByIdAsync(id))!;
     }
+
+    public async Task<CustomerDto> RestoreAsync(Guid id, string currentUserId)
+    {
+        var customer = await uow.CustomerRepository.GetEntityByIdIgnoreFiltersAsync(id)
+            ?? throw new NotFoundException($"Πελάτης {id} δεν βρέθηκε.");
+
+        if (!customer.IsDeleted)
+            throw new BadRequestException("Ο πελάτης δεν είναι διαγραμμένος.");
+
+        customer.IsDeleted  = false;
+        customer.DeletedAt  = null;
+        customer.DeletedBy  = null;
+        customer.UpdatedAt  = DateTime.UtcNow;
+        customer.UpdatedBy  = currentUserId;
+
+        uow.CustomerRepository.Update(customer);
+        await uow.Complete();
+
+        return (await uow.CustomerRepository.GetByIdAsync(id))!;
+    }
+
  
     public async Task DeleteAsync(Guid id, string currentUserId)
     {

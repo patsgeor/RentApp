@@ -52,7 +52,28 @@
       <option value="cost_desc">Κόστος ↓</option>
     </select>
   </div>
-
+  
+ <!-- Date availability filter -->
+  <div class="flex flex-col sm:flex-row gap-2 items-start sm:items-center flex-wrap">
+    <span class="text-xs text-base-content/50 font-medium shrink-0">Διαθέσιμο:</span>
+      <label class="input input-bordered input-sm flex items-center gap-2">
+        <span class="text-xs text-base-content/50 shrink-0">Από</span>
+        <input type="date" class="grow min-w-[8rem]"
+              [value]="availableFrom"
+              (change)="onAvailableFromChange($any($event.target).value)" />
+      </label>
+      <label class="input input-bordered input-sm flex items-center gap-2">
+        <span class="text-xs text-base-content/50 shrink-0">Έως</span>
+        <input type="date" class="grow min-w-[8rem]"
+              [value]="availableTo"
+              (change)="onAvailableToChange($any($event.target).value)" />
+      </label>
+      @if (availableFrom || availableTo) {
+        <button type="button" class="btn btn-ghost btn-xs text-base-content/50"
+                (click)="clearDateFilter()">✕ Καθαρισμός</button>
+      }
+  </div>
+  
   <!-- Dynamic filter chips (only when a type with option-fields is selected) -->
   @if (schemaFields().length > 0) {
     <div class="flex flex-wrap gap-2 items-center">
@@ -96,7 +117,7 @@
 
   <!-- Loading skeleton -->
   @if (loading()) {
-    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+    <div class="grid grid-cols-1 sm:grid-cols-6 md:grid-cols-3 lg:grid-cols-4 gap-4">
       @for (_ of [1,2,3,4,5,6,7,8]; track $index) {
         <div class="card bg-base-100 border border-base-200 shadow-sm">
           <div class="skeleton aspect-[4/3] rounded-t-2xl"></div>

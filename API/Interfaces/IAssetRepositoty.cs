@@ -38,7 +38,7 @@ public interface IAssetRepository
     Task<bool> OptionValueInUseAsync(Guid fieldId, string value);
  
     // ---------------- Asset (data) ----------------
-    Task<PaginatedResult<AssetDto>> GetAllAsync(PagingParams pagingParams, Guid? assetTypeId, Enums.AssetStatus? status);
+    Task<PaginatedResult<AssetDto>> GetAllAsync(PagingParams pagingParams, Guid? assetTypeId, Enums.AssetStatus? status, DateTime? availableFrom = null, DateTime? availableTo = null);
     Task<PaginatedResult<AssetDto>> SearchAsync(AssetSearchRequest request);
     Task<AssetDetailDto?> GetByIdAsync(Guid id);
     Task<List<AssetLookupDto>> GetLookupAsync(string? search, Guid? assetTypeId);
@@ -61,6 +61,8 @@ public interface IAssetRepository
     Task<bool> HasActiveContractAsync(Guid assetId);
     Task<List<AssetContractPeriodDto>> GetOccupiedPeriodsInRangeAsync(Guid assetId, DateTime from, DateTime to);
     Task<List<AssetCalendarEntryDto>> GetCalendarAsync(DateTime from, DateTime to);
+    Task<List<AssetContractPeriodDto>> GetContractPeriodsAsync(Guid assetId);
+
 
 
     // ---------------- Photos ----------------

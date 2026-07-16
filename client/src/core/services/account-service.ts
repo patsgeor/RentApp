@@ -1,7 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { computed, inject, Injectable, signal } from '@angular/core';
 import { environment } from '../../environments/environment';
-import { LoginDto, MemberInviteDto, MemberInviteInfoDto, MemberRegisterFromInviteDto, TenantRegisterDto,  UserDto } from '../../types/user';
+import { LoginDto, MemberInviteDto, MemberInviteInfoDto, MemberRegisterFromInviteDto, PlanType, TenantRegisterDto,  UserDto } from '../../types/user';
 import { catchError, tap, throwError } from 'rxjs';
 import { Router } from '@angular/router';
 
@@ -17,6 +17,11 @@ export class AccountService {
   currentUser = this.currentUserSignal.asReadonly();
   isLoggedIn = computed(() => !!this.currentUserSignal());
 
+  // για πακέτο που έχει αγοράχει
+  planType  = computed(() => this.currentUserSignal()?.planType ?? PlanType.Free);
+  isBasic   = computed(() => this.planType() >= PlanType.Basic);
+  isPro     = computed(() => this.planType() >= PlanType.Pro);
+
   login(dto: LoginDto) {
     return this.http.post<UserDto>(`${this.baseUrl}account/login`, dto).pipe(
       tap(user => this.setCurrentUser(user))
@@ -24,6 +29,7 @@ export class AccountService {
   }
 
   register(dto: TenantRegisterDto) {
+    console.log(dto);
     return this.http.post<UserDto>(`${this.baseUrl}account`, dto).pipe(
       tap(user => this.setCurrentUser(user))
     );

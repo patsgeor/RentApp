@@ -65,29 +65,5 @@ export class RegisterTenant {
     });
   }
 
-    lookupAfm() {
-    const vatNumber = this.form.get('vatNumber')?.value;
-    if (!vatNumber || vatNumber.length !== 9) return;
-
-    this.customerService.getAadeCompany(vatNumber).subscribe({
-      next: (data) => {
-        this.errorMessage.set('');
-
-        this.form.patchValue({
-          companyName: data.name ?? '',
-          // dou:  data.doyDescription ?? '',
-          // address: `${data.address ?? ''} ${data.addressNo ?? ''}`.trim(),
-        });
-      },
-      error: () => {
-        this.errorMessage.set('Δεν βρέθηκαν στοιχεία ΑΑΔΕ.');
-        this.form.patchValue({
-          companyName: '',
-          // dou:   '',
-          // address: '',
-        });
-      } 
-    });
-  }
 
 }

@@ -13,13 +13,27 @@ namespace API.Controllers;
 [Authorize]
 public class CustomerController(ICustomerService customerService) : BaseApiController
 {
-    // GET api/customer?page=1&pageSize=20&search=acme
+    // GET api/customer?page=1&pageSize=20&search=acme&showDeleted=active|deleted|all
     [HttpGet]
-    public async Task<IActionResult> GetCustomers([FromQuery] PagingParams pagingParams)
+    public async Task<IActionResult> GetCustomers([FromQuery] CustomerParams customerParams)
     {
-        var result = await customerService.GetAllAsync(pagingParams);
+        var result = await customerService.GetAllAsync(customerParams);
         return Ok(result);
     }
+
+    // POST api/customer/{id}/restore
+    [HttpPost("{id:guid}/restore")]
+    public async Task<ActionResult<CustomerDto>> Restore(Guid id)
+    {
+        try
+        {
+            var restored = await customerService.RestoreAsync(id, User.GetMemberId().ToString());
+            return Ok(restored);
+        }
+        catch (NotFoundException ex) { return NotFound(new { message = ex.Message }); }
+        catch (BadRequestException ex) { return BadRequest(new { message = ex.Message }); }
+    }
+
 
     // GET api/customer/lookup?search=acme   (autocomplete for Contract creation in name or afm.)
     [HttpGet("lookup")]

@@ -5,7 +5,8 @@ export interface CustomerDto {
   dou?: string;
   address?: string;
   representative?: string;
-  isActive: boolean;
+  isDeleted: boolean;
+  deletedAt?: string;
   createdAt: string;
   contacts: ContactDto[];
   rowVersion?: number;  

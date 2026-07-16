@@ -27,7 +27,7 @@ public interface IAssetService
     Task DeleteOptionAsync(Guid assetTypeId, Guid fieldId, Guid optionId);
  
     // ---------------- Asset (data) CRUD ----------------
-    Task<PaginatedResult<AssetDto>> GetAllAsync(PagingParams pagingParams, Guid? assetTypeId, AssetStatus? status);
+     Task<PaginatedResult<AssetDto>> GetAllAsync(PagingParams pagingParams, Guid? assetTypeId, AssetStatus? status, DateTime? availableFrom = null, DateTime? availableTo = null);
     Task<AssetDetailDto> GetByIdAsync(Guid id);
     Task<List<AssetLookupDto>> GetLookupAsync(string? search, Guid? assetTypeId);
     Task<AssetDto> CreateAsync(AssetCreateDto dto, string currentUserId);
@@ -51,6 +51,8 @@ public interface IAssetService
     Task<PaginatedResult<AssetContractHistDto>> GetContractHistoryAsync(Guid assetId, PagingParams pagingParams);
     Task<AssetAvailabilityDto> CheckAvailabilityAsync(Guid assetId, DateTime from, DateTime to);
     Task<List<AssetCalendarEntryDto>> GetCalendarAsync(DateTime from, DateTime to);
+    Task<List<AssetContractPeriodDto>> GetContractPeriodsAsync(Guid assetId);
+
     
     // ---------------- Photos ----------------
     Task<PhotoDto> AddPhotoAsync(Guid assetId, IFormFile file, string currentUserId);

@@ -15,11 +15,12 @@ import { CustomerTable } from "../customer-table/customer-table";
 export class CustomerList implements OnInit {
  private customerService = inject(CustomerService);
 
-  result = signal<PaginatedResult<CustomerDto> | null>(null);
-  stats = signal<CustomerStatsDto | null>(null);
-  loading = signal(true);
-  error = signal('');
-  params = new CustomersParams();
+  result       = signal<PaginatedResult<CustomerDto> | null>(null);
+  stats        = signal<CustomerStatsDto | null>(null);
+  loading      = signal(true);
+  error        = signal('');
+  activeFilter = signal('active');
+  params       = new CustomersParams();
 
   private searchTimer?: ReturnType<typeof setTimeout>;
 
@@ -46,11 +47,28 @@ export class CustomerList implements OnInit {
     });
   }
 
+  
+  onFilterChange(filter: string) {
+    this.activeFilter.set(filter);
+    // 'new' maps to active customers (no special backend filter, just visual)
+    this.params.showDeleted = filter === 'deleted' ? 'deleted'
+                            : filter === 'all'     ? 'all'
+                            : 'active';
+    this.params.pageNumber = 1;
+    this.load();
+  }
+
   onPageChange(e: { pageNumber: number; pageSize: number }) {
     this.params.pageNumber = e.pageNumber;
     this.params.pageSize = e.pageSize;
     this.load();
   }
+
+  onRestored() {
+    this.load();
+    this.loadStats();
+  }
+
 
   onSearch(term: string) {
     clearTimeout(this.searchTimer);

@@ -1,0 +1,100 @@
+<div class="card bg-base-100 shadow-sm border border-base-200">
+  <div class="card-body p-6">
+
+    <!-- Toggle header -->
+    <div class="flex items-center justify-between cursor-pointer select-none" (click)="toggle()">
+      <h3 class="text-sm font-semibold text-base-content/50 uppercase tracking-widest">Ημερολόγιο Ενοικιάσεων</h3>
+      <div class="flex items-center gap-3">
+        @if (periods().length > 0) {
+          <span class="badge badge-ghost badge-sm">{{ periods().length }}</span>
+        }
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5"
+             stroke="currentColor" class="size-4 text-base-content/40 transition-transform duration-200"
+             [class.rotate-180]="isOpen()">
+          <path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
+        </svg>
+      </div>
+    </div>
+
+    @if (isOpen()) {
+
+      @if (loading()) {
+        <div class="flex justify-center py-6 mt-3">
+          <span class="loading loading-spinner loading-md text-primary"></span>
+        </div>
+      } @else {
+
+        <!-- Month navigation -->
+        <div class="flex items-center justify-between mt-4">
+          <button (click)="prevMonth()" class="btn btn-ghost btn-sm btn-square">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
+            </svg>
+          </button>
+          <span class="font-semibold text-sm capitalize">{{ monthLabel() }}</span>
+          <button (click)="nextMonth()" class="btn btn-ghost btn-sm btn-square">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4">
+              <path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
+            </svg>
+          </button>
+        </div>
+
+        <!-- Day names Mon–Sun -->
+        <div class="grid grid-cols-7 mt-3 mb-1">
+          @for (name of DAY_NAMES; track name) {
+            <div class="text-center text-xs text-base-content/40 font-medium py-1">{{ name }}</div>
+          }
+        </div>
+
+        <!-- Calendar grid -->
+        <div class="grid grid-cols-7 gap-0.5">
+          @for (day of calendarDays(); track $index) {
+            @if (!day.date) {
+              <div class="min-h-[2.25rem]"></div>
+            } @else if (day.contracts.length > 0) {
+              <div class="tooltip tooltip-top" [attr.data-tip]="getTooltip(day)">
+                <a [routerLink]="['/contracts', day.contracts[0].contractId, 'edit']"
+                   class="flex items-center justify-center w-full min-h-[2.25rem] rounded-lg text-xs transition-all cursor-pointer"
+                   [class]="dayBgClass(day)"
+                   [class.ring-2]="isToday(day.date)"
+                   [class.ring-primary]="isToday(day.date)"
+                   [class.ring-offset-1]="isToday(day.date)">
+                  {{ day.date.getDate() }}
+                </a>
+              </div>
+            } @else {
+              <div class="flex items-center justify-center min-h-[2.25rem] rounded-lg text-xs text-base-content/70"
+                   [class.ring-2]="isToday(day.date)"
+                   [class.ring-primary]="isToday(day.date)"
+                   [class.ring-offset-1]="isToday(day.date)">
+                {{ day.date.getDate() }}
+              </div>
+            }
+          }
+        </div>
+
+        <!-- Legend -->
+        <div class="flex gap-4 mt-4 justify-center flex-wrap">
+          <div class="flex items-center gap-1.5 text-xs text-base-content/60">
+            <div class="w-3.5 h-3.5 rounded bg-success"></div>
+            Ενεργό σήμερα
+          </div>
+          <div class="flex items-center gap-1.5 text-xs text-base-content/60">
+            <div class="w-3.5 h-3.5 rounded bg-error/20 border border-error/30"></div>
+            Μη διαθέσιμο
+          </div>
+          <div class="flex items-center gap-1.5 text-xs text-base-content/60">
+            <div class="w-3.5 h-3.5 rounded bg-base-300"></div>
+            Παρελθόν (κλεισμένο)
+          </div>
+        </div>
+
+        @if (periods().length === 0) {
+          <p class="text-center text-sm text-base-content/40 mt-4 py-2">Δεν υπάρχουν καταχωρημένες ενοικιάσεις.</p>
+        }
+
+      }
+    }
+
+  </div>
+</div>

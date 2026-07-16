@@ -5,6 +5,8 @@ export type InviteCreds= {
   role: string
 }
 
+export enum PlanType { Free = 0, Basic = 1, Pro = 2 }
+
 
 export interface UserDto {
   id: string;
@@ -13,7 +15,8 @@ export interface UserDto {
   tenantId: string;
   tenantName: string;
   token: string;
-  roles?:string[];
+  planType: PlanType;
+  roles?: string[];
 }
 
 export interface LoginDto {

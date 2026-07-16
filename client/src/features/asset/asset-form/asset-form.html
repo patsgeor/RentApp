@@ -72,6 +72,19 @@
                 class="textarea textarea-bordered w-full resize-none" rows="2"></textarea>
             </label>
 
+            <!-- Κατάσταση (edit only) -->
+            @if (isEdit()) {
+              <label class="form-control w-full">
+                <div class="label pb-1"><span class="label-text font-medium">Κατάσταση</span></div>
+                <select formControlName="status" class="select select-bordered w-full">
+                  <option [ngValue]="AssetStatus.Active">Διαθέσιμο</option>
+                  <option [ngValue]="AssetStatus.UnderMaintenance">Συντήρηση</option>
+                  <option [ngValue]="AssetStatus.Damaged">Κατεστραμμένο</option>
+                  <option [ngValue]="AssetStatus.Retired">Αποσυρμένο</option>
+                </select>
+              </label>
+            }
+
           </div>
         </div>
 

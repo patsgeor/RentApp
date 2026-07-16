@@ -55,15 +55,18 @@ public class DbInitializer
         string machineUserId = "";
         string warehouseUserId = "";
 
+        var tenantSystem    = Guid.NewGuid(); // system tenant για SuperAdmin
         var tenantBook      = Guid.NewGuid();
         var tenantMachine   = Guid.NewGuid();
         var tenantWarehouse = Guid.NewGuid();
 
         var tenants = new List<Tenant>
-        {
-            new() { Id = tenantBook,      Name = "Hellenic Rentals Book A.E.",  VatNumber = "099999999", ContactInfo = "Λεωφόρος Κηφισίας 150, Αθήνα",  SubscriptionStatus = SubscriptionStatus.Active },
-            new() { Id = tenantMachine,   Name = "Rentals Machine A.E.",        VatNumber = "099929999", ContactInfo = "Λεωφόρος Αθηνων 150, Αθήνα",    SubscriptionStatus = SubscriptionStatus.Active },
-            new() { Id = tenantWarehouse, Name = "Rentals Warehouse A.E.",      VatNumber = "099939999", ContactInfo = "Κηφισίας 150, Αθήνα",             SubscriptionStatus = SubscriptionStatus.Active }
+        {   
+                                        new() { Id = tenantSystem,    Name = "System",                       VatNumber = null,        ContactInfo = null,                               SubscriptionStatus = SubscriptionStatus.Active, PlanType = PlanType.Pro },
+            new() { Id = tenantBook,      Name = "Hellenic Rentals Book A.E.",  VatNumber = "099999999", ContactInfo = "Λεωφόρος Κηφισίας 150, Αθήνα",  SubscriptionStatus = SubscriptionStatus.Active, PlanType = PlanType.Pro },
+            new() { Id = tenantMachine,   Name = "Rentals Machine A.E.",        VatNumber = "099929999", ContactInfo = "Λεωφόρος Αθηνων 150, Αθήνα",    SubscriptionStatus = SubscriptionStatus.Active, PlanType = PlanType.Basic },
+            new() { Id = tenantWarehouse, Name = "Rentals Warehouse A.E.",      VatNumber = "099939999", ContactInfo = "Κηφισίας 150, Αθήνα",             SubscriptionStatus = SubscriptionStatus.Active, PlanType = PlanType.Free }
+
         };
 
         await context.Tenants.AddRangeAsync(tenants);
@@ -74,13 +77,18 @@ public class DbInitializer
         // ==========================================
         var users = new[]
         {
-            new AppUser { UserName = "book.admin@rentals.gr",      Email = "book.admin@rentals.gr",      DisplayName = "Book Admin",      TenantId = tenantBook,      IsActive = true, EmailConfirmed = true },
-            new AppUser { UserName = "machine.admin@rentals.gr",   Email = "machine.admin@rentals.gr",   DisplayName = "Machine Admin",   TenantId = tenantMachine,   IsActive = true, EmailConfirmed = true },
-            new AppUser { UserName = "warehouse.admin@rentals.gr", Email = "warehouse.admin@rentals.gr", DisplayName = "Warehouse Admin", TenantId = tenantWarehouse, IsActive = true, EmailConfirmed = true }
+            new { User = new AppUser { UserName = "superadmin@rentapp.gr",        Email = "superadmin@rentapp.gr",        DisplayName = "Super Admin",     TenantId = tenantSystem,    IsActive = true, EmailConfirmed = true }, Role = "SuperAdmin" },
+            new { User = new AppUser { UserName = "book.admin@rentals.gr",        Email = "book.admin@rentals.gr",        DisplayName = "Book Admin",      TenantId = tenantBook,      IsActive = true, EmailConfirmed = true }, Role = "Admin" },
+            new { User = new AppUser { UserName = "machine.admin@rentals.gr",     Email = "machine.admin@rentals.gr",     DisplayName = "Machine Admin",   TenantId = tenantMachine,   IsActive = true, EmailConfirmed = true }, Role = "Admin" },
+            new { User = new AppUser { UserName = "warehouse.admin@rentals.gr",   Email = "warehouse.admin@rentals.gr",   DisplayName = "Warehouse Admin", TenantId = tenantWarehouse, IsActive = true, EmailConfirmed = true }, Role = "Admin" },
         };
+           
+       
 
-        foreach (var user in users)
+         foreach (var entry in users)
         {
+            var user = entry.User;
+
             var exists = await context.Users
                 .IgnoreQueryFilters()
                 .AnyAsync(x => x.NormalizedEmail == user.Email!.ToUpper());
@@ -93,7 +101,7 @@ public class DbInitializer
             if (!result.Succeeded)
                 throw new Exception(string.Join(", ", result.Errors.Select(x => x.Description)));
 
-            await userManager.AddToRoleAsync(user, "Admin");
+            await userManager.AddToRoleAsync(user, entry.Role);
 
             if (user.TenantId == tenantBook)      bookUserId      = user.Id;
             if (user.TenantId == tenantMachine)   machineUserId   = user.Id;

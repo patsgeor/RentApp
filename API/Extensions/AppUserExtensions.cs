@@ -16,6 +16,7 @@ public static class AppUserExtensions
             DisplayName = user.DisplayName,
             TenantId = user.TenantId.ToString(),
             TenantName = user.Tenant.Name,
+            PlanType = user.Tenant.PlanType,
             Token = await tokenService.CreateToken(user)
         };
     }

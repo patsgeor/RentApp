@@ -216,7 +216,7 @@
                       @if (editingOptionId() === opt.id) {
                         <!-- Edit option form -->
                         <form [formGroup]="editOptionForm" (ngSubmit)="saveEditOption(field.id, opt.id)"
-                              class="bg-white border border-base-300 rounded-lg p-3 space-y-2">
+                              class="bg-ghost border border-base-300 rounded-lg p-3 space-y-2">
                           <div class="grid grid-cols-3 gap-2">
                             <fieldset class="fieldset py-0">
                               <legend class="fieldset-legend text-xs">Ετικέτα *</legend>
@@ -241,7 +241,7 @@
                         </form>
                       } @else {
                         <!-- Option display row -->
-                        <div class="group flex items-center gap-2 bg-white border border-base-200 rounded-lg px-3 py-2">
+                        <div class="group flex items-center gap-2 bg-ghost border border-base-200 rounded-lg px-3 py-2">
                           <span class="text-sm font-medium flex-1">{{ opt.label }}</span>
                           <code class="text-xs bg-base-100 border border-base-200 px-1.5 py-0.5 rounded font-mono text-base-content/60">{{ opt.value }}</code>
                           <span class="text-xs text-base-content/30 w-6 text-center">{{ opt.displayOrder }}</span>
@@ -269,7 +269,7 @@
                     <!-- Add option form -->
                     @if (showAddOptionFieldId() === field.id) {
                       <form [formGroup]="addOptionForm" (ngSubmit)="saveAddOption(field.id)"
-                            class="bg-white border border-primary/30 rounded-lg p-3 space-y-2">
+                            class="bg-ghost border border-primary/30 rounded-lg p-3 space-y-2">
                         <div class="grid grid-cols-3 gap-2">
                           <fieldset class="fieldset py-0">
                             <legend class="fieldset-legend text-xs">Ετικέτα *</legend>

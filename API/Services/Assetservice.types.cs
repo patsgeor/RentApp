@@ -9,7 +9,10 @@ namespace API.Services;
 // SQL (see AssetRepository.SearchAsync) — restricting them at creation time
 // to lowercase/digits/underscore means there is no further sanitization
 // needed downstream, and it keeps Angular's dynamic form binding predictable.
-public partial class AssetService(IUnitOfWork unitOfWork, ITenantProvider tenantProvider, IPhotoService photoService) : IAssetService
+public partial class AssetService(
+    IUnitOfWork unitOfWork, 
+    ITenantProvider tenantProvider, 
+    IPhotoService photoService) : IAssetService
 {
     private static readonly Regex FieldNamePattern = new(@"^[a-z][a-z0-9_]{1,49}$", RegexOptions.Compiled);
  

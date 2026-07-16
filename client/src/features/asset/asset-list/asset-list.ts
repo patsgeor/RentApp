@@ -33,6 +33,8 @@ export class AssetList implements OnInit {
   private assetTypeId  = '';
   private statusFilter: number | undefined = undefined;
   private sortBy       = 'date_desc';
+   availableFrom  = '';
+   availableTo    = '';
 
   private searchTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -66,7 +68,9 @@ export class AssetList implements OnInit {
         this.searchTerm || undefined,
         this.assetTypeId || undefined,
         this.statusFilter,
-        this.sortBy
+        this.sortBy,
+        this.availableFrom || undefined,
+        this.availableTo || undefined
       ).subscribe({
         next: (r) => { this.result.set(r); this.loading.set(false); },
         error: () => { this.error.set('Σφάλμα φόρτωσης παγίων.'); this.loading.set(false); }
@@ -126,6 +130,25 @@ onAssetTypeChange(id: string) {
 
   onStatusChange(val: string) {
     this.statusFilter = val === '' ? undefined : +val;
+    this.pageNumber = 1;
+    this.load();
+  }
+
+  onAvailableFromChange(val: string) {
+    this.availableFrom = val;
+    this.pageNumber = 1;
+    this.load();
+  }
+
+  onAvailableToChange(val: string) {
+    this.availableTo = val;
+    this.pageNumber = 1;
+    this.load();
+  }
+
+  clearDateFilter() {
+    this.availableFrom = '';
+    this.availableTo = '';
     this.pageNumber = 1;
     this.load();
   }

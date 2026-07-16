@@ -60,6 +60,7 @@ public class AssetUpdateDto
     public string? Notes { get; set; }
     public RateUnit RateUnit { get; set; }
     public decimal Cost { get; set; }
+    public AssetStatus Status { get; set; }
     public Dictionary<string, object?> Attributes { get; set; } = new();
 }
  

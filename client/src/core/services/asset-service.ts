@@ -17,7 +17,8 @@ import {
   AssetTypeFieldCreateDto,
   AssetTypeUpdateDto,
   AssetTypeCreateDto,
-  AssetTypeFieldOptionUpdateDto
+  AssetTypeFieldOptionUpdateDto,
+  AssetContractPeriodDto
 } from '../../types/asset';
 import { PaginatedResult } from '../../types/pagination';
 
@@ -27,7 +28,8 @@ export class AssetService {
   private base = `${environment.apiUrl}asset`;
   private typeBase = `${environment.apiUrl}assettype`;
 
-getAssets(pageNumber: number, pageSize: number, searchTerm?: string, assetTypeId?: string, status?: number, sortBy?: string) {
+ getAssets(pageNumber: number, pageSize: number, searchTerm?: string, assetTypeId?: string,
+   status?: number, sortBy?: string, availableFrom?: string, availableTo?: string)  {
       let params = new HttpParams()
       .set('pageNumber', pageNumber)
       .set('pageSize', pageSize);
@@ -35,6 +37,8 @@ getAssets(pageNumber: number, pageSize: number, searchTerm?: string, assetTypeId
     if (assetTypeId) params = params.set('assetTypeId', assetTypeId);
     if (status !== undefined && status !== null) params = params.set('status', status);
     if (sortBy) params = params.set('sortBy', sortBy);
+    if (availableFrom) params = params.set('availableFrom', availableFrom);
+    if (availableTo) params = params.set('availableTo', availableTo);
 
     return this.http.get<PaginatedResult<AssetDto>>(this.base, { params });
   }
@@ -71,7 +75,10 @@ getAssets(pageNumber: number, pageSize: number, searchTerm?: string, assetTypeId
     };
     return this.http.post<PaginatedResult<AssetDto>>(`${this.base}/search`, body);
   }
-
+  
+getContractPeriods(assetId: string) {
+  return this.http.get<AssetContractPeriodDto[]>(`${this.base}/${assetId}/contracts/periods`);
+}
 
 // --------------------------------------------------------------------------------
 //    type related methods

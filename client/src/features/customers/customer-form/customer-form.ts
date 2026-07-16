@@ -67,6 +67,12 @@ export class CustomerForm implements OnInit {
         this.contacts.set(c.contacts ?? []);
       });
     }
+
+      this.form.get('afm')?.valueChanges.subscribe(value => {
+      if (value?.length === 9) {
+        this.lookupAfm();
+      }
+    });
   }
 
   // ── Customer submit ────────────────────────────────────────────────────
@@ -92,6 +98,7 @@ export class CustomerForm implements OnInit {
         this.loading.set(false);
       }
     });
+
   }
 
   // ── Contact actions ────────────────────────────────────────────────────
@@ -155,6 +162,8 @@ export class CustomerForm implements OnInit {
     });
   }
 
+  
+
   lookupAfm() {
     const afm = this.form.get('afm')?.value;
     if (!afm || afm.length !== 9) return;
@@ -170,7 +179,7 @@ export class CustomerForm implements OnInit {
         });
       },
       error: () => {
-        this.errorMsg.set('Δεν βρέθηκαν στοιχεία ΑΑΔΕ.');
+        // this.errorMsg.set('Δεν βρέθηκαν στοιχεία ΑΑΔΕ.');
         this.form.patchValue({
           name: '',
           dou:   '',

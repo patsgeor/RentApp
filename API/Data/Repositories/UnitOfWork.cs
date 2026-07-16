@@ -24,9 +24,12 @@ public class UnitOfWork(
     private IContractRepository? _contractRepository;
     private IMemberRepository? _memberRepository;
     private IPaymentRepository? _paymentRepository;
+
+
     
     public ICustomerRepository CustomerRepository =>
-        _customerRepository ??= new CustomerRepository(context);
+        _customerRepository ??= new CustomerRepository(context, tenantProvider);
+
  
     public IAssetRepository AssetRepository =>
         _assetRepository ??= new AssetRepository(context, tenantProvider);
@@ -42,6 +45,8 @@ public class UnitOfWork(
 
     public Task<Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction> BeginTransactionAsync()
     => context.Database.BeginTransactionAsync();
+
+
  
     public async Task<bool> Complete()
     {

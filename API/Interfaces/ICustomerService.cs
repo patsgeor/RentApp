@@ -7,10 +7,10 @@ namespace API.Interfaces;
 
 public interface ICustomerService
 {
-    Task<PaginatedResult<CustomerDto>> GetAllAsync(PagingParams pagingParams);
+    Task<PaginatedResult<CustomerDto>> GetAllAsync(CustomerParams p);
     Task<CustomerDto?> GetByIdAsync(Guid id);
     Task<List<CustomerLookupDto>> GetLookupAsync(string? search);
- 
+    Task<CustomerDto> RestoreAsync(Guid id, string currentUserId);
     Task<CustomerDto> CreateAsync(CustomerCreateDto dto, string currentUserId);
     Task<CustomerDto> UpdateAsync(Guid id, CustomerUpdateDto dto, string currentUserId);
     Task DeleteAsync(Guid id, string currentUserId);

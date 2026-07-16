@@ -101,6 +101,9 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 // ------------------------------------------------------------------------------
 
 builder.Services.AddAuthorizationBuilder()
+// .AddPolicy("RequireFreePlan",  p => p.RequireClaim("PlanType", "0", "1", "2"))
+// .AddPolicy("RequireBasicPlan", p => p.RequireClaim("PlanType", "1", "2"))
+// .AddPolicy("RequireProPlan",   p => p.RequireClaim("PlanType", "2"))
 .AddPolicy("RequireAdminRole", p => p.RequireRole("Admin"))
 .AddPolicy("SuperAdminRole", p => p.RequireRole("SuperAdmin"));
 

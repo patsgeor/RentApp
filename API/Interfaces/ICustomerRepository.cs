@@ -7,7 +7,7 @@ namespace API.Interfaces;
 
 public interface ICustomerRepository
 {
-    Task<PaginatedResult<CustomerDto>> GetAllAsync(PagingParams pagingParams);
+    Task<PaginatedResult<CustomerDto>> GetAllAsync(CustomerParams p);
     Task<CustomerDto?> GetByIdAsync(Guid id);
     Task<List<CustomerLookupDto>> GetLookupAsync(string? search);
  
@@ -19,6 +19,9 @@ public interface ICustomerRepository
     Task<Customer?> GetEntityByIdAsync(Guid id);
     Task<bool> AfmExistsAsync(string afm, Guid? excludingId = null);
     Task<bool> HasActiveContractsAsync(Guid customerId);
+
+    Task<Customer?> GetEntityByIdIgnoreFiltersAsync(Guid id);
+    Task<Customer?> GetDeletedByAfmAsync(string afm);
  
     // Contacts (sub-resource)
     Task AddContactAsync(Contact contact);

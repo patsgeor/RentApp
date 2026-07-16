@@ -17,7 +17,8 @@ public partial class AssetRepository
     // ==================================================================
  
     public async Task<PaginatedResult<AssetDto>> GetAllAsync(
-        PagingParams pagingParams, Guid? assetTypeId, AssetStatus? status)
+         PagingParams pagingParams, Guid? assetTypeId, AssetStatus? status,
+        DateTime? availableFrom = null, DateTime? availableTo = null)
     {
         var query = context.Assets.AsNoTracking()
             .Include(a => a.AssetType)
@@ -29,7 +30,18 @@ public partial class AssetRepository
  
         if (status.HasValue)
             query = query.Where(a => a.Status == status);
+        
+        if (availableFrom.HasValue && availableTo.HasValue)
+        {
+            var from = DateTime.SpecifyKind(availableFrom.Value, DateTimeKind.Utc);
+            var to   = DateTime.SpecifyKind(availableTo.Value,   DateTimeKind.Utc);
+             query = query.Where(a => !a.ContractAssets.Any(ca =>
+                ca.Contract.Status != RentalStatus.Cancelled &&
+                ca.StartDate < to &&
+                ca.EndDate > from));
+        }
  
+                
         if (!string.IsNullOrWhiteSpace(pagingParams.Search))
         {
             var term = pagingParams.Search.Trim().ToLower();
@@ -409,6 +421,24 @@ public partial class AssetRepository
             .ToList();
     }
 
+    public async Task<List<AssetContractPeriodDto>> GetContractPeriodsAsync(Guid assetId)
+    {
+        return await context.ContractAssets
+            .AsNoTracking()
+            .Where(ca =>
+                ca.AssetId == assetId &&
+                ca.Contract.Status != RentalStatus.Cancelled)
+            .OrderBy(ca => ca.StartDate)
+            .Select(ca => new AssetContractPeriodDto
+            {
+                ContractId   = ca.ContractId,
+                CustomerName = ca.Contract.Customer.Name,
+                StartDate    = ca.StartDate,
+                EndDate      = ca.EndDate,
+                Status       = ca.Contract.Status,
+            })
+            .ToListAsync();
+    }
     
     // ==================================================================
     //  PHOTOS

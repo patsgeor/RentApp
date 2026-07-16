@@ -1,13 +1,18 @@
+using API.Data.Contexts;
 using API.DTOs.Contract;
 using API.Entities;
 using API.Errors;
 using API.Helper;
 using API.Interfaces;
+using Microsoft.EntityFrameworkCore;
 using static API.Entities.Enums;
 
 namespace API.Services;
 
-public class ContractService(IUnitOfWork uow, ITenantProvider tenantProvider) : IContractService
+public class ContractService(
+    IUnitOfWork uow, 
+    ITenantProvider tenantProvider,
+    AppDbContext context) : IContractService
 {
     public Task<PaginatedResult<ContractListItemDto>> GetAllAsync(ContractParams p)
         => uow.ContractRepository.GetAllAsync(p);
@@ -135,6 +140,20 @@ public class ContractService(IUnitOfWork uow, ITenantProvider tenantProvider) : 
 
         if (contract.Status == RentalStatus.Active)
             throw new BadRequestException("Δεν επιτρέπεται διαγραφή ενεργού συμβολαίου.");
+        
+        // Soft-delete installments — αν κάποια έχει PaymentInstallments (Restrict FK)
+        // το soft delete δεν αγγίζει τη βάση ως hard delete, οπότε δεν υπάρχει πρόβλημα
+        var installments = await context.Installments
+                                .Where(i => i.ContractId == id)
+                                .ToListAsync();
+
+        var now = DateTime.UtcNow;
+        foreach (var inst in installments)
+        {
+            inst.IsDeleted  = true;
+            inst.DeletedAt  = now;
+            inst.DeletedBy  = memberId;
+        }
 
         contract.DeletedBy = memberId;
         uow.ContractRepository.Remove(contract);

@@ -16,14 +16,16 @@ namespace API.Controllers;
 [Authorize]
 public class AssetController(IAssetService assetService) : BaseApiController
 {
-    // GET api/asset?page=1&pageSize=20&search=&assetTypeId=&status=
+     // GET api/asset?page=1&pageSize=20&search=&assetTypeId=&status=&availableFrom=&availableTo=
     [HttpGet]
     public async Task<IActionResult> GetAll(
         [FromQuery] PagingParams pagingParams,
         [FromQuery] Guid? assetTypeId,
-        [FromQuery] AssetStatus? status)
+        [FromQuery] AssetStatus? status,
+        [FromQuery] DateTime? availableFrom,
+        [FromQuery] DateTime? availableTo)
     {
-        var result = await assetService.GetAllAsync(pagingParams, assetTypeId, status);
+        var result = await assetService.GetAllAsync(pagingParams, assetTypeId, status, availableFrom, availableTo);
         return Ok(result);
     }
 
@@ -300,6 +302,14 @@ public class AssetController(IAssetService assetService) : BaseApiController
         if (p.From >= p.To) return BadRequest(new { message = "Η ημερομηνία λήξης πρέπει να είναι μετά την έναρξη." });
         var result = await assetService.GetCalendarAsync(p.From, p.To);
         return Ok(result);
+    }
+
+    // GET api/asset/{id}/contracts/periods
+    [HttpGet("{id:guid}/contracts/periods")]
+    public async Task<IActionResult> GetContractPeriods(Guid id)
+    {
+        var periods = await assetService.GetContractPeriodsAsync(id);
+        return Ok(periods);
     }
 
 }

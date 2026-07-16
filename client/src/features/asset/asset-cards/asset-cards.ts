@@ -36,20 +36,20 @@ export class AssetCards {
 
   statusLabel(s: AssetStatus): string {
     const map: Record<number, string> = {
-      [AssetStatus.Available]: 'Διαθέσιμο',
-      [AssetStatus.Rented]: 'Ενοικιασμένο',
-      [AssetStatus.UnderMaintenance]: 'Συντήρηση',
-      [AssetStatus.Damaged]: 'Κατεστραμμένο',
+      [AssetStatus.Active]:            'Διαθέσιμο',
+      [AssetStatus.UnderMaintenance]:  'Συντήρηση',
+      [AssetStatus.Damaged]:           'Κατεστραμμένο',
+      [AssetStatus.Retired]:           'Αποσυρμένο',
     };
     return map[s] ?? '—';
   }
 
   statusBadgeClass(s: AssetStatus): string {
     const map: Record<number, string> = {
-      [AssetStatus.Available]: 'badge-success',
-      [AssetStatus.Rented]: 'badge-warning',
-      [AssetStatus.UnderMaintenance]: 'badge-info',
-      [AssetStatus.Damaged]: 'badge-error',
+       [AssetStatus.Active]:            'badge-success',
+      [AssetStatus.UnderMaintenance]:  'badge-info',
+      [AssetStatus.Damaged]:           'badge-error',
+      [AssetStatus.Retired]:           'badge-ghost',
     };
     return `badge badge-sm ${map[s] ?? ''}`;
   }

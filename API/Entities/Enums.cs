@@ -3,6 +3,8 @@ namespace API.Entities;
 public static class Enums
 {
     public enum CustomerType { Person = 0, Company = 1 }
+    public enum PlanType { Free = 0, Basic = 1, Pro = 2 }
+
     public enum AcquisitionType { Purchase = 0, Leasing = 1 }
     public enum RateUnit { PerHour = 0, PerDay = 1, PerMonth = 2, Sale = 3 }
     public enum AssetStatus { Active =0, UnderMaintenance =1, Damaged =2, Retired =3 }

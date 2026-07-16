@@ -9,11 +9,8 @@ public class TenantRegisterDto
     [MaxLength(100, ErrorMessage = "Μέγιστο 100 χαρακτήρες")]
      public required string CompanyName { get; set; } 
     
-    [MaxLength(20, ErrorMessage = "Μέγιστο 20 χαρακτήρες")]
-    [StringLength(9, MinimumLength = 9,
-        ErrorMessage = "Το ΑΦΜ πρέπει να είναι 9 ψηφία")]
-    [RegularExpression(@"^\d{9}$",
-        ErrorMessage = "Το ΑΦΜ πρέπει να περιέχει μόνο αριθμούς")]
+    [RegularExpression(@"^(\d{9})?$",
+    ErrorMessage = "Το ΑΦΜ πρέπει να περιέχει μόνο αριθμούς")]
     public string? VatNumber { get; set; } // ΑΦΜ
     
     [MaxLength(500)]
@@ -39,18 +36,6 @@ public class TenantRegisterDto
     [Required(ErrorMessage = "Το LastName είναι υποχρεωτικό")]
     [MaxLength(50, ErrorMessage = "Μέγιστο 50 χαρακτήρες")]
     public required string LastName { get; set; }
-
-    // [StringLength(9, MinimumLength = 9,
-    //     ErrorMessage = "Το ΑΦΜ πρέπει να είναι 9 ψηφία")]
-    // [RegularExpression(@"^\d{9}$",
-    //     ErrorMessage = "Το ΑΦΜ πρέπει να περιέχει μόνο αριθμούς")]
-    // public string Afm { get; set; }
-
-    // [StringLength(11, MinimumLength = 11,
-    //     ErrorMessage = "Το ΑΜΚΑ πρέπει να είναι 11 ψηφία")]
-    // [RegularExpression(@"^\d{11}$",
-    //     ErrorMessage = "Το ΑΜΚΑ πρέπει να περιέχει μόνο αριθμούς")]
-    // public string Amka { get; set; }
 
     [Required(ErrorMessage = "Το Password είναι υποχρεωτικό")]
     [MinLength(6,

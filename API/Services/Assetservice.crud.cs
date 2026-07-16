@@ -12,9 +12,8 @@ namespace API.Services;
     //  ASSET (data) CRUD
     // ==================================================================
 
-    public Task<PaginatedResult<AssetDto>> GetAllAsync(PagingParams pagingParams, Guid? assetTypeId, AssetStatus? status)
-        => unitOfWork.AssetRepository.GetAllAsync(pagingParams, assetTypeId, status);
-
+     public Task<PaginatedResult<AssetDto>> GetAllAsync(PagingParams pagingParams, Guid? assetTypeId, AssetStatus? status, DateTime? availableFrom = null, DateTime? availableTo = null)
+        => unitOfWork.AssetRepository.GetAllAsync(pagingParams, assetTypeId, status, availableFrom, availableTo);
     public Task<AssetDetailDto?> GetByIdAsync(Guid id)
         => unitOfWork.AssetRepository.GetByIdAsync(id);
 
@@ -91,6 +90,7 @@ namespace API.Services;
         asset.Notes = dto.Notes;
         asset.RateUnit = dto.RateUnit;
         asset.Cost     = dto.Cost;
+        asset.Status    = dto.Status;
         asset.UpdatedAt = DateTime.UtcNow;
         asset.UpdatedBy = currentUserId;
 
@@ -175,6 +175,9 @@ namespace API.Services;
 
     public Task<List<AssetCalendarEntryDto>> GetCalendarAsync(DateTime from, DateTime to)
         => unitOfWork.AssetRepository.GetCalendarAsync(from, to);
+
+    public Task<List<AssetContractPeriodDto>> GetContractPeriodsAsync(Guid assetId)
+    => unitOfWork.AssetRepository.GetContractPeriodsAsync(assetId);
 
     // ==================================================================
     //  PHOTOS

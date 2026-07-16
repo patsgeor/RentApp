@@ -110,8 +110,18 @@
         </div>
       </div>
 
+      <div class="flex flex-col items-center gap-2">
+       @if (isDirty()) {
+          <span class="badge badge-warning badge-lg">Μη αποθηκευμένες αλλαγές</span>
+        }
       <!-- Toolbar -->
-      <div class="flex flex-wrap items-center gap-2">
+      <div class="flex flex-row items-center gap-2">
+        
+        @if (isDirty()) {
+          <button class="btn btn-black btn-sm" (click)="revert()">Ακύρωση αλλαγών</button>
+          <!-- <span class="badge badge-warning badge-lg">Μη αποθηκευμένες αλλαγές</span> -->
+        }
+        <!-- <div class="flex-1"></div> -->
         <button class="btn btn-primary btn-sm gap-2" [disabled]="saving() || !isDirty()" (click)="save()">
           @if (saving()) { <span class="loading loading-spinner loading-xs"></span> }
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4">
@@ -119,17 +129,16 @@
           </svg>
           Αποθήκευση
         </button>
-        @if (isDirty()) {
-          <button class="btn btn-ghost btn-sm" (click)="revert()">Ακύρωση αλλαγών</button>
-          <span class="badge badge-warning badge-sm">Ανεπίσημες αλλαγές</span>
-        }
-        <div class="flex-1"></div>
-        <button class="btn btn-outline btn-sm gap-2" (click)="addLine()">
-          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-          </svg>
-          Νέα Δόση
-        </button>
+      </div>
+      </div>
+
+      <div class="flex flex-col items-end gap-2">
+      <button class="btn btn-outline btn-sm gap-2" (click)="addLine()">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+        </svg>
+        Νέα Δόση
+      </button>
       </div>
 
       <!-- Editable table -->

@@ -12,13 +12,14 @@ import { Paginator } from '../../../shared/paginator/paginator';
   templateUrl: './customer-table.html',
   styleUrl: './customer-table.css',
 })
-export class CustomerTable {  
-  items = input.required<CustomerDto[]>();
+export class CustomerTable {
+  items      = input.required<CustomerDto[]>();
   pagination = input<PaginationMetadata | null>(null);
 
   pageChange = output<{ pageNumber: number; pageSize: number }>();
   searchChange = output<string>();
-  deleted = output<string>();
+  deleted      = output<string>();
+  restored     = output<string>();
 
   private router = inject(Router);
   private customerService = inject(CustomerService);
@@ -26,11 +27,21 @@ export class CustomerTable {
   onSearch(value: string) { this.searchChange.emit(value); }
 
   viewHistory(id: string) { this.router.navigate(['/customer', id]); }
+  
   edit(id: string, e: Event) { e.stopPropagation(); this.router.navigate(['/customer', id, 'edit']); }
+
   delete(id: string, e: Event) {
     e.stopPropagation();
     if (confirm('Διαγραφή πελάτη;')) {
       this.customerService.delete(id).subscribe({ next: () => this.deleted.emit(id) });
     }
   }
+
+  restore(id: string, e: Event) {
+    e.stopPropagation();
+    if (confirm('Ενεργοποίηση πελάτη;')) {
+      this.customerService.restore(id).subscribe({ next: () => this.restored.emit(id) });
+    }
+  }
+
 }

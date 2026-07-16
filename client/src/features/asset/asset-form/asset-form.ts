@@ -3,7 +3,7 @@ import { FormBuilder, FormGroup, ReactiveFormsModule, ValidatorFn, Validators } 
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { AssetService } from '../../../core/services/asset-service';
 import {
-  AssetCreateDto, AssetDetailDto, AssetDto, AssetTypeFieldDto,
+  AssetCreateDto, AssetDetailDto, AssetDto, AssetStatus, AssetTypeFieldDto,
   AssetTypeLookupDto, AssetUpdateDto, FieldDataType,
   PhotoDto,
   RateUnit
@@ -25,6 +25,8 @@ export class AssetForm implements OnInit {
 
   readonly RateUnit      = RateUnit;
   readonly FieldDataType = FieldDataType;
+  readonly AssetStatus   = AssetStatus;
+
   private rowVersion = 0;
   
   isEdit        = signal(false);
@@ -48,6 +50,7 @@ export class AssetForm implements OnInit {
     notes:       ['', Validators.maxLength(500)],
     rateUnit:    [RateUnit.PerDay as RateUnit, Validators.required],
     cost:        [0 as number, [Validators.required, Validators.min(0)]],
+    status:      [AssetStatus.Active as AssetStatus],
     attributes:  this.fb.group({}),
   });
 
@@ -69,6 +72,7 @@ export class AssetForm implements OnInit {
         this.f['notes'].setValue(asset.notes ?? '');
         this.f['rateUnit'].setValue(asset.rateUnit);
         this.f['cost'].setValue(asset.cost);
+        this.f['status'].setValue(asset.status);
         this.photos.set(asset.photos ?? []);
         this.loadSchema(asset.assetTypeId, asset.attributes);
       });
@@ -182,11 +186,12 @@ export class AssetForm implements OnInit {
 
     const req$ = this.isEdit()
       ? this.service.update(this.assetId!, {
-          rowVersion:  this.rowVersion,              // ← ADD
+          rowVersion:  this.rowVersion,              
           name:        raw.name!,
           notes:       raw.notes || undefined,
           rateUnit:    +raw.rateUnit! as RateUnit,
           cost:        +raw.cost!,
+          status:      +raw.status! as AssetStatus,
           attributes,
         } as AssetUpdateDto)
       : this.service.create({

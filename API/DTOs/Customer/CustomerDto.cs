@@ -15,6 +15,7 @@ public class CustomerDto
     public string? Address { get; set; }
     public string? Representative { get; set; }
     public DateTime CreatedAt { get; set; }
+    public bool IsDeleted { get; set; }
  
     public List<ContactDto> Contacts { get; set; } = new();
 }
