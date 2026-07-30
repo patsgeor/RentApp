@@ -3,10 +3,8 @@ using System.ComponentModel.DataAnnotations.Schema;
 using static API.Entities.Enums;
 
 namespace API.Entities;
-// μια πληρωμή μπορεί να αφορά πολλά συμβόλαια contracts για έσοδα  και ένα συμβόλαιο μπορεί να έχει πολλές πληρωμές (π.χ. ενοίκιο κάθε μήνα) 
-// για αυτο έχω τον πινακα PaymentContract 
-//  μια πληρωμή μπορεί να αφορά σε πολλά assets  για έξοδα (π.χ. πληρωμή για επισκευή σε πολλά assets) και ένα asset μπορεί να έχει πολλές πληρωμές (π.χ. επισκευές σε διαφορετικά χρονικά διαστήματα)
-// για αυτο έχω τον πινακα PaymentAsset
+// Έσοδα: Payment → PaymentInstallment → Installment → Contract (μέσω κατανομής σε δόσεις)
+// Έξοδα: Payment → PaymentAsset → Asset
 public class Payment : BaseEntity
 {
     public DateTime PaymentDate { get; set; }
@@ -35,7 +33,6 @@ public class Payment : BaseEntity
     public string? TenantReferenceCode { get; set; }
 
     // Navigation
-    public ICollection<PaymentContract>   PaymentContracts { get; set; } = new List<PaymentContract>();
-    public ICollection<PaymentAsset>      PaymentAssets    { get; set; } = new List<PaymentAsset>();
-    public ICollection<PaymentInstallment> Allocations      { get; set; } = new List<PaymentInstallment>();
+    public ICollection<PaymentAsset>       PaymentAssets { get; set; } = new List<PaymentAsset>();
+    public ICollection<PaymentInstallment> Allocations   { get; set; } = new List<PaymentInstallment>();
 }

@@ -142,7 +142,6 @@ export class PaymentPage implements OnInit {
     this.error.set(null);
     const v = this.incomeForm.value;
     this.paymentService.recordIncome({
-      contractId,
       amount:        v.amount!,
       paymentDate:   v.paymentDate!,
       paymentMethod: Number(v.paymentMethod) as PaymentMethod,

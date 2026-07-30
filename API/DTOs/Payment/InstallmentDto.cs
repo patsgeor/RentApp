@@ -33,7 +33,7 @@ public class AllocationSummaryDto
 
 public class AllocationItemDto
 {
-    public Guid InvoiceId { get; set; }
+    public Guid InstallmentId  { get; set; }
     public decimal Amount { get; set; }
     public string? Notes { get; set; }
 }

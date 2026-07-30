@@ -9,7 +9,7 @@
     </a>
     <div>
       <h1 class="text-2xl font-bold tracking-tight">Νέα Εισπράξη</h1>
-      <p class="text-sm text-base-content/60">Επιλέξτε συμβόλαιο και καταχωρίστε πληρωμή</p>
+       <p class="text-sm text-base-content/60">Επιλέξτε συμβόλαιο, ελέγξτε τις δόσεις και καταχωρίστε πληρωμή</p>
     </div>
     <div class="ml-auto">
       <a routerLink="/transactions/history" class="btn btn-ghost btn-sm gap-2">
@@ -44,7 +44,7 @@
         </select>
       </div>
 
-      <!-- Table card -->
+      <!-- Contract table -->
       <div class="card bg-base-100 shadow-sm border border-base-200 overflow-hidden">
 
         @if (loading()) {
@@ -122,6 +122,57 @@
           }
         }
       </div>
+
+      
+      <!-- ══ Installments panel (shown after contract selected) ══ -->
+      @if (selected() && installments().length > 0) {
+        <div class="card bg-base-100 shadow-sm border border-base-200 overflow-hidden">
+          <div class="px-4 py-2 bg-base-200 flex items-center justify-between">
+            <span class="text-xs font-semibold uppercase text-base-content/50">Δόσεις Συμβολαίου</span>
+            <span class="text-xs text-base-content/40">FIFO κατανομή</span>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="table table-xs">
+              <thead>
+                <tr class="text-xs text-base-content/40">
+                  <th>#</th>
+                  <th>Λήξη</th>
+                  <th class="text-right">Ποσό</th>
+                  <th class="text-right">Εξοφλημένο</th>
+                  <th class="text-right">Εκκρεμές</th>
+                  <th>Κατάσταση</th>
+                  <th class="text-right text-primary">Κατανομή</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (inv of installments(); track inv.id) {
+                  @let allocation = allocationFor(inv.id);
+                  <tr [class.opacity-40]="inv.status === InstallmentStatus.Paid || inv.status === InstallmentStatus.Cancelled"
+                      [class.bg-primary]="allocation > 0"
+                      [class.bg-opacity-5]="allocation > 0">
+                    <td class="font-medium">{{ inv.installmentNumber }}</td>
+                    <td class="whitespace-nowrap">{{ inv.dueDate | date:'dd/MM/yy' }}</td>
+                    <td class="text-right">{{ inv.totalAmount | currency:'EUR':'symbol':'1.2-2' }}</td>
+                    <td class="text-right text-success">{{ inv.allocatedAmount | currency:'EUR':'symbol':'1.2-2' }}</td>
+                    <td class="text-right" [class.text-error]="(inv.totalAmount - inv.allocatedAmount) > 0">
+                      {{ (inv.totalAmount - inv.allocatedAmount) | currency:'EUR':'symbol':'1.2-2' }}
+                    </td>
+                    <td><span [class]="installmentStatusBadge(inv.status)">{{ installmentStatusLabel(inv.status) }}</span></td>
+                    <td class="text-right font-semibold">
+                      @if (allocation > 0) {
+                        <span class="text-primary">{{ allocation | currency:'EUR':'symbol':'1.2-2' }}</span>
+                      } @else {
+                        <span class="text-base-content/20">—</span>
+                      }
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        </div>
+      }
+
     </div>
 
     <!-- ══ Payment form (2 / 5) ══ -->
@@ -136,6 +187,9 @@
               <div class="min-w-0">
                 <h2 class="font-bold text-base truncate">{{ c.customerName }}</h2>
                 <p class="text-xs text-base-content/60 truncate">{{ c.assetNames.join(' · ') }}</p>
+                 @if (c.referenceCode) {
+                  <p class="text-xs text-base-content/40">{{ c.referenceCode }}</p>
+                }
               </div>
               <button class="btn btn-ghost btn-xs btn-square shrink-0" (click)="clearSelected()" aria-label="Κλείσιμο">
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4">
@@ -173,6 +227,21 @@
               </div>
             }
 
+              <!-- FIFO allocation preview -->
+            @if (fifoAllocations().length > 0) {
+              <div class="rounded-xl bg-primary/5 border border-primary/20 px-3 py-2 space-y-1">
+                <p class="text-xs font-semibold text-primary mb-2">Προεπισκόπηση κατανομής FIFO</p>
+                @for (a of fifoAllocations(); track a.installmentId) {
+                  @let inv = installments()[ installments().findIndex(i => i.id === a.installmentId) ];
+                  <div class="flex justify-between text-xs">
+                    <span class="text-base-content/60">Δόση #{{ inv?.installmentNumber }} – {{ inv?.dueDate | date:'dd/MM/yy' }}</span>
+                    <span class="font-medium text-primary">{{ a.amount | currency:'EUR':'symbol':'1.2-2' }}</span>
+                  </div>
+                }
+              </div>
+            }
+
+
             <div class="divider my-0"></div>
 
             <!-- Alerts -->
@@ -199,7 +268,7 @@
               <div class="form-control">
                 <label class="label pb-1"><span class="label-text font-medium text-sm">Ποσό (€) <span class="text-error">*</span></span></label>
                 <input type="number" formControlName="amount" class="input input-bordered input-sm"
-                       placeholder="0.00" step="0.01" min="0.01"/>
+                      placeholder="0.00" step="0.01" min="0.01" (input)="onAmountInput()"/>
                 @if (form.controls['amount'].invalid && form.controls['amount'].touched) {
                   <div class="label pt-1"><span class="label-text-alt text-error text-xs">Απαιτείται έγκυρο ποσό</span></div>
                 }

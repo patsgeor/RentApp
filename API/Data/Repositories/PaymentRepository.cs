@@ -37,12 +37,12 @@ public class PaymentRepository(AppDbContext context) : IPaymentRepository
                 StartDate      = c.StartDate,
                 EndDate        = c.EndDate,
                 TotalAmount    = c.TotalAmount,
-                PaidAmount     = c.PaymentContracts
-                    .Where(pc => pc.Payment.TransactionType == TransactionType.Income && !pc.Payment.IsDeleted)
-                    .Sum(pc => (decimal?)pc.Payment.Amount) ?? 0m,
-                OutstandingBalance = c.TotalAmount - (c.PaymentContracts
-                    .Where(pc => pc.Payment.TransactionType == TransactionType.Income && !pc.Payment.IsDeleted)
-                    .Sum(pc => (decimal?)pc.Payment.Amount) ?? 0m),
+                PaidAmount = c.Installments
+                    .SelectMany(i => i.Allocations)
+                    .Sum(a => (decimal?)a.AllocatedAmount) ?? 0m,
+                OutstandingBalance = c.TotalAmount - (c.Installments
+                    .SelectMany(i => i.Allocations)
+                    .Sum(a => (decimal?)a.AllocatedAmount) ?? 0m),
                 Status         = c.Status,
                 CanExtend      = (c.Status == RentalStatus.Active && c.EndDate <= threshold)
                               || c.Status == RentalStatus.Completed,
@@ -60,22 +60,41 @@ public class PaymentRepository(AppDbContext context) : IPaymentRepository
             .Where(p => p.TransactionType == TransactionType.Income);
 
         if (contractId.HasValue)
-            query = query.Where(p => p.PaymentContracts.Any(pc => pc.ContractId == contractId.Value));
+             query = query.Where(p => p.Allocations.Any(a => a.Installment.ContractId == contractId.Value));
 
         var projected = query
             .OrderByDescending(p => p.PaymentDate)
             .Select(p => new PaymentListItemDto
             {
-                Id              = p.Id,
-                Amount          = p.Amount,
-                PaymentDate     = p.PaymentDate,
-                PaymentMethod   = p.PaymentMethod,
-                TransactionType = p.TransactionType,
-                Notes           = p.Notes,
-                ContractIds     = p.PaymentContracts.Select(pc => pc.ContractId).ToList(),
-                CustomerNames   = p.PaymentContracts.Select(pc => pc.Contract.Customer.Name).ToList(),
-                CreatedAt       = p.CreatedAt
+                Id                 = p.Id,
+                Amount             = p.Amount,
+                UnallocatedAmount  = p.UnallocatedAmount,
+                PaymentDate        = p.PaymentDate,
+                PaymentMethod      = p.PaymentMethod,
+                TransactionType    = p.TransactionType,
+                MatchStatus        = p.MatchStatus,
+                TenantReferenceCode = p.TenantReferenceCode,
+                Notes              = p.Notes,
+                ContractReferences = p.Allocations
+                    .Select(a => a.Installment.Contract.ReferenceCode)
+                    .Distinct()
+                    .Where(r => r != null)
+                    .ToList()!,
+                CustomerName = p.Allocations
+                    .Select(a => a.Installment.Contract.Customer.Name)
+                    .FirstOrDefault(),
+                Allocations = p.Allocations.Select(a => new PaymentAllocationDto
+                {
+                    AllocationId          = a.Id,
+                    InstallmentId         = a.InstallmentId,
+                    ContractReferenceCode = a.Installment.Contract.ReferenceCode,
+                    InstallmentNumber     = a.Installment.InstallmentNumber,
+                    DueDate               = a.Installment.DueDate,
+                    AllocatedAmount       = a.AllocatedAmount
+                }).ToList(),
+                CreatedAt = p.CreatedAt
             });
+
 
         return await PaginationHelper.CreateAsync(projected, pagingParams.PageNumber, pagingParams.PageSize);
     }

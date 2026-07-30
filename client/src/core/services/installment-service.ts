@@ -3,8 +3,9 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { environment } from '../../environments/environment';
 import {
   InstallmentDto, DebtFilterParams,
-  ScheduleInstallmentItem, DebtStatsDto
+  ScheduleInstallmentItem, DebtStatsDto, MatchResultDto
 } from '../../types/installment';
+import { AllocationItemDto } from '../../types/payment';
 import { PaginatedResult } from '../../types/pagination';
 
 @Injectable({ providedIn: 'root' })
@@ -52,5 +53,17 @@ export class InstallmentService {
 
   cancel(installmentId: string) {
     return this.http.delete(`${this.base}/${installmentId}/cancel`);
+  }
+
+  autoMatch(paymentId: string) {
+    return this.http.post<MatchResultDto>(`${this.base}/auto-match/${paymentId}`, {});
+  }
+
+  allocate(paymentId: string, items: AllocationItemDto[]) {
+    return this.http.post<{ message: string }>(`${this.base}/allocate/${paymentId}`, items);
+  }
+
+  deallocate(allocationId: string) {
+    return this.http.delete(`${this.base}/allocation/${allocationId}`);
   }
 }

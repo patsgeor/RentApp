@@ -68,6 +68,16 @@ export interface ScheduleInstallmentItem {
   notes?:            string;
 }
 
+export interface MatchResultDto {
+  matched:               boolean;
+  contractId?:           string;
+  contractReferenceCode?: string;
+  totalAllocated:        number;
+  unallocated:           number;
+  allocations:           AllocationSummaryDto[];
+  message?:              string;
+}
+
 export interface DebtStatsDto {
   expectedThisMonth:  number;
   totalOutstanding:   number;

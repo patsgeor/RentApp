@@ -99,6 +99,12 @@
           <a routerLink="/transactions/income/new" class="btn btn-primary btn-sm mt-4">Νέα Εισπράξη</a>
         </div>
       } @else {
+        @if (matchError()) {
+          <div class="alert alert-error m-3 py-2"><span class="text-sm">{{ matchError() }}</span></div>
+        }
+        @if (matchSuccess()) {
+          <div class="alert alert-success m-3 py-2"><span class="text-sm">{{ matchSuccess() }}</span></div>
+        }
         <div class="overflow-x-auto">
           <table class="table table-sm">
             <thead class="bg-base-200">
@@ -107,6 +113,7 @@
                 <th>Πελάτης / Συμβόλαιο</th>
                 <th class="hidden sm:table-cell">Τρόπος</th>
                 <th class="text-right">Ποσό</th>
+                <th>Κατάσταση</th>
                 <th class="hidden md:table-cell">Σημειώσεις</th>
                 <th></th>
               </tr>
@@ -118,12 +125,37 @@
                   <td>
                     <div class="font-medium text-sm">{{ p.customerName ?? '—' }}</div>
                     <div class="text-xs text-base-content/50">{{ p.assetNames?.join(', ') }}</div>
+                    @if (p.allocations.length > 0) {
+                      <div class="flex flex-wrap gap-1 mt-1">
+                        @for (a of p.allocations; track a.allocationId) {
+                          <span class="badge badge-ghost badge-xs gap-1">
+                            {{ a.contractReferenceCode ?? '—' }} #{{ a.installmentNumber }}
+                            ({{ a.allocatedAmount | currency:'EUR':'symbol':'1.2-2' }})
+                            <button type="button" class="text-error" (click)="doDeallocate(a.allocationId)"
+                                    [disabled]="deallocating() === a.allocationId" aria-label="Αναίρεση κατανομής">✕</button>
+                          </span>
+                        }
+                      </div>
+                    }
                   </td>
                   <td class="hidden sm:table-cell">
                     <span [class]="methodBadge(p.paymentMethod)">{{ methodLabel(p.paymentMethod) }}</span>
                   </td>
                   <td class="text-right font-bold text-success">
                     +{{ p.amount | currency:'EUR':'symbol':'1.2-2' }}
+                    @if (p.unallocatedAmount > 0) {
+                      <div class="text-xs font-normal text-warning">
+                        {{ p.unallocatedAmount | currency:'EUR':'symbol':'1.2-2' }} αδιάθετο
+                      </div>
+                    }
+                  </td>
+                  <td>
+                    <span [class]="matchStatusBadge(p.matchStatus)">{{ matchStatusLabel(p.matchStatus) }}</span>
+                    @if (p.unallocatedAmount > 0) {
+                      <button class="btn btn-ghost btn-xs block mt-1" (click)="toggleMatch(p)">
+                        {{ matchingPaymentId() === p.id ? 'Κλείσιμο' : 'Αντιστοίχιση' }}
+                      </button>
+                    }
                   </td>
                   <td class="hidden md:table-cell text-xs text-base-content/60 max-w-48 truncate">{{ p.notes ?? '—' }}</td>
                   <td>
@@ -141,11 +173,83 @@
                     </button>
                   </td>
                 </tr>
+                @if (matchingPaymentId() === p.id) {
+                  <tr class="bg-base-200/50">
+                    <td colspan="7" class="p-4">
+                      <div class="space-y-3">
+                        @if (p.tenantReferenceCode) {
+                          <div class="flex items-center gap-2">
+                            <button class="btn btn-primary btn-xs" [disabled]="autoMatching() === p.id" (click)="autoMatch(p)">
+                              @if (autoMatching() === p.id) { <span class="loading loading-spinner loading-xs"></span> }
+                              Αυτόματη αντιστοίχιση (ReferenceCode: {{ p.tenantReferenceCode }})
+                            </button>
+                          </div>
+                        }
+
+                        <div class="text-xs font-medium text-base-content/60">Χειροκίνητη κατανομή σε συμβόλαιο</div>
+
+                        @if (!selectedMatchContract()) {
+                          <div class="relative max-w-md">
+                            <input type="text" class="input input-bordered input-sm w-full"
+                                   placeholder="Αναζήτηση πελάτη/συμβολαίου..."
+                                   [value]="matchContractSearch()"
+                                   (input)="onMatchContractSearch($event)" />
+                            @if (matchContractResults().length > 0) {
+                              <ul class="menu bg-base-100 shadow-md rounded-box absolute z-10 w-full mt-1 max-h-56 overflow-y-auto">
+                                @for (c of matchContractResults(); track c.id) {
+                                  <li><a (click)="selectMatchContract(c)">{{ c.customerName }} — {{ c.referenceCode ?? '—' }}</a></li>
+                                }
+                              </ul>
+                            }
+                          </div>
+                        } @else {
+                          <div class="flex items-center gap-2 text-sm">
+                            <span class="font-medium">{{ selectedMatchContract()!.customerName }}</span>
+                            <span class="text-base-content/50">{{ selectedMatchContract()!.referenceCode ?? '—' }}</span>
+                            <button class="btn btn-ghost btn-xs" (click)="selectedMatchContract.set(null); matchInstallments.set([])">Αλλαγή</button>
+                          </div>
+
+                          @if (matchInstallments().length > 0) {
+                            <div class="overflow-x-auto">
+                              <table class="table table-xs">
+                                <thead>
+                                  <tr>
+                                    <th>#</th><th>Λήξη</th><th class="text-right">Οφειλή</th>
+                                    <th class="text-right">Κατανομή</th><th>Κατάσταση</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  @for (i of matchInstallments(); track i.id) {
+                                    @if (i.status !== InstallmentStatus.Paid && i.status !== InstallmentStatus.Cancelled) {
+                                      <tr>
+                                        <td>{{ i.installmentNumber }}</td>
+                                        <td>{{ i.dueDate | date:'dd/MM/yyyy' }}</td>
+                                        <td class="text-right">{{ (i.totalAmount - i.allocatedAmount) | currency:'EUR':'symbol':'1.2-2' }}</td>
+                                        <td class="text-right font-medium">{{ allocationFor(i.id) | currency:'EUR':'symbol':'1.2-2' }}</td>
+                                        <td>{{ i.status }}</td>
+                                      </tr>
+                                    }
+                                  }
+                                </tbody>
+                              </table>
+                            </div>
+                            <button class="btn btn-success btn-sm" [disabled]="matchSaving() || matchAllocations().length === 0" (click)="submitMatch(p)">
+                              @if (matchSaving()) { <span class="loading loading-spinner loading-xs"></span> }
+                              Αποθήκευση κατανομής ({{ p.unallocatedAmount | currency:'EUR':'symbol':'1.2-2' }})
+                            </button>
+                          } @else {
+                            <p class="text-xs text-base-content/50">Δεν υπάρχουν εκκρεμείς δόσεις σε αυτό το συμβόλαιο.</p>
+                          }
+                        }
+                      </div>
+                    </td>
+                  </tr>
+                }
               }
             </tbody>
             <tfoot class="bg-base-200">
               <tr>
-                <td colspan="3" class="text-xs text-base-content/50">Σύνολο σελίδας</td>
+                <td colspan="4" class="text-xs text-base-content/50">Σύνολο σελίδας</td>
                 <td class="text-right font-bold text-success">{{ incomeTotalOnPage() | currency:'EUR':'symbol':'1.2-2' }}</td>
                 <td colspan="2"></td>
               </tr>

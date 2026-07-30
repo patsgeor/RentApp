@@ -21,8 +21,11 @@ public class InstallmentService(
             .FirstOrDefaultAsync(c => c.Id == contractId)
             ?? throw new NotFoundException($"Συμβόλαιο '{contractId}' δεν βρέθηκε.");
 
-        if (contract.Installments.Any())
-            throw new BadRequestException("Οι δόσεις για αυτό το συμβόλαιο έχουν ήδη δημιουργηθεί.");
+         if (contract.Installments.Any(i => i.AllocatedAmount > 0))
+            throw new BadRequestException("Δεν επιτρέπεται αναδημιουργία — υπάρχουν κατανεμημένες πληρωμές σε δόσεις.");
+
+        // Replace existing installments (e.g. the initial single-installment)
+        context.Installments.RemoveRange(contract.Installments);
 
         var installments = BuildInstallments(contract, userId);
         await context.Installments.AddRangeAsync(installments);
@@ -31,6 +34,8 @@ public class InstallmentService(
 
     public async Task<List<InstallmentDto>> GetByContractAsync(Guid contractId)
     {
+        await RefreshOverdueStatusesAsync();
+
         return await context.Installments
             .AsNoTracking()
             .Where(i => i.ContractId == contractId)
@@ -64,6 +69,8 @@ public class InstallmentService(
 
     public async Task<PaginatedResult<InstallmentDto>> GetOverdueAsync(PagingParams p)
     {
+        await RefreshOverdueStatusesAsync();
+
         var query = context.Installments
             .AsNoTracking()
             .Where(i => i.Status == InstallmentStatus.Overdue)
@@ -91,6 +98,8 @@ public class InstallmentService(
 
     public async Task<PaginatedResult<InstallmentDto>> GetDebtsAsync(DebtParams p)
     {
+        await RefreshOverdueStatusesAsync();
+
         var query = context.Installments
             .AsNoTracking()
             .Where(i => i.Status != InstallmentStatus.Paid &&
@@ -167,7 +176,6 @@ public class InstallmentService(
     public async Task<MatchResultDto> AutoMatchAsync(Guid paymentId, string userId)
     {
         var payment = await context.Payments
-            .Include(p => p.PaymentContracts)
             .Include(p => p.Allocations)
             .FirstOrDefaultAsync(p => p.Id == paymentId)
             ?? throw new NotFoundException($"Πληρωμή '{paymentId}' δεν βρέθηκε.");
@@ -186,15 +194,7 @@ public class InstallmentService(
                 c.ReferenceCode == payment.TenantReferenceCode)
             ?? throw new NotFoundException($"Δεν βρέθηκε συμβόλαιο με ReferenceCode '{payment.TenantReferenceCode}'.");
 
-        if (!payment.PaymentContracts.Any(pc => pc.ContractId == contract.Id))
-        {
-            payment.PaymentContracts.Add(new PaymentContract
-            {
-                PaymentId  = payment.Id,
-                ContractId = contract.Id
-            });
-            payment.MatchStatus = PaymentMatchStatus.AutoMatched;
-        }
+        payment.MatchStatus = PaymentMatchStatus.AutoMatched;
 
         var unpaid = await context.Installments
             .Where(i => i.ContractId == contract.Id &&
@@ -224,8 +224,7 @@ public class InstallmentService(
 
             await context.PaymentInstallments.AddAsync(alloc);
             inv.AllocatedAmount += toAllocate;
-            inv.Status = inv.AllocatedAmount >= inv.TotalAmount
-                ? InstallmentStatus.Paid : InstallmentStatus.PartiallyPaid;
+            inv.Status = ComputeInstallmentStatus(inv);
 
             remaining -= toAllocate;
             allocations.Add(new AllocationSummaryDto
@@ -254,47 +253,47 @@ public class InstallmentService(
 
     public async Task AllocateManuallyAsync(Guid paymentId, List<AllocationItemDto> items, string userId)
     {
-        // var payment = await context.Payments
-        //     .Include(p => p.Allocations)
-        //     .FirstOrDefaultAsync(p => p.Id == paymentId)
-        //     ?? throw new NotFoundException($"Πληρωμή '{paymentId}' δεν βρέθηκε.");
+        var payment = await context.Payments
+            .Include(p => p.Allocations)
+            .FirstOrDefaultAsync(p => p.Id == paymentId)
+            ?? throw new NotFoundException($"Πληρωμή '{paymentId}' δεν βρέθηκε.");
 
-        // var total = items.Sum(i => i.Amount);
-        // if (total > payment.UnallocatedAmount)
-        //     throw new BadRequestException(
-        //         $"Το σύνολο κατανομής ({total:N2}) υπερβαίνει το διαθέσιμο ποσό ({payment.UnallocatedAmount:N2}).");
+        var total = items.Sum(i => i.Amount);
+        if (total > payment.UnallocatedAmount + 0.01m)
+            throw new BadRequestException(
+                $"Το σύνολο κατανομής ({total:N2}) υπερβαίνει το διαθέσιμο ποσό ({payment.UnallocatedAmount:N2}).");
 
-        // foreach (var item in items)
-        // {
-        //     var installment = await context.Installments.FindAsync(item.InstallmentId)
-        //         ?? throw new NotFoundException($"Δόση '{item.InstallmentId}' δεν βρέθηκε.");
+        foreach (var item in items)
+        {
+            var installment = await context.Installments.FindAsync(item.InstallmentId)
+                ?? throw new NotFoundException($"Δόση '{item.InstallmentId}' δεν βρέθηκε.");
 
-        //     var outstanding = installment.TotalAmount - installment.AllocatedAmount;
-        //     if (item.Amount > outstanding)
-        //         throw new BadRequestException(
-        //             $"Ποσό {item.Amount:N2} υπερβαίνει το εκκρεμές υπόλοιπο {outstanding:N2} για δόση #{installment.InstallmentNumber}.");
+            var outstanding = installment.TotalAmount - installment.AllocatedAmount;
+            if (item.Amount > outstanding + 0.01m)
+                throw new BadRequestException(
+                    $"Ποσό {item.Amount:N2} υπερβαίνει το εκκρεμές υπόλοιπο {outstanding:N2} για δόση #{installment.InstallmentNumber}.");
 
-        //     var alloc = new PaymentInstallment
-        //     {
-        //         TenantId        = payment.TenantId,
-        //         PaymentId       = payment.Id,
-        //         InstallmentId       = item.InstallmentId,
-        //         AllocatedAmount = item.Amount,
-        //         Notes           = item.Notes,
-        //         CreatedBy       = userId
-        //     };
+             var alloc = new PaymentInstallment
+            {
+                TenantId        = payment.TenantId,
+                PaymentId       = payment.Id,
+                InstallmentId   = item.InstallmentId,
+                AllocatedAmount = item.Amount,
+                Notes           = item.Notes,
+                CreatedBy       = userId
+            };
 
-        //     await context.PaymentInstallments.AddAsync(alloc);
-        //     installment.AllocatedAmount += item.Amount;
-        //     installment.Status = installment.AllocatedAmount >= installment.TotalAmount
-        //         ? InstallmentStatus.Paid : InstallmentStatus.PartiallyPaid;
-        // }
+            await context.PaymentInstallments.AddAsync(alloc);
+            installment.AllocatedAmount += item.Amount;
+            installment.Status = ComputeInstallmentStatus(installment);
+        }
 
-        // payment.UnallocatedAmount -= total;
-        // if (payment.MatchStatus == PaymentMatchStatus.Unmatched)
-        //     payment.MatchStatus = PaymentMatchStatus.ManuallyMatched;
+        payment.UnallocatedAmount -= total;
 
-        // await context.SaveChangesAsync();
+        if (payment.MatchStatus == PaymentMatchStatus.Unmatched)
+            payment.MatchStatus = PaymentMatchStatus.ManuallyMatched;
+
+        await context.SaveChangesAsync();
     }
 
     public async Task DeallocateAsync(Guid allocationId, string userId)
@@ -306,8 +305,7 @@ public class InstallmentService(
             ?? throw new NotFoundException($"Κατανομή '{allocationId}' δεν βρέθηκε.");
 
         alloc.Installment.AllocatedAmount -= alloc.AllocatedAmount;
-        alloc.Installment.Status = alloc.Installment.AllocatedAmount <= 0
-            ? InstallmentStatus.Pending : InstallmentStatus.PartiallyPaid;
+        alloc.Installment.Status = ComputeInstallmentStatus(alloc.Installment);
 
         alloc.Payment.UnallocatedAmount += alloc.AllocatedAmount;
         alloc.IsDeleted = true;
@@ -367,6 +365,14 @@ public class InstallmentService(
     }
 
     // ── Private helpers ────────────────────────────────────────────────────
+
+    private static InstallmentStatus ComputeInstallmentStatus(Installment inv)
+    {
+        if (inv.AllocatedAmount >= inv.TotalAmount) return InstallmentStatus.Paid;
+        if (inv.AllocatedAmount > 0) return InstallmentStatus.PartiallyPaid;
+        if (DateTime.UtcNow > inv.DueDate) return InstallmentStatus.Overdue;
+        return InstallmentStatus.Pending;
+    }
 
     private static List<Installment> BuildInstallments(Contract contract, string userId)
     {
@@ -508,6 +514,8 @@ public class InstallmentService(
 
     public async Task<DebtStatsDto> GetStatsAsync(int? month, int? year)
     {
+        await RefreshOverdueStatusesAsync();
+
         var now    = DateTime.UtcNow;
         var m      = month ?? now.Month;
         var y      = year  ?? now.Year;

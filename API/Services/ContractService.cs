@@ -42,14 +42,19 @@ public class ContractService(
             Notes            = a.Notes
         }).ToList();
 
+        await EnsureNoAssetOverlapAsync(assetLines, excludeContractId: null);
+
         var totalAmount = assetLines.Sum(a => a.CalculatedAmount) - dto.DiscountAmount + dto.TaxAmount;
+
+        var start = DateTime.SpecifyKind(dto.StartDate, DateTimeKind.Utc);
+        var end   = DateTime.SpecifyKind(dto.EndDate,   DateTimeKind.Utc);
 
         var contract = new Contract
         {
             TenantId             = tenantProvider.TenantId,
             CustomerId           = dto.CustomerId,
-            StartDate            = DateTime.SpecifyKind(dto.StartDate, DateTimeKind.Utc),
-            EndDate              = DateTime.SpecifyKind(dto.EndDate, DateTimeKind.Utc),
+            StartDate            = start,
+            EndDate              = end,
             SignedDate           = dto.SignedDate.HasValue
                 ? DateTime.SpecifyKind(dto.SignedDate.Value, DateTimeKind.Utc)
                 : null,
@@ -64,6 +69,22 @@ public class ContractService(
             ContractAssets       = assetLines,
             CreatedBy            = memberId
         };
+
+        // Auto-create single "full amount" installment — user can split later via Generate
+        contract.Installments.Add(new Installment
+        {
+            TenantId          = tenantProvider.TenantId,
+            InstallmentNumber = 1,
+            PeriodStart       = start,
+            PeriodEnd         = end,
+            DueDate           = end,
+            Amount            = totalAmount - dto.TaxAmount,
+            TaxAmount         = dto.TaxAmount,
+            TotalAmount       = totalAmount,
+            Status            = InstallmentStatus.Pending,
+            CreatedBy         = memberId
+        });
+
 
         uow.ContractRepository.Add(contract);
         await uow.Complete();
@@ -98,7 +119,10 @@ public class ContractService(
             RateUnit         = a.RateUnit,
             CalculatedAmount = a.CalculatedAmount,
             Notes            = a.Notes
-        });
+        }).ToList();
+
+        await EnsureNoAssetOverlapAsync(newAssets, excludeContractId: id);
+
         uow.ContractRepository.AddAssets(newAssets);
 
         var totalAmount = dto.Assets.Sum(a => a.CalculatedAmount) - dto.DiscountAmount + dto.TaxAmount;
@@ -158,5 +182,34 @@ public class ContractService(
         contract.DeletedBy = memberId;
         uow.ContractRepository.Remove(contract);
         await uow.Complete();
+    }
+
+    // Ξανατσεκάρει επικάλυψη ημερομηνιών ανά πάγιο πριν το save — το read-only
+    // GetAvailableAssetsAsync (dropdown) δεν εμποδίζει δύο ταυτόχρονα requests
+    // από το να διπλοκλείσουν το ίδιο πάγιο.
+    private async Task EnsureNoAssetOverlapAsync(List<ContractAsset> assetLines, Guid? excludeContractId)
+    {
+        var assetIds = assetLines.Select(a => a.AssetId).ToList();
+
+        var busy = await context.ContractAssets
+            .AsNoTracking()
+            .Where(ca =>
+                assetIds.Contains(ca.AssetId) &&
+                (ca.Contract.Status == RentalStatus.Active || ca.Contract.Status == RentalStatus.Pending) &&
+                (excludeContractId == null || ca.ContractId != excludeContractId))
+            .Select(ca => new { ca.AssetId, ca.StartDate, ca.EndDate, ca.Asset.Name })
+            .ToListAsync();
+
+        foreach (var line in assetLines)
+        {
+            var conflict = busy.FirstOrDefault(b =>
+                b.AssetId == line.AssetId &&
+                b.StartDate < line.EndDate && b.EndDate > line.StartDate);
+
+            if (conflict != null)
+                throw new BadRequestException(
+                    $"Το πάγιο '{conflict.Name}' είναι ήδη δεσμευμένο για την περίοδο " +
+                    $"{conflict.StartDate:dd/MM/yyyy}–{conflict.EndDate:dd/MM/yyyy}.");
+        }
     }
 }

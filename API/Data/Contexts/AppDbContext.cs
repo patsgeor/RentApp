@@ -34,7 +34,6 @@ public class AppDbContext(
     public DbSet<MemberInvite> MemberInvites { get; set; }
     public DbSet<Payment> Payments { get; set; }
     public DbSet<PaymentAsset> PaymentAssets { get; set; }
-    public DbSet<PaymentContract> PaymentContracts { get; set; }
     public DbSet<PaymentInstallment> PaymentInstallments { get; set; }
     public DbSet<Tenant> Tenants { get; set; }
 
@@ -119,21 +118,7 @@ public class AppDbContext(
         builder.Entity<Contract>()
             .HasIndex(c => c.TenantId);
 
-        // ── PaymentContract (many-to-many, no tenant filter) ─────────────
-        builder.Entity<PaymentContract>()
-            .HasKey(pc => new { pc.PaymentId, pc.ContractId });
 
-        builder.Entity<PaymentContract>()
-            .HasOne(pc => pc.Payment)
-            .WithMany(p => p.PaymentContracts)
-            .HasForeignKey(pc => pc.PaymentId)
-            .OnDelete(DeleteBehavior.Cascade);
-
-        builder.Entity<PaymentContract>()
-            .HasOne(pc => pc.Contract)
-            .WithMany(c => c.PaymentContracts)
-            .HasForeignKey(pc => pc.ContractId)
-            .OnDelete(DeleteBehavior.Cascade);
 
         // ── PaymentInstallment ───────────────────────────────────────────
         builder.Entity<PaymentInstallment>()

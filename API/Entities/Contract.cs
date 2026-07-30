@@ -37,9 +37,8 @@ public class Contract : BaseEntity
     public InstallmentFrequency InstallmentFrequency { get; set; } = InstallmentFrequency.Monthly; // αφορα την πληρωμή καθε ποτε θα γίνεται
 
     // Navigation
-    public ICollection<ContractAsset>    ContractAssets   { get; set; } = new List<ContractAsset>();
-    public ICollection<Installment>          Installments         { get; set; } = new List<Installment>();
-    public ICollection<PaymentContract>  PaymentContracts { get; set; } = new List<PaymentContract>();
+   public ICollection<ContractAsset> ContractAssets { get; set; } = new List<ContractAsset>();
+    public ICollection<Installment>   Installments   { get; set; } = new List<Installment>();
 
     [ForeignKey(nameof(CustomerId))]
     public Customer Customer { get; set; } = null!;

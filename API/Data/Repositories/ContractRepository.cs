@@ -40,12 +40,8 @@ public class ContractRepository(AppDbContext context) : IContractRepository
                 TotalAmount        = c.TotalAmount,
                 Status             = c.Status,
                 AssetNames         = c.ContractAssets.Select(ca => ca.Asset.Name).ToList(),
-                PaidAmount         = c.PaymentContracts
-                    .Where(pc => pc.Payment.TransactionType == TransactionType.Income && !pc.Payment.IsDeleted)
-                    .Sum(pc => (decimal?)pc.Payment.Amount) ?? 0m,
-                OutstandingBalance = c.TotalAmount - (c.PaymentContracts
-                    .Where(pc => pc.Payment.TransactionType == TransactionType.Income && !pc.Payment.IsDeleted)
-                    .Sum(pc => (decimal?)pc.Payment.Amount) ?? 0m)
+                PaidAmount         = c.Installments.Sum(i => (decimal?)i.AllocatedAmount) ?? 0m,
+                OutstandingBalance = c.TotalAmount - (c.Installments.Sum(i => (decimal?)i.AllocatedAmount) ?? 0m)
             });
 
         return await PaginationHelper.CreateAsync(projected, p.PageNumber, p.PageSize);

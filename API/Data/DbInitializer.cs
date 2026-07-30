@@ -347,7 +347,6 @@ public class DbInitializer
         var contractsToInsert      = new List<Contract>();
         var contractAssetsToInsert = new List<ContractAsset>();
         var paymentsToInsert       = new List<Payment>();
-        var paymentContractsToInsert = new List<PaymentContract>();
 
         // Διαθέσιμα assets ανά tenant για να αποφύγουμε διπλοεπιλογή
         var availablePerTenant = new Dictionary<Guid, List<Asset>>
@@ -405,7 +404,7 @@ public class DbInitializer
             if (netTotal == 0)
                 netTotal = faker.Random.Decimal(200, 2000);
 
-            var taxAmount   = Math.Round(netTotal * 0.24m, 2);
+            var taxAmount   = Math.Round(netTotal * 0.00m, 2);
             var totalAmount = Math.Round(netTotal + taxAmount, 2);
             var refCode     = $"REF-{tenantId.ToString()[..4].ToUpper()}-{i + 1:D4}";
 
@@ -452,11 +451,6 @@ public class DbInitializer
                     CreatedAt           = DateTime.UtcNow
                 });
 
-                paymentContractsToInsert.Add(new PaymentContract
-                {
-                    PaymentId  = paymentId,
-                    ContractId = contractId
-                });
             }
         }
 
@@ -467,12 +461,6 @@ public class DbInitializer
 
         await context.Payments.AddRangeAsync(paymentsToInsert);
         await context.SaveChangesAsync();
-
-        if (paymentContractsToInsert.Count > 0)
-        {
-            await context.PaymentContracts.AddRangeAsync(paymentContractsToInsert);
-            await context.SaveChangesAsync();
-        }
     }
 
     private static decimal CalculateRentalAmount(RateUnit rateUnit, decimal unitCost, int days)

@@ -1,10 +1,14 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { CurrencyPipe, DatePipe, DecimalPipe } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { PaymentService } from '../../../core/services/payment-service';
-import { ContractPaymentDto, PaymentMethod } from '../../../types/payment';
+import { AllocationItemDto, ContractPaymentDto, PaymentMethod } from '../../../types/payment';
 import { RentalStatus } from '../../../types/asset';
+import { InstallmentService } from '../../../core/services/installment-service';
+import { InstallmentDto, InstallmentStatus } from '../../../types/installment';
+import { map } from 'rxjs';
+import { toSignal } from '@angular/core/rxjs-interop';
 
 @Component({
   selector: 'app-income-form',
@@ -12,11 +16,13 @@ import { RentalStatus } from '../../../types/asset';
   templateUrl: './income-form.html',
 })
 export class IncomeForm implements OnInit {
-  private svc = inject(PaymentService);
-  private fb  = inject(FormBuilder);
+  private svc             = inject(PaymentService);
+  private installmentSvc  = inject(InstallmentService);
+  private fb              = inject(FormBuilder);
 
-  readonly PaymentMethod = PaymentMethod;
-  readonly RentalStatus  = RentalStatus;
+  readonly PaymentMethod     = PaymentMethod;
+  readonly RentalStatus      = RentalStatus;
+  readonly InstallmentStatus = InstallmentStatus;
 
   contracts    = signal<ContractPaymentDto[]>([]);
   totalPages   = signal(1);
@@ -26,8 +32,9 @@ export class IncomeForm implements OnInit {
   search       = signal('');
   statusFilter = signal<number | null>(null);
 
-  selected = signal<ContractPaymentDto | null>(null);
-  saving   = signal(false);
+  selected     = signal<ContractPaymentDto | null>(null);
+  installments = signal<InstallmentDto[]>([]);  saving   = signal(false);
+
   success  = signal(false);
   errorMsg = signal('');
 
@@ -38,6 +45,21 @@ export class IncomeForm implements OnInit {
     notes:         [''],
   });
 
+  // Bridge form amount to a signal so computed() can track it
+  private amountSignal = toSignal(
+    this.form.get('amount')!.valueChanges.pipe(map(v => v ?? 0)),
+    { initialValue: 0 }
+  );
+
+  fifoAllocations = computed<AllocationItemDto[]>(() => {
+    const amount = this.amountSignal();
+    const pending = this.installments().filter(
+      i => i.status !== InstallmentStatus.Paid && i.status !== InstallmentStatus.Cancelled
+    );
+    if (!amount || amount <= 0 || pending.length === 0) return [];
+    return this.computeFifo(amount, pending);
+  });
+  
   ngOnInit() { this.load(); }
 
   load(page = 1) {
@@ -49,7 +71,6 @@ export class IncomeForm implements OnInit {
         this.currentPage.set(r.metadata.currentPage);
         this.totalCount.set(r.metadata.totalCount);
         this.loading.set(false);
-        // Refresh selected contract balance if it appears in the new page
         const cur = this.selected();
         if (cur) {
           const refreshed = r.items.find(c => c.id === cur.id);
@@ -73,12 +94,23 @@ export class IncomeForm implements OnInit {
 
   select(c: ContractPaymentDto) {
     this.selected.set(c);
+    this.installments.set([]);
     this.errorMsg.set('');
     this.success.set(false);
     this.form.patchValue({ amount: c.outstandingBalance > 0 ? c.outstandingBalance : null });
+    this.installmentSvc.getByContract(c.id).subscribe({
+      next: list => this.installments.set(list),
+    });
   }
 
-  clearSelected() { this.selected.set(null); }
+  clearSelected() {
+    this.selected.set(null);
+    this.installments.set([]);
+  }
+
+  onAmountInput() {
+    // signal-based computed reacts automatically — this is a no-op hook for the template
+  }
 
   submit() {
     if (this.form.invalid || !this.selected()) { this.form.markAllAsTouched(); return; }
@@ -87,23 +119,54 @@ export class IncomeForm implements OnInit {
     this.success.set(false);
     const v = this.form.value;
     this.svc.recordIncome({
-      contractId:    this.selected()!.id,
       amount:        v.amount!,
       paymentDate:   v.paymentDate!,
       paymentMethod: Number(v.paymentMethod) as PaymentMethod,
       notes:         v.notes || undefined,
+      allocations:   this.fifoAllocations().length > 0 ? this.fifoAllocations() : undefined,
     }).subscribe({
       next: () => {
         this.success.set(true);
         this.saving.set(false);
         this.form.patchValue({ amount: null, notes: '' });
         this.load(this.currentPage());
+        // Refresh installments
+        const sel = this.selected();
+        if (sel) this.installmentSvc.getByContract(sel.id).subscribe({
+          next: list => this.installments.set(list),
+        });
       },
       error: err => {
         this.errorMsg.set(err.error?.message ?? 'Σφάλμα αποθήκευσης.');
         this.saving.set(false);
       }
     });
+  }
+
+  installmentStatusLabel(s: InstallmentStatus): string {
+    const map: Record<number, string> = {
+      [InstallmentStatus.Pending]:       'Εκκρεμής',
+      [InstallmentStatus.PartiallyPaid]: 'Μερική',
+      [InstallmentStatus.Paid]:          'Εξοφλημένη',
+      [InstallmentStatus.Overdue]:       'Ληξιπρόθεσμη',
+      [InstallmentStatus.Cancelled]:     'Ακυρωμένη',
+    };
+    return map[s] ?? '—';
+  }
+
+  installmentStatusBadge(s: InstallmentStatus): string {
+    const map: Record<number, string> = {
+      [InstallmentStatus.Pending]:       'badge-warning',
+      [InstallmentStatus.PartiallyPaid]: 'badge-info',
+      [InstallmentStatus.Paid]:          'badge-success',
+      [InstallmentStatus.Overdue]:       'badge-error',
+      [InstallmentStatus.Cancelled]:     'badge-ghost',
+    };
+    return `badge badge-xs ${map[s] ?? ''}`;
+  }
+
+  allocationFor(installmentId: string): number {
+    return this.fifoAllocations().find(a => a.installmentId === installmentId)?.amount ?? 0;
   }
 
   statusLabel(s: RentalStatus): string {
@@ -117,10 +180,29 @@ export class IncomeForm implements OnInit {
   statusBadge(s: RentalStatus): string {
     const map: Record<number, string> = {
       [RentalStatus.Pending]: 'badge-warning', [RentalStatus.Active]: 'badge-success',
-      [RentalStatus.Completed]: 'badge-ghost', [RentalStatus.Cancelled]: 'badge-error',
+      [RentalStatus.Completed]: 'badge-ghost',  [RentalStatus.Cancelled]: 'badge-error',
     };
     return `badge badge-sm ${map[s] ?? ''}`;
   }
 
   pages() { return Array.from({ length: this.totalPages() }, (_, i) => i + 1); }
+
+  
+  private computeFifo(amount: number, pending: InstallmentDto[]): AllocationItemDto[] {
+    const sorted = [...pending].sort(
+      (a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime()
+    );
+    const result: AllocationItemDto[] = [];
+    let remaining = amount;
+    for (const inv of sorted) {
+      if (remaining <= 0) break;
+      const outstanding = inv.totalAmount - inv.allocatedAmount;
+      if (outstanding <= 0) continue;
+      const toAllocate = Math.min(remaining, outstanding);
+      result.push({ installmentId: inv.id, amount: Math.round(toAllocate * 100) / 100 });
+      remaining -= toAllocate;
+    }
+    return result;
+  }
+
 }

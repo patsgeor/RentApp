@@ -38,7 +38,7 @@ export class Contact {
     if (!this.name() || !this.email() || !this.message()) return;
     this.loading.set(true);
     this.error.set('');
-    this.http.post(`${environment.apiUrl}contact`, {
+    this.http.post(`${environment.apiUrl}emailcontact`, {
       name: this.name(),
       email: this.email(),
       message: this.message(),

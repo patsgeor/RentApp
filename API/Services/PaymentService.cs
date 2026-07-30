@@ -11,7 +11,8 @@ namespace API.Services;
 public class PaymentService(
     IUnitOfWork uow,
     ITenantProvider tenantProvider,
-    IPhotoService photoService) : IPaymentService
+    IPhotoService photoService,
+    IInstallmentService installmentService): IPaymentService
 {
     public Task<PaginatedResult<ContractPaymentDto>> GetContractsAsync(
         string? search, RentalStatus? status, PagingParams pagingParams)
@@ -28,33 +29,35 @@ public class PaymentService(
     {
         var payment = new Payment
         {
-            TenantId        = tenantProvider.TenantId,
-            Amount          = dto.Amount,
-            PaymentDate     = DateTime.SpecifyKind(dto.PaymentDate, DateTimeKind.Utc),
-            PaymentMethod   = dto.PaymentMethod,
-            Notes           = dto.Notes,
-            TransactionType = TransactionType.Income,
-            CreatedBy       = userId
+              TenantId            = tenantProvider.TenantId,
+            Amount              = dto.Amount,
+            UnallocatedAmount   = dto.Amount,
+            PaymentDate         = DateTime.SpecifyKind(dto.PaymentDate, DateTimeKind.Utc),
+            PaymentMethod       = dto.PaymentMethod,
+            Notes               = dto.Notes,
+            TenantReferenceCode = dto.TenantReferenceCode,
+            TransactionType     = TransactionType.Income,
+            CreatedBy           = userId
         };
-
-        payment.PaymentContracts.Add(new PaymentContract
-        {
-            ContractId = dto.ContractId
-        });
 
         await uow.PaymentRepository.AddAsync(payment);
         await uow.Complete();
 
+        if (dto.Allocations is { Count: > 0 })
+            await installmentService.AllocateManuallyAsync(payment.Id, dto.Allocations, userId);
+
         return new PaymentListItemDto
         {
-            Id              = payment.Id,
-            Amount          = payment.Amount,
-            PaymentDate     = DateTime.SpecifyKind(payment.PaymentDate, DateTimeKind.Utc),
-            PaymentMethod   = payment.PaymentMethod,
-            TransactionType = payment.TransactionType,
-            Notes           = payment.Notes,
-            ContractIds     = [dto.ContractId],
-            CreatedAt       = payment.CreatedAt
+           Id                  = payment.Id,
+            Amount              = payment.Amount,
+            UnallocatedAmount   = payment.UnallocatedAmount,
+            PaymentDate         = payment.PaymentDate,
+            PaymentMethod       = payment.PaymentMethod,
+            TransactionType     = payment.TransactionType,
+            MatchStatus         = payment.MatchStatus,
+            TenantReferenceCode = payment.TenantReferenceCode,
+            Notes               = payment.Notes,
+            CreatedAt           = payment.CreatedAt
         };
     }
 
