@@ -1,5 +1,6 @@
 using System;
 using API.Data.Contexts;
+using API.DTOs.Tenant;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -12,20 +13,25 @@ public class TenantController(AppDbContext context) : BaseApiController
 {
     // GET api/tenant
     [HttpGet]
-    public async Task<IActionResult> GetAll()
+    public async Task<ActionResult<List<TenantAdminDto>>> GetAll()
     {
         var tenants = await context.Tenants
             .IgnoreQueryFilters()
-            .Select(t => new
-            {
-                t.Id,
-                t.Name,
-                t.VatNumber,
-                t.ContactInfo,
-                t.SubscriptionStatus,
-                t.PlanType
-            })
             .OrderBy(t => t.Name)
+            .Select(t => new TenantAdminDto
+            {
+                Id                 = t.Id,
+                Name               = t.Name,
+                VatNumber          = t.VatNumber,
+                ContactInfo        = t.ContactInfo,
+                PlanType           = t.PlanType,
+                PlanExpiresAt      = t.PlanExpiresAt,
+                SubscriptionStatus = t.SubscriptionStatus,
+                // AppUser has its own tenant query filter — must be explicitly ignored here,
+                // otherwise this subquery is silently scoped to the current (SuperAdmin's) tenant
+                // and every other tenant's UserCount comes back as 0.
+                UserCount          = context.Users.IgnoreQueryFilters().Count(u => u.TenantId == t.Id)
+            })
             .ToListAsync();
 
         return Ok(tenants);

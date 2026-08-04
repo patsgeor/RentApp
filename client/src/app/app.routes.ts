@@ -35,6 +35,8 @@ import { Contact } from '../home/LANDING/contact/contact';
 import { Upgrade } from '../home/upgrade/upgrade';
 import { PublicLayout } from '../home/public-layout/public-layout';
 import { guestCanMatchGuard } from '../core/guards/guest-can-match-guard';
+import { superAdminGuard } from '../core/guards/super-admin-guard';
+import { TenantList } from '../features/admin/tenant-list/tenant-list';
 
 export const routes: Routes = [
 
@@ -110,7 +112,9 @@ export const routes: Routes = [
 
       { path: 'scan', component: QrScanner },
 
-      { path: 'invite', component: MemberInvite }
+      { path: 'invite', component: MemberInvite },
+
+      { path: 'admin/tenants', component: TenantList, canActivate: [superAdminGuard] }
     ]
    }, 
   {path:'server-error',component:ServerError},

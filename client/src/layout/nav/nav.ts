@@ -13,6 +13,7 @@ export class Nav implements OnInit {
   accountService = inject(AccountService);
   sidebarOpen = signal(false);
   isAdmin = computed(() => (this.accountService.currentUser() as any)?.roles?.includes('Admin') ?? false);
+  isSuperAdmin = computed(() => (this.accountService.currentUser() as any)?.roles?.includes('SuperAdmin') ?? false);
   
   protected selectedTheme = signal<string>(localStorage.getItem('theme') || 'dark');
   readonly themes= themes;
