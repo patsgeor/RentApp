@@ -77,10 +77,23 @@ public class AssetContractHistDto
     public DateTime StartDate { get; set; }
     public DateTime EndDate { get; set; }
     public RentalStatus Status { get; set; }
+    /// <summary>Συνολικό ποσό ΟΛΟΚΛΗΡΟΥ του συμβολαίου (μπορεί να περιέχει κι άλλα πάγια).</summary>
     public decimal TotalAmount { get; set; }
+    /// <summary>Το ποσό που αναλογεί μόνο σε αυτό το πάγιο.</summary>
+    public decimal AssetAmount { get; set; }
     public string? Notes { get; set; }
 }
  
+
+/// <summary>Οικονομική σύνοψη παγίου: συνολικά έξοδα συντήρησης & έσοδα μισθώσεων.</summary>
+public class AssetFinancialSummaryDto
+{
+    public decimal TotalMaintenanceCost { get; set; }
+    public int MaintenanceCount { get; set; }
+    public decimal TotalRentalRevenue { get; set; }
+    public int RentalCount { get; set; }
+    public decimal NetResult { get; set; }
+}
 
 public class CostAssetHistDto
 {

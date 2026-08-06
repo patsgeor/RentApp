@@ -18,11 +18,18 @@ public class DashboardService(AppDbContext context) : IDashboardService
         var activeContracts = await context.Contracts
             .CountAsync(c => c.Status == RentalStatus.Active);
 
+        // Τα ακυρωμένα συμβόλαια εξαιρούνται από κάθε στατιστικό: παραμένουν στη
+        // βάση για λόγους ιχνηλασιμότητας, αλλά δεν αντιπροσωπεύουν πραγματική
+        // επιχειρηματική δραστηριότητα.
         var newContractsThisMonth = await context.Contracts
-            .CountAsync(c => c.CreatedAt >= startOfMonth);
+            .CountAsync(c => c.CreatedAt >= startOfMonth && c.Status != RentalStatus.Cancelled);
 
         var monthlyIncome = await context.Payments
             .Where(p => p.TransactionType == TransactionType.Income && p.PaymentDate >= startOfMonth)
+            .SumAsync(p => (decimal?)p.Amount) ?? 0m;
+
+        var monthlyExpenses = await context.Payments
+            .Where(p => p.TransactionType == TransactionType.Expense && p.PaymentDate >= startOfMonth)
             .SumAsync(p => (decimal?)p.Amount) ?? 0m;
 
         var availableAssets = await context.Assets
@@ -36,21 +43,32 @@ public class DashboardService(AppDbContext context) : IDashboardService
         var totalAssets = await context.Assets.CountAsync();
 
 
-        // Outstanding balance across active/pending contracts
-        var outstandingBalance = await context.Contracts
-            .Where(c => c.Status == RentalStatus.Active || c.Status == RentalStatus.Pending)
-            .Select(c => c.TotalAmount - (c.Installments.Sum(i => (decimal?)i.AllocatedAmount) ?? 0m))
+        // Υπολογίζεται από τις δόσεις (όχι από την κατάσταση του συμβολαίου) ώστε να
+        // συμφωνεί με την οθόνη «Οφειλές» στην οποία οδηγεί το ίδιο KPI. Με φίλτρο
+        // κατάστασης συμβολαίου, ανεξόφλητες δόσεις ληγμένων συμβολαίων χάνονταν.
+        var outstandingBalance = await context.Installments
+            .Where(i => i.Status != InstallmentStatus.Paid
+                     && i.Status != InstallmentStatus.Cancelled
+                     && i.Contract.Status != RentalStatus.Cancelled)
+            .Select(i => i.TotalAmount - i.AllocatedAmount)
             .SumAsync(o => (decimal?)o) ?? 0m;
 
-        // Overdue: Active contracts past endDate
+        // Ληξιπρόθεσμα = συμβόλαια με απλήρωτη δόση που πέρασε η ημ. λήξης της.
+        // Δεν φιλτράρουμε σε κατάσταση συμβολαίου: ένα ληγμένο (Ολοκληρωμένο)
+        // συμβόλαιο μπορεί κάλλιστα να έχει ακόμα ανεξόφλητο υπόλοιπο.
         var overdueRaw = await context.Contracts
-            .Where(c => c.Status == RentalStatus.Active && c.EndDate < now)
+            .Where(c => c.Status != RentalStatus.Cancelled && c.Installments.Any(i =>
+                i.Status != InstallmentStatus.Paid &&
+                i.Status != InstallmentStatus.Cancelled &&
+                i.DueDate < now))
             .Select(c => new
             {
                 c.Id,
                 c.EndDate,
                 CustomerName = c.Customer.Name,
-                Outstanding = c.TotalAmount - (c.Installments.Sum(i => (decimal?)i.AllocatedAmount) ?? 0m),
+                Outstanding = c.Installments
+                    .Where(i => i.Status != InstallmentStatus.Paid && i.Status != InstallmentStatus.Cancelled)
+                    .Sum(i => (decimal?)(i.TotalAmount - i.AllocatedAmount)) ?? 0m,
                 AssetNames = c.ContractAssets.Select(ca => ca.Asset.Name).ToList()
             })
             .OrderBy(c => c.EndDate)
@@ -112,6 +130,10 @@ public class DashboardService(AppDbContext context) : IDashboardService
             .Where(p => p.TransactionType == TransactionType.Income && p.PaymentDate >= startOfYear)
             .SumAsync(p => (decimal?)p.Amount) ?? 0m;
 
+        var yearlyExpenses = await context.Payments
+            .Where(p => p.TransactionType == TransactionType.Expense && p.PaymentDate >= startOfYear)
+            .SumAsync(p => (decimal?)p.Amount) ?? 0m;
+
         // ── Ετήσιο chart (12 μήνες τρέχοντος έτους) ────────────────
         var yearlyPayments = await context.Payments
             .Where(p => p.PaymentDate >= startOfYear)
@@ -134,6 +156,7 @@ public class DashboardService(AppDbContext context) : IDashboardService
 
         // ── Top 5 Πάγια (βάσει εισπράξεων) ────────────────────────
         var assetRevRaw = await context.ContractAssets
+            .Where(ca => ca.Contract.Status != RentalStatus.Cancelled)
             .Select(ca => new
             {
                 ca.AssetId,
@@ -162,8 +185,10 @@ public class DashboardService(AppDbContext context) : IDashboardService
                 Id = c.Id,
                 Name = c.Name,
                 OutstandingBalance = c.Contracts
-                    .Where(ct => ct.Status == RentalStatus.Active || ct.Status == RentalStatus.Pending)
-                    .Sum(ct => ct.TotalAmount - (ct.Installments.Sum(i => (decimal?)i.AllocatedAmount) ?? 0m)),
+                    .Where(ct => ct.Status != RentalStatus.Cancelled)
+                    .SelectMany(ct => ct.Installments)
+                    .Where(i => i.Status != InstallmentStatus.Paid && i.Status != InstallmentStatus.Cancelled)
+                    .Sum(i => (decimal?)(i.TotalAmount - i.AllocatedAmount)) ?? 0m,
                 ActiveContracts = c.Contracts.Count(ct => ct.Status == RentalStatus.Active)
             })
             .Where(c => c.OutstandingBalance > 0)
@@ -174,10 +199,14 @@ public class DashboardService(AppDbContext context) : IDashboardService
         // ── Πρόβλεψη εισπράξεων επόμενων 3 μηνών (από δόσεις) ─────
         // ΣΗΜΕΙΩΣΗ: αν το DbSet σου λέγεται διαφορετικά, άλλαξε το context.Installments
         var next3Months = startOfMonth.AddMonths(3);
+        // Μόνο ό,τι απομένει να εισπραχθεί (χωρίς εξοφλημένες/ακυρωμένες) και επί
+        // του συνολικού ποσού με φόρο, όπως εμφανίζεται και στις «Οφειλές».
         var upcomingRaw = await context.Installments
-            .Where(i => //!i.IsPaid && 
-            i.DueDate >= now && i.DueDate < next3Months)
-            .Select(i => new { i.DueDate, i.Amount })
+            .Where(i => i.Contract.Status != RentalStatus.Cancelled &&
+                        i.Status != InstallmentStatus.Paid &&
+                        i.Status != InstallmentStatus.Cancelled &&
+                        i.DueDate >= now && i.DueDate < next3Months)
+            .Select(i => new { i.DueDate, Remaining = i.TotalAmount - i.AllocatedAmount })
             .ToListAsync();
 
         var upcomingInstallments = Enumerable.Range(0, 3)
@@ -189,7 +218,7 @@ public class DashboardService(AppDbContext context) : IDashboardService
                 return new UpcomingInstallmentDto
                 {
                     Month          = ms.ToString("MMMM yyyy", el),
-                    ExpectedAmount = slice.Sum(i => i.Amount),
+                    ExpectedAmount = slice.Sum(i => i.Remaining),
                     Count          = slice.Count
                 };
             }).ToList();
@@ -201,7 +230,9 @@ public class DashboardService(AppDbContext context) : IDashboardService
                 ActiveContracts         = activeContracts,
                 NewContractsThisMonth   = newContractsThisMonth,
                 MonthlyIncome           = monthlyIncome,
-                YearlyIncome            = yearlyIncome,   
+                YearlyIncome            = yearlyIncome,
+                MonthlyExpenses         = monthlyExpenses,
+                YearlyExpenses          = yearlyExpenses,
                 TotalOutstandingBalance = outstandingBalance,
                 AvailableAssets         = availableAssets,
                 RentedAssets            = rentedAssets,

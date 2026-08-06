@@ -71,16 +71,40 @@ public class ContractController(IContractService contractService) : BaseApiContr
         catch (BadRequestException ex) { return BadRequest(new { message = ex.Message }); }
     }
 
-    // DELETE api/contract/{id}
-    [HttpDelete("{id:guid}")]
-    public async Task<IActionResult> Delete(Guid id)
+    // ΔΕΝ υπάρχει endpoint διαγραφής συμβολαίου — ούτε φυσικής ούτε ήπιας.
+    // Ένα αποθηκευμένο συμβόλαιο αποτελεί λογιστικό παραστατικό: συνδέεται με
+    // δόσεις, κατανομές πληρωμών και ιστορικό παγίων, οπότε η εξαφάνισή του θα
+    // άφηνε τα οικονομικά στοιχεία ασυμφώνητα. Η ματαίωση εκφράζεται ως μεταβολή
+    // κατάστασης σε RentalStatus.Cancelled μέσω του PUT παραπάνω, ώστε η εγγραφή
+    // να παραμένει ορατή και ελέγξιμη.
+
+    // POST api/contract/{id}/send-email   (multipart/form-data ώστε να δέχεται συνημμένα)
+    [HttpPost("{id:guid}/send-email")]
+    [Consumes("multipart/form-data")]
+    public async Task<ActionResult<ContractEmailResultDto>> SendEmail(
+        Guid id, [FromForm] ContractEmailDto dto, [FromForm] List<IFormFile>? files)
     {
+        if (!ModelState.IsValid) return BadRequest(ModelState);
+
         try
         {
-            await contractService.DeleteAsync(id, User.GetMemberId().ToString());
-            return NoContent();
+            var attachments = new List<EmailAttachment>();
+            foreach (var file in files ?? [])
+            {
+                using var ms = new MemoryStream();
+                await file.CopyToAsync(ms);
+                attachments.Add(new EmailAttachment(
+                    file.FileName,
+                    string.IsNullOrWhiteSpace(file.ContentType) ? "application/octet-stream" : file.ContentType,
+                    ms.ToArray()));
+            }
+
+            var result = await contractService.SendByEmailAsync(
+                id, dto, attachments, User.GetMemberId().ToString(), User.GetEmail());
+            return Ok(result);
         }
         catch (NotFoundException ex)   { return NotFound(new { message = ex.Message }); }
         catch (BadRequestException ex) { return BadRequest(new { message = ex.Message }); }
+        catch (Exception ex)           { return BadRequest(new { message = $"Αποτυχία αποστολής email: {ex.Message}" }); }
     }
 }

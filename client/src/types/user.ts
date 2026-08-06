@@ -7,6 +7,19 @@ export type InviteCreds= {
 
 export enum PlanType { Free = 0, Basic = 1, Pro = 2 }
 
+/** Μέλος της εταιρείας, όπως εμφανίζεται στη σελίδα διαχείρισης χρηστών. */
+export interface TenantMemberDto {
+  id: string;
+  firstName: string;
+  lastName: string;
+  displayName: string;
+  email: string;
+  roles: string[];
+  isActive: boolean;
+  created?: string;
+  lastActive?: string;
+}
+
 
 export interface UserDto {
   id: string;

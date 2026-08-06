@@ -37,6 +37,14 @@ export class ContractInstallments implements OnInit {
   progress     = computed(() =>
     this.totalScheduled() > 0
       ? Math.round(this.totalPaid() / this.totalScheduled() * 100) : 0);
+  // Invariant: το άθροισμα των δόσεων πρέπει πάντα να ισούται με το σύνολο του συμβολαίου
+  totalMismatch = computed(() => {
+    const c = this.contract();
+    if (!c) return 0;
+    return Math.round((this.totalScheduled() - c.totalAmount) * 100) / 100;
+  });
+  hasTotalMismatch = computed(() => Math.abs(this.totalMismatch()) > 0.01);
+
   paidCount    = computed(() => this.lines().filter(l => l.status === this.IS.Paid).length);
   overdueCount = computed(() => this.lines().filter(l => l.status === this.IS.Overdue).length);
   pendingCount = computed(() => this.lines().filter(l =>
@@ -144,6 +152,13 @@ export class ContractInstallments implements OnInit {
   }
 
   save() {
+    if (this.hasTotalMismatch()) {
+      this.errorMsg.set(
+        `Το άθροισμα των δόσεων (${this.totalScheduled().toFixed(2)}€) δεν ταιριάζει με το σύνολο ` +
+        `του συμβολαίου (${this.contract()?.totalAmount.toFixed(2)}€). Διόρθωσε τη διαφορά (${this.totalMismatch() > 0 ? '+' : ''}${this.totalMismatch().toFixed(2)}€) πριν αποθηκεύσεις.`
+      );
+      return;
+    }
     this.saving.set(true);
     this.errorMsg.set('');
     const schedule = this.lines().map(l => ({

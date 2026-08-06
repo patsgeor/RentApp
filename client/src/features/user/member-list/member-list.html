@@ -1,0 +1,117 @@
+<div class="max-w-6xl mx-auto space-y-5">
+
+  <!-- Header -->
+  <div class="flex flex-wrap items-center gap-3">
+    <div class="flex-1">
+      <h1 class="text-2xl font-bold tracking-tight">Χρήστες Εταιρείας</h1>
+      <p class="text-sm text-base-content/60">Διαχείριση πρόσβασης των μελών της ομάδας σας</p>
+    </div>
+    <a routerLink="/invite" class="btn btn-primary btn-sm">Πρόσκληση Μέλους</a>
+  </div>
+
+  <!-- Σύνοψη + αναζήτηση -->
+  <div class="flex flex-wrap items-center gap-2">
+    <span class="badge badge-success badge-outline">{{ activeCount() }} ενεργοί</span>
+    @if (inactiveCount() > 0) {
+      <span class="badge badge-ghost">{{ inactiveCount() }} ανενεργοί</span>
+    }
+    <div class="flex-1"></div>
+    <input type="text" placeholder="Αναζήτηση ονόματος ή email..."
+           class="input input-bordered input-sm w-full sm:w-72"
+           [ngModel]="search()" (ngModelChange)="search.set($event)" />
+  </div>
+
+  @if (errorMsg()) {
+    <div role="alert" class="alert alert-error text-sm">
+      <span>{{ errorMsg() }}</span>
+    </div>
+  }
+  @if (successMsg()) {
+    <div role="alert" class="alert alert-success text-sm">
+      <span>{{ successMsg() }}</span>
+    </div>
+  }
+
+  @if (loading()) {
+    <div class="flex justify-center py-12">
+      <span class="loading loading-spinner loading-lg text-primary"></span>
+    </div>
+  } @else if (filtered().length === 0) {
+    <div class="text-center py-16 text-base-content/40">
+      <p class="text-sm">Δεν βρέθηκαν χρήστες</p>
+    </div>
+  } @else {
+    <div class="card bg-base-100 shadow-sm border border-base-200 overflow-hidden">
+      <div class="overflow-x-auto">
+        <table class="table table-sm">
+          <thead class="bg-base-200">
+            <tr class="text-xs uppercase text-base-content/50">
+              <th>Ονοματεπώνυμο</th>
+              <th class="hidden md:table-cell">Email</th>
+              <th class="hidden lg:table-cell">Ρόλος</th>
+              <th class="hidden lg:table-cell">Τελευταία δραστηριότητα</th>
+              <th>Κατάσταση</th>
+              <th class="text-right">Ενέργειες</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (m of filtered(); track m.id) {
+              <tr class="hover" [class.opacity-50]="!m.isActive">
+                <td>
+                  <div class="font-medium">
+                    {{ m.firstName }} {{ m.lastName }}
+                    @if (isSelf(m)) {
+                      <span class="badge badge-ghost badge-xs ml-1">εσείς</span>
+                    }
+                  </div>
+                  <div class="text-xs text-base-content/50">{{ m.displayName }}</div>
+                  <div class="text-xs text-base-content/50 md:hidden">{{ m.email }}</div>
+                </td>
+                <td class="hidden md:table-cell text-sm">{{ m.email }}</td>
+                <td class="hidden lg:table-cell">
+                  @for (r of m.roles; track r) {
+                    <span class="badge badge-outline badge-sm mr-1">{{ r }}</span>
+                  }
+                </td>
+                <td class="hidden lg:table-cell text-sm text-base-content/60">
+                  {{ m.lastActive ? (m.lastActive | date:'dd/MM/yyyy HH:mm') : '—' }}
+                </td>
+                <td>
+                  @if (m.isActive) {
+                    <span class="badge badge-success badge-sm">Ενεργός</span>
+                  } @else {
+                    <span class="badge badge-error badge-sm">Ανενεργός</span>
+                  }
+                </td>
+                <td class="text-right">
+                  @if (isSelf(m)) {
+                    <span class="text-xs text-base-content/40">—</span>
+                  } @else {
+                    <button type="button"
+                            class="btn btn-xs"
+                            [class.btn-error]="m.isActive"
+                            [class.btn-success]="!m.isActive"
+                            [disabled]="savingId() === m.id"
+                            (click)="toggleActive(m)">
+                      @if (savingId() === m.id) {
+                        <span class="loading loading-spinner loading-xs"></span>
+                      }
+                      {{ m.isActive ? 'Απενεργοποίηση' : 'Ενεργοποίηση' }}
+                    </button>
+                  }
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <p class="text-xs text-base-content/50">
+      Ο απενεργοποιημένος χρήστης δεν μπορεί να συνδεθεί ξανά ούτε να ανανεώσει τη
+      συνεδρία του. Αν είναι ήδη συνδεδεμένος, η πρόσβασή του παύει το αργότερο με
+      τη λήξη του τρέχοντος διακριτικού του.
+    </p>
+  }
+
+</div>

@@ -5,7 +5,7 @@
     <span class="text-sm text-base-content/60 whitespace-nowrap">Ανά σελίδα:</span>
     <select class="select select-sm select-bordered w-[4.5rem]"
             (change)="onPageChange(undefined, $event.target)">
-      @for (item of selectPage; track $index) {
+      @for (item of pageSizeOptions(); track $index) {
         <option [value]="item" [selected]="item === pageSize()">{{ item }}</option>
       }
     </select>

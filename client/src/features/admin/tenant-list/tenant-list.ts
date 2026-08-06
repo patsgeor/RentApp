@@ -1,13 +1,14 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
-import { DatePipe } from '@angular/common';
+import { CurrencyPipe, DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { RouterLink } from '@angular/router';
 import { TenantService } from '../../../core/services/tenant-service';
-import { TenantAdminDto, SubscriptionStatus } from '../../../types/tenant';
+import { TenantAdminDto, SubscriptionStatus, TenantUserDto } from '../../../types/tenant';
 import { PlanType } from '../../../types/user';
 
 @Component({
   selector: 'app-tenant-list',
-  imports: [DatePipe, FormsModule],
+  imports: [DatePipe, CurrencyPipe, FormsModule, RouterLink],
   templateUrl: './tenant-list.html',
 })
 export class TenantList implements OnInit {
@@ -21,7 +22,23 @@ export class TenantList implements OnInit {
   savingId = signal<string | null>(null);
   errorMsg = signal('');
 
+  // Ανάπτυξη γραμμής για προβολή χρηστών του tenant
+  expandedId   = signal<string | null>(null);
+  users        = signal<TenantUserDto[]>([]);
+  usersLoading = signal(false);
+
   ngOnInit() { this.load(); }
+
+  toggleUsers(t: TenantAdminDto) {
+    if (this.expandedId() === t.id) { this.expandedId.set(null); return; }
+    this.expandedId.set(t.id);
+    this.users.set([]);
+    this.usersLoading.set(true);
+    this.svc.getUsers(t.id).subscribe({
+      next: u  => { this.users.set(u); this.usersLoading.set(false); },
+      error: () => { this.usersLoading.set(false); this.errorMsg.set('Σφάλμα φόρτωσης χρηστών.'); }
+    });
+  }
 
   load() {
     this.loading.set(true);

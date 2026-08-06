@@ -10,12 +10,17 @@ using static API.Entities.Enums;
 namespace API.Services;
 
 public class ContractService(
-    IUnitOfWork uow, 
+    IUnitOfWork uow,
     ITenantProvider tenantProvider,
-    AppDbContext context) : IContractService
+    AppDbContext context,
+    IEmailService emailService,
+    IInstallmentService installmentService) : IContractService
 {
-    public Task<PaginatedResult<ContractListItemDto>> GetAllAsync(ContractParams p)
-        => uow.ContractRepository.GetAllAsync(p);
+    public async Task<PaginatedResult<ContractListItemDto>> GetAllAsync(ContractParams p)
+    {
+        await RefreshCompletedStatusesAsync();
+        return await uow.ContractRepository.GetAllAsync(p);
+    }
 
     public Task<ContractDetailDto?> GetByIdAsync(Guid id)
         => uow.ContractRepository.GetByIdAsync(id);
@@ -104,6 +109,10 @@ public class ContractService(
     if (contract.xmin != dto.RowVersion)
         throw new ConflictException("Το συμβόλαιο τροποποιήθηκε από άλλο χρήστη. Ανανεώστε και δοκιμάστε ξανά.");
 
+    var oldTotal = contract.TotalAmount;
+    var wasCancelled = contract.Status == RentalStatus.Cancelled;
+    decimal totalAmount;
+
     await using var tx = await uow.BeginTransactionAsync();
     try
     {
@@ -125,7 +134,7 @@ public class ContractService(
 
         uow.ContractRepository.AddAssets(newAssets);
 
-        var totalAmount = dto.Assets.Sum(a => a.CalculatedAmount) - dto.DiscountAmount + dto.TaxAmount;
+        totalAmount = dto.Assets.Sum(a => a.CalculatedAmount) - dto.DiscountAmount + dto.TaxAmount;
 
         contract.CustomerId           = dto.CustomerId;
         contract.StartDate            = DateTime.SpecifyKind(dto.StartDate, DateTimeKind.Utc);
@@ -153,35 +162,213 @@ public class ContractService(
         throw;
     }
 
+    // Invariant: το σύνολο του συμβολαίου πρέπει πάντα να ισούται με το άθροισμα
+    // των δόσεών του. Όταν η αλλαγή (π.χ. νέο πάγιο) μεταβάλλει το σύνολο, ξανα-
+    // κατανέμουμε αυτόματα — οι ήδη πληρωμένες δόσεις παραμένουν πάντα άθικτες
+    // (βλ. InstallmentService.GenerateInstallmentsAsync).
+    if (Math.Abs(totalAmount - oldTotal) > 0.01m)
+        await installmentService.GenerateInstallmentsAsync(id, memberId);
+
+    // Μετάβαση σε Ακυρωμένο: οι εκκρεμείς δόσεις ακυρώνονται ώστε το συμβόλαιο να
+    // πάψει να συμμετέχει σε οφειλές, ληξιπρόθεσμα και προβλέψεις εισπράξεων.
+    if (dto.Status == RentalStatus.Cancelled && !wasCancelled)
+        await CancelPendingInstallmentsAsync(id, memberId);
+
+    // Αντίστροφη μετάβαση: η ακύρωση είναι πλήρως αναστρέψιμη.
+    else if (wasCancelled && dto.Status != RentalStatus.Cancelled)
+        await RestoreCancelledInstallmentsAsync(id, memberId);
+
     return await uow.ContractRepository.GetByIdAsync(id)
         ?? throw new Exception("Αδυναμία ανάκτησης συμβολαίου μετά την ενημέρωση.");
 }
 
-    public async Task DeleteAsync(Guid id, string memberId)
+    /// <summary>
+    /// Ακυρώνει τις εκκρεμείς δόσεις ενός συμβολαίου που μόλις τέθηκε σε κατάσταση
+    /// Cancelled. Δόσεις με έστω και μερική είσπραξη ΔΕΝ αγγίζονται: αντιπροσωπεύουν
+    /// χρήματα που πράγματι εισπράχθηκαν και πρέπει να παραμείνουν στα οικονομικά
+    /// στοιχεία. Έτσι το ακυρωμένο συμβόλαιο παύει να παράγει οφειλές και προβλέψεις,
+    /// χωρίς να εξαφανίζεται το ιστορικό του.
+    /// </summary>
+    private async Task CancelPendingInstallmentsAsync(Guid contractId, string memberId)
     {
-        var contract = await uow.ContractRepository.FindAsync(id)
-            ?? throw new NotFoundException($"Συμβόλαιο {id} δεν βρέθηκε.");
+        var pending = await context.Installments
+            .Where(i => i.ContractId == contractId
+                     && i.AllocatedAmount == 0
+                     && i.Status != InstallmentStatus.Cancelled)
+            .ToListAsync();
 
-        if (contract.Status == RentalStatus.Active)
-            throw new BadRequestException("Δεν επιτρέπεται διαγραφή ενεργού συμβολαίου.");
-        
-        // Soft-delete installments — αν κάποια έχει PaymentInstallments (Restrict FK)
-        // το soft delete δεν αγγίζει τη βάση ως hard delete, οπότε δεν υπάρχει πρόβλημα
-        var installments = await context.Installments
-                                .Where(i => i.ContractId == id)
-                                .ToListAsync();
+        if (pending.Count == 0) return;
 
         var now = DateTime.UtcNow;
-        foreach (var inst in installments)
+        foreach (var inst in pending)
         {
-            inst.IsDeleted  = true;
-            inst.DeletedAt  = now;
-            inst.DeletedBy  = memberId;
+            inst.Status    = InstallmentStatus.Cancelled;
+            inst.UpdatedAt = now;
+            inst.UpdatedBy = memberId;
         }
 
-        contract.DeletedBy = memberId;
-        uow.ContractRepository.Remove(contract);
-        await uow.Complete();
+        await context.SaveChangesAsync();
+    }
+
+    /// <summary>
+    /// Επαναφέρει σε εκκρεμότητα τις δόσεις που είχαν ακυρωθεί μαζί με το συμβόλαιο,
+    /// όταν αυτό βγαίνει από την κατάσταση Cancelled. Χωρίς αυτό, ένα συμβόλαιο που
+    /// ακυρώθηκε κατά λάθος και επαναφέρθηκε θα παρέμενε χωρίς καμία οφειλή.
+    /// Αγγίζονται μόνο δόσεις χωρίς καμία είσπραξη· ο χαρακτηρισμός ληξιπρόθεσμων
+    /// επανυπολογίζεται αυτόματα από το RefreshOverdueStatusesAsync.
+    /// </summary>
+    private async Task RestoreCancelledInstallmentsAsync(Guid contractId, string memberId)
+    {
+        var cancelled = await context.Installments
+            .Where(i => i.ContractId == contractId
+                     && i.Status == InstallmentStatus.Cancelled
+                     && i.AllocatedAmount == 0)
+            .ToListAsync();
+
+        if (cancelled.Count == 0) return;
+
+        var now = DateTime.UtcNow;
+        foreach (var inst in cancelled)
+        {
+            inst.Status    = InstallmentStatus.Pending;
+            inst.UpdatedAt = now;
+            inst.UpdatedBy = memberId;
+        }
+
+        await context.SaveChangesAsync();
+    }
+
+    public async Task<ContractEmailResultDto> SendByEmailAsync(
+        Guid id, ContractEmailDto dto, IEnumerable<EmailAttachment> attachments, string memberId, string? senderEmail = null)
+    {
+        var contract = await context.Contracts
+            .Include(c => c.Customer).ThenInclude(cu => cu.Contacts)
+            .Include(c => c.ContractAssets).ThenInclude(ca => ca.Asset)
+            .FirstOrDefaultAsync(c => c.Id == id)
+            ?? throw new NotFoundException($"Συμβόλαιο {id} δεν βρέθηκε.");
+
+        var to = !string.IsNullOrWhiteSpace(dto.To)
+            ? dto.To.Trim()
+            : contract.Customer.Contacts.FirstOrDefault(c => !string.IsNullOrWhiteSpace(c.Email))?.Email;
+
+        if (string.IsNullOrWhiteSpace(to))
+            throw new BadRequestException("Δεν βρέθηκε email παραλήπτη. Προσθέστε επαφή με email στον πελάτη ή δώστε διεύθυνση.");
+
+        var subject = string.IsNullOrWhiteSpace(dto.Subject)
+            ? $"Συμβόλαιο Μίσθωσης{(contract.ReferenceCode != null ? $" — {contract.ReferenceCode}" : "")}"
+            : dto.Subject.Trim();
+
+        await emailService.SendEmailAsync(to, subject, BuildContractHtml(contract, dto.Message),
+            isHtml: true,
+            cc: string.IsNullOrWhiteSpace(senderEmail) ? null : [senderEmail],
+            attachments: attachments);
+
+        // Η αποστολή είναι η στιγμή που το συμβόλαιο «ενεργοποιείται» προς τον πελάτη
+        var statusChanged = false;
+        if (dto.ActivateContract && contract.Status == RentalStatus.Pending)
+        {
+            contract.Status    = RentalStatus.Active;
+            contract.UpdatedBy = memberId;
+            contract.UpdatedAt = DateTime.UtcNow;
+            await context.SaveChangesAsync();
+            statusChanged = true;
+        }
+
+        return new ContractEmailResultDto
+        {
+            Sent          = true,
+            SentTo        = to,
+            StatusChanged = statusChanged,
+            Message       = statusChanged
+                ? $"Το συμβόλαιο στάλθηκε στο {to} και ενεργοποιήθηκε."
+                : $"Το συμβόλαιο στάλθηκε στο {to}."
+        };
+    }
+
+    public async Task RefreshCompletedStatusesAsync()
+    {
+        var now = DateTime.UtcNow;
+        var expired = await context.Contracts
+            .Where(c => c.Status == RentalStatus.Active && c.EndDate < now)
+            .ToListAsync();
+
+        foreach (var c in expired)
+        {
+            c.Status    = RentalStatus.Completed;
+            c.UpdatedAt = now;
+        }
+
+        if (expired.Count > 0) await context.SaveChangesAsync();
+    }
+
+    private static string BuildContractHtml(Contract c, string? personalMessage)
+    {
+        var rateUnitLabel = (RateUnit r) => r switch
+        {
+            RateUnit.PerHour  => "/ώρα",
+            RateUnit.PerDay   => "/ημέρα",
+            RateUnit.PerMonth => "/μήνα",
+            _                 => "εφάπαξ"
+        };
+
+        var rows = string.Join("", c.ContractAssets.Select(ca => $"""
+            <tr>
+              <td style="padding:8px;border-bottom:1px solid #eee">{ca.Asset.Name}</td>
+              <td style="padding:8px;border-bottom:1px solid #eee">{ca.StartDate:dd/MM/yyyy HH:mm}</td>
+              <td style="padding:8px;border-bottom:1px solid #eee">{ca.EndDate:dd/MM/yyyy HH:mm}</td>
+              <td style="padding:8px;border-bottom:1px solid #eee;text-align:right">{ca.UnitCost:N2} € {rateUnitLabel(ca.RateUnit)}</td>
+              <td style="padding:8px;border-bottom:1px solid #eee;text-align:right"><strong>{ca.CalculatedAmount:N2} €</strong></td>
+            </tr>
+            """));
+
+        var subtotal = c.ContractAssets.Sum(ca => ca.CalculatedAmount);
+        var intro = string.IsNullOrWhiteSpace(personalMessage)
+            ? ""
+            : $"""<p style="white-space:pre-wrap">{System.Net.WebUtility.HtmlEncode(personalMessage)}</p>""";
+
+        return $"""
+            <div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#222;max-width:720px">
+              <h2 style="margin:0 0 4px">Συμβόλαιο Μίσθωσης</h2>
+              {(c.ReferenceCode != null ? $"<p style='margin:0 0 16px;color:#666'>Κωδικός: <strong>{c.ReferenceCode}</strong></p>" : "")}
+
+              <p>Αγαπητέ/ή <strong>{c.Customer.Name}</strong>,</p>
+              {intro}
+              <p>Ακολουθούν τα στοιχεία του συμβολαίου σας:</p>
+
+              <table style="border-collapse:collapse;margin:12px 0">
+                <tr><td style="padding:4px 16px 4px 0"><b>Έναρξη:</b></td><td>{c.StartDate:dd/MM/yyyy HH:mm}</td></tr>
+                <tr><td style="padding:4px 16px 4px 0"><b>Λήξη:</b></td><td>{c.EndDate:dd/MM/yyyy HH:mm}</td></tr>
+                {(c.SignedDate.HasValue ? $"<tr><td style='padding:4px 16px 4px 0'><b>Ημ. Υπογραφής:</b></td><td>{c.SignedDate:dd/MM/yyyy}</td></tr>" : "")}
+                <tr><td style="padding:4px 16px 4px 0"><b>ΑΦΜ:</b></td><td>{c.Customer.Afm}</td></tr>
+              </table>
+
+              <h3 style="margin:20px 0 8px">Πάγια</h3>
+              <table style="border-collapse:collapse;width:100%;font-size:13px">
+                <thead>
+                  <tr style="background:#f5f5f5">
+                    <th style="padding:8px;text-align:left">Πάγιο</th>
+                    <th style="padding:8px;text-align:left">Από</th>
+                    <th style="padding:8px;text-align:left">Έως</th>
+                    <th style="padding:8px;text-align:right">Χρέωση</th>
+                    <th style="padding:8px;text-align:right">Ποσό</th>
+                  </tr>
+                </thead>
+                <tbody>{rows}</tbody>
+              </table>
+
+              <table style="border-collapse:collapse;margin:16px 0 0;margin-left:auto">
+                <tr><td style="padding:4px 16px 4px 0">Υποσύνολο:</td><td style="text-align:right">{subtotal:N2} €</td></tr>
+                <tr><td style="padding:4px 16px 4px 0">Έκπτωση:</td><td style="text-align:right">- {c.DiscountAmount:N2} €</td></tr>
+                <tr><td style="padding:4px 16px 4px 0">Φόρος:</td><td style="text-align:right">{c.TaxAmount:N2} €</td></tr>
+                <tr style="border-top:2px solid #333">
+                  <td style="padding:8px 16px 4px 0"><b>Σύνολο:</b></td>
+                  <td style="text-align:right;padding-top:8px"><b>{c.TotalAmount:N2} €</b></td>
+                </tr>
+              </table>
+
+              {(string.IsNullOrWhiteSpace(c.Terms) ? "" : $"<h3 style='margin:24px 0 8px'>Όροι</h3><p style='white-space:pre-wrap;color:#444'>{System.Net.WebUtility.HtmlEncode(c.Terms)}</p>")}
+            </div>
+            """;
     }
 
     // Ξανατσεκάρει επικάλυψη ημερομηνιών ανά πάγιο πριν το save — το read-only

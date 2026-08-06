@@ -123,8 +123,12 @@ public class MemberRepository (
             .IgnoreQueryFilters()
             .FirstOrDefaultAsync(x => x.Token == token);
 
+        // Επιστρέφει null αντί να πετάξει: ο controller το μεταφράζει σε 404 και το
+        // frontend δείχνει «Η πρόσκληση δεν είναι έγκυρη ή έχει λήξει». Με exception
+        // η απόκριση γινόταν 500 και ο χρήστης έβλεπε οθόνη «Server Error» — ένα
+        // ληγμένο ή ήδη χρησιμοποιημένο link είναι αναμενόμενη κατάσταση, όχι σφάλμα.
         if (invite == null || invite.IsUsed || invite.ExpiresAt < DateTime.UtcNow)
-            throw new Exception("Invalid invite");
+            return null;
 
         return new MemberInviteInfoDto
         {
@@ -204,9 +208,73 @@ public class MemberRepository (
    
    
 
+    // ΠΡΟΣΟΧΗ: επιστρέφει μέλη ΟΛΩΝ των ενοίκων (IgnoreQueryFilters). Προορίζεται
+    // αποκλειστικά για cross-tenant χρήση από τον SuperAdmin — δεν πρέπει ποτέ να
+    // εκτεθεί σε endpoint προσβάσιμο από διαχειριστή εταιρείας.
     public async Task<IReadOnlyList<Member>> GetAllAsync()
     {
         return await context.Members.Include(m => m.User).IgnoreQueryFilters().ToListAsync();
+    }
+
+    /// <summary>
+    /// Τα μέλη του τρέχοντος ενοίκου, για τη λίστα χρήστων του διαχειριστή.
+    /// Σκοπίμως ΧΩΡΙΣ IgnoreQueryFilters: ο AppUser υλοποιεί IMustHaveTenant, οπότε
+    /// το global query filter περιορίζει αυτόματα στον ένοικο του τρέχοντος JWT.
+    /// Στηριζόμαστε στον καθιερωμένο μηχανισμό αντί σε χειροκίνητο φίλτρο, ώστε η
+    /// απομόνωση να μην εξαρτάται από το να θυμηθεί κανείς να τη γράψει.
+    /// </summary>
+    public async Task<IReadOnlyList<TenantMemberDto>> GetTenantMembersAsync()
+    {
+        var users = await context.Users
+            .Include(u => u.Member)
+            .OrderBy(u => u.DisplayName)
+            .ToListAsync();
+
+        var ids = users.Select(u => u.Id).ToList();
+
+        var roles = await (from ur in context.UserRoles
+                           join r in context.Roles on ur.RoleId equals r.Id
+                           where ids.Contains(ur.UserId)
+                           select new { ur.UserId, RoleName = r.Name! })
+                          .ToListAsync();
+
+        return users.Select(u => new TenantMemberDto
+        {
+            Id          = u.Id,
+            FirstName   = u.Member?.FirstName ?? "",
+            LastName    = u.Member?.LastName ?? "",
+            DisplayName = u.DisplayName,
+            Email       = u.Email ?? "",
+            IsActive    = u.IsActive,
+            Created     = u.Member?.Created,
+            LastActive  = u.Member?.LastActive,
+            Roles       = roles.Where(r => r.UserId == u.Id).Select(r => r.RoleName).ToList()
+        }).ToList();
+    }
+
+    /// <summary>
+    /// Ενεργοποιεί ή απενεργοποιεί μέλος του τρέχοντος ενοίκου.
+    /// Χωρίς IgnoreQueryFilters: το global query filter εγγυάται ότι ένας
+    /// διαχειριστής δεν μπορεί να αγγίξει χρήστη άλλης εταιρείας, ακόμη κι αν
+    /// στείλει χειροκίνητα ξένο Id.
+    /// </summary>
+    public async Task<bool> SetMemberActiveAsync(string userId, bool isActive)
+    {
+        var user = await context.Users.FirstOrDefaultAsync(u => u.Id == userId);
+        if (user == null) return false;
+
+        user.IsActive = isActive;
+
+        // Κατά την απενεργοποίηση ακυρώνεται και το refresh token, ώστε η
+        // τρέχουσα συνεδρία να μην μπορεί να ανανεωθεί όταν λήξει.
+        if (!isActive)
+        {
+            user.RefreshToken = null;
+            user.RefreshTokenExpiry = null;
+        }
+
+        await context.SaveChangesAsync();
+        return true;
     }
 
     public async Task<Member?> GetMemberByEmailAsync(string email)

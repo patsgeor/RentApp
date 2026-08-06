@@ -186,8 +186,12 @@
                   <!-- Τηλέφωνο -->
                   <label class="form-control w-full">
                     <div class="label pb-1"><span class="label-text text-sm font-medium">Τηλέφωνο</span></div>
-                    <input type="tel" formControlName="phone" placeholder="π.χ. 6912345678"
-                      class="input input-bordered input-sm w-full" />
+                    <input type="tel" formControlName="phone" placeholder="π.χ. 6912345678 ή +44 20 1234 5678"
+                      class="input input-bordered input-sm w-full"
+                      [class.input-error]="cf['phone'].invalid && cf['phone'].touched" />
+                    @if (cf['phone'].invalid && cf['phone'].touched) {
+                      <div class="label pt-1"><span class="label-text-alt text-error">Μη έγκυρος αριθμός τηλεφώνου (τουλάχιστον 10 χαρακτήρες)</span></div>
+                    }
                   </label>
 
                   <!-- Email -->
@@ -196,6 +200,9 @@
                     <input type="email" formControlName="email" placeholder="π.χ. info@example.com"
                       class="input input-bordered input-sm w-full"
                       [class.input-error]="cf['email'].invalid && cf['email'].touched" />
+                    @if (cf['email'].invalid && cf['email'].touched) {
+                      <div class="label pt-1"><span class="label-text-alt text-error">Μη έγκυρη διεύθυνση email</span></div>
+                    }
                   </label>
 
                   <!-- Σημειώσεις -->

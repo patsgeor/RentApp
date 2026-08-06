@@ -46,15 +46,25 @@ export class AssetCalendar {
 
     const days: CalendarDay[] = Array.from({ length: startPad }, () => ({ date: null, contracts: [] }));
 
+    // Το API επιστρέφει τοπική ώρα με ετικέτα UTC (χωρίς πραγματική μετατροπή) — διαβάζουμε
+    // με UTC getters για να πάρουμε πίσω την ημέρα που όντως επέλεξε ο χρήστης, όχι μετατοπισμένη
+    // από τη ζώνη ώρας του browser.
+    const ranges = this.periods().map(p => {
+      const s = new Date(p.startDate);
+      const e = new Date(p.endDate);
+      return {
+        period: p,
+        startDay: Date.UTC(s.getUTCFullYear(), s.getUTCMonth(), s.getUTCDate()),
+        endDay: Date.UTC(e.getUTCFullYear(), e.getUTCMonth(), e.getUTCDate()),
+      };
+    });
+
     for (let d = 1; d <= daysInMonth; d++) {
       const date = new Date(year, month, d);
-      const contracts = this.periods().filter(p => {
-        const s = new Date(p.startDate);
-        const e = new Date(p.endDate);
-        const start = new Date(s.getFullYear(), s.getMonth(), s.getDate());
-        const end = new Date(e.getFullYear(), e.getMonth(), e.getDate());
-        return date >= start && date <= end;
-      });
+      const dayEpoch = Date.UTC(year, month, d);
+      const contracts = ranges
+        .filter(r => dayEpoch >= r.startDay && dayEpoch <= r.endDay)
+        .map(r => r.period);
       days.push({ date, contracts });
     }
 
@@ -109,8 +119,8 @@ export class AssetCalendar {
 
   getTooltip(day: CalendarDay): string {
     return day.contracts.map(c => {
-      const s = new Date(c.startDate).toLocaleDateString('el-GR', { day: '2-digit', month: '2-digit', year: 'numeric' });
-      const e = new Date(c.endDate).toLocaleDateString('el-GR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+      const s = new Date(c.startDate).toLocaleDateString('el-GR', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'UTC' });
+      const e = new Date(c.endDate).toLocaleDateString('el-GR', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'UTC' });
       return `${c.customerName}: ${s} – ${e}`;
     }).join(' | ');
   }

@@ -18,12 +18,32 @@
     <table class="table table-sm table-zebra">
       <thead>
         <tr class="text-base-content/70">
-          <th>Επωνυμία</th>
-          <th>ΑΦΜ</th>
-          <th>Διεύθυνση</th>
+          <th class="cursor-pointer select-none hover:text-base-content" (click)="toggleSort('name')">
+            <span class="inline-flex items-center gap-1">
+              Επωνυμία
+              <span class="text-xs" [class.opacity-30]="!isSorted('name')">{{ sortIcon('name') || '↕' }}</span>
+            </span>
+          </th>
+          <th class="cursor-pointer select-none hover:text-base-content" (click)="toggleSort('afm')">
+            <span class="inline-flex items-center gap-1">
+              ΑΦΜ
+              <span class="text-xs" [class.opacity-30]="!isSorted('afm')">{{ sortIcon('afm') || '↕' }}</span>
+            </span>
+          </th>
+          <th class="cursor-pointer select-none hover:text-base-content" (click)="toggleSort('address')">
+            <span class="inline-flex items-center gap-1">
+              Διεύθυνση
+              <span class="text-xs" [class.opacity-30]="!isSorted('address')">{{ sortIcon('address') || '↕' }}</span>
+            </span>
+          </th>
           <th>Τηλέφωνο</th>
           <th>Email</th>
-          <th>Εγγραφή</th>
+          <th class="cursor-pointer select-none hover:text-base-content" (click)="toggleSort('date')">
+            <span class="inline-flex items-center gap-1">
+              Εγγραφή
+              <span class="text-xs" [class.opacity-30]="!isSorted('date')">{{ sortIcon('date') || '↕' }}</span>
+            </span>
+          </th>
           <th></th>
         </tr>
       </thead>

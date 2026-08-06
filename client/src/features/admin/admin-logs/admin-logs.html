@@ -1,0 +1,191 @@
+<div class="max-w-6xl mx-auto space-y-5">
+
+  <div class="flex flex-wrap items-center gap-3">
+    <div class="flex-1">
+      <h1 class="text-2xl font-bold tracking-tight">Logs</h1>
+      <p class="text-sm text-base-content/60">Καταγραφή αλλαγών και σφαλμάτων σε όλους τους tenants</p>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tabs tabs-boxed bg-base-200 w-fit">
+    <button class="tab gap-2" [class.tab-active]="activeTab() === 'audit'" (click)="switchTab('audit')">
+      Audit Logs
+      @if (metadata(); as m) { <span class="badge badge-sm">{{ m.totalCount }}</span> }
+    </button>
+    <button class="tab gap-2" [class.tab-active]="activeTab() === 'errors'" (click)="switchTab('errors')">
+      Σφάλματα
+      @if (errMetadata(); as m) { <span class="badge badge-sm badge-error">{{ m.totalCount }}</span> }
+    </button>
+  </div>
+
+  <!-- ══ AUDIT TAB ══ -->
+  @if (activeTab() === 'audit') {
+
+    <div class="flex flex-col sm:flex-row gap-3 flex-wrap">
+      <label class="input input-bordered input-sm flex items-center gap-2 flex-1 min-w-48">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4 opacity-50 shrink-0">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+        </svg>
+        <input type="text" placeholder="Αναζήτηση πίνακα ή record id..." class="grow" (input)="onSearch($event)" />
+      </label>
+
+      <select class="select select-bordered select-sm w-full sm:w-56"
+              [(ngModel)]="filterTenant" (ngModelChange)="onFilterChange()">
+        <option value="">Όλοι οι tenants</option>
+        @for (t of tenants(); track t.id) {
+          <option [value]="t.id">{{ t.name }}</option>
+        }
+      </select>
+
+      <select class="select select-bordered select-sm w-full sm:w-44"
+              [(ngModel)]="filterAction" (ngModelChange)="onFilterChange()">
+        <option value="">Όλες οι ενέργειες</option>
+        @for (a of actions; track a) {
+          <option [value]="a">{{ actionLabel(a) }}</option>
+        }
+      </select>
+    </div>
+
+    @if (errorMsg()) {
+      <div role="alert" class="alert alert-error text-sm"><span>{{ errorMsg() }}</span></div>
+    }
+
+    <div class="card bg-base-100 shadow-sm border border-base-200 overflow-hidden">
+      @if (loading()) {
+        <div class="flex justify-center py-16"><span class="loading loading-spinner loading-md text-primary"></span></div>
+      } @else if (logs().length === 0) {
+        <div class="text-center py-16 text-base-content/40"><p class="text-sm">Δεν βρέθηκαν εγγραφές</p></div>
+      } @else {
+        <div class="overflow-x-auto">
+          <table class="table table-sm">
+            <thead class="bg-base-200">
+              <tr class="text-xs uppercase text-base-content/50">
+                <th>Ημ/νία</th><th>Tenant</th><th>Πίνακας</th><th>Ενέργεια</th>
+                <th class="hidden md:table-cell">Record</th><th class="hidden lg:table-cell">Χρήστης</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (l of logs(); track l.id) {
+                <tr class="hover">
+                  <td class="whitespace-nowrap text-sm">{{ l.timestamp | date:'dd/MM/yyyy HH:mm:ss' }}</td>
+                  <td class="text-sm">{{ l.tenantName ?? '—' }}</td>
+                  <td class="font-mono text-xs">{{ l.tableName }}</td>
+                  <td><span [class]="actionBadge(l.action)">{{ actionLabel(l.action) }}</span></td>
+                  <td class="hidden md:table-cell font-mono text-xs text-base-content/50 max-w-48 truncate">{{ l.recordId }}</td>
+                  <td class="hidden lg:table-cell font-mono text-xs text-base-content/50 max-w-40 truncate">{{ l.userId ?? '—' }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+
+        @if (metadata(); as m) {
+          @if (m.totalPages > 1) {
+            <div class="flex items-center justify-between px-4 py-3 border-t border-base-200">
+              <span class="text-xs text-base-content/50">Σελίδα {{ m.currentPage }} από {{ m.totalPages }}</span>
+              <div class="join">
+                <button class="join-item btn btn-xs" [disabled]="m.currentPage === 1" (click)="load(m.currentPage - 1)">‹</button>
+                @for (p of pages(); track p) {
+                  <button class="join-item btn btn-xs" [class.btn-primary]="p === m.currentPage" (click)="load(p)">{{ p }}</button>
+                }
+                <button class="join-item btn btn-xs" [disabled]="m.currentPage === m.totalPages" (click)="load(m.currentPage + 1)">›</button>
+              </div>
+            </div>
+          }
+        }
+      }
+    </div>
+  }
+
+  <!-- ══ ERRORS TAB ══ -->
+  @if (activeTab() === 'errors') {
+
+    <div class="flex flex-col sm:flex-row gap-3 flex-wrap">
+      <label class="input input-bordered input-sm flex items-center gap-2 flex-1 min-w-48">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4 opacity-50 shrink-0">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+        </svg>
+        <input type="text" placeholder="Αναζήτηση μηνύματος, path ή τύπου..." class="grow" (input)="onErrorSearch($event)" />
+      </label>
+
+      <select class="select select-bordered select-sm w-full sm:w-56"
+              [(ngModel)]="errFilterTenant" (ngModelChange)="onErrorFilterChange()">
+        <option value="">Όλοι οι tenants</option>
+        @for (t of tenants(); track t.id) {
+          <option [value]="t.id">{{ t.name }}</option>
+        }
+      </select>
+    </div>
+
+    @if (errMsg()) {
+      <div role="alert" class="alert alert-error text-sm"><span>{{ errMsg() }}</span></div>
+    }
+
+    <div class="card bg-base-100 shadow-sm border border-base-200 overflow-hidden">
+      @if (errLoading()) {
+        <div class="flex justify-center py-16"><span class="loading loading-spinner loading-md text-primary"></span></div>
+      } @else if (errLogs().length === 0) {
+        <div class="text-center py-16 text-base-content/40">
+          <p class="text-sm">Δεν καταγράφηκαν σφάλματα 🎉</p>
+        </div>
+      } @else {
+        <div class="overflow-x-auto">
+          <table class="table table-sm">
+            <thead class="bg-base-200">
+              <tr class="text-xs uppercase text-base-content/50">
+                <th>Ημ/νία</th><th>Tenant</th><th>Κωδικός</th><th>Endpoint</th><th>Μήνυμα</th><th></th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (l of errLogs(); track l.id) {
+                <tr class="hover cursor-pointer" (click)="toggleStackTrace(l.id)">
+                  <td class="whitespace-nowrap text-sm">{{ l.timestamp | date:'dd/MM/yyyy HH:mm:ss' }}</td>
+                  <td class="text-sm">{{ l.tenantName ?? '—' }}</td>
+                  <td>
+                    <span [class]="'badge badge-sm ' + statusBadge(l.statusCode)">{{ l.statusCode }}</span>
+                  </td>
+                  <td class="font-mono text-xs">{{ l.method }} {{ l.path }}</td>
+                  <td class="text-sm max-w-72 truncate" [title]="l.message">
+                    <span class="font-medium">{{ l.exceptionType }}:</span> {{ l.message }}
+                  </td>
+                  <td class="text-xs text-base-content/40">{{ expandedErrorId() === l.id ? '▴' : '▾' }}</td>
+                </tr>
+                @if (expandedErrorId() === l.id) {
+                  <tr class="bg-base-200/50">
+                    <td colspan="6" class="p-3">
+                      @if (l.userId) {
+                        <p class="text-xs text-base-content/50 mb-2">Χρήστης: <span class="font-mono">{{ l.userId }}</span></p>
+                      }
+                      @if (l.stackTrace) {
+                        <pre class="text-xs whitespace-pre-wrap font-mono bg-base-300/50 rounded-lg p-3 max-h-72 overflow-y-auto">{{ l.stackTrace }}</pre>
+                      } @else {
+                        <p class="text-xs text-base-content/40">Δεν υπάρχει stack trace.</p>
+                      }
+                    </td>
+                  </tr>
+                }
+              }
+            </tbody>
+          </table>
+        </div>
+
+        @if (errMetadata(); as m) {
+          @if (m.totalPages > 1) {
+            <div class="flex items-center justify-between px-4 py-3 border-t border-base-200">
+              <span class="text-xs text-base-content/50">Σελίδα {{ m.currentPage }} από {{ m.totalPages }}</span>
+              <div class="join">
+                <button class="join-item btn btn-xs" [disabled]="m.currentPage === 1" (click)="loadErrors(m.currentPage - 1)">‹</button>
+                @for (p of errorPages(); track p) {
+                  <button class="join-item btn btn-xs" [class.btn-primary]="p === m.currentPage" (click)="loadErrors(p)">{{ p }}</button>
+                }
+                <button class="join-item btn btn-xs" [disabled]="m.currentPage === m.totalPages" (click)="loadErrors(m.currentPage + 1)">›</button>
+              </div>
+            </div>
+          }
+        }
+      }
+    </div>
+  }
+
+</div>

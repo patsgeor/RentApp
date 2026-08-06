@@ -3,7 +3,8 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { environment } from '../../environments/environment';
 import {
   ContractListItemDto, ContractDetailDto, ContractCreateDto,
-  ContractUpdateDto, AvailableAssetDto, RentalStatus
+  ContractUpdateDto, AvailableAssetDto, RentalStatus,
+  ContractEmailDto, ContractEmailResultDto
 } from '../../types/contract';
 import { PaginatedResult } from '../../types/pagination';
 
@@ -41,7 +42,16 @@ export class ContractService {
     return this.http.put<ContractDetailDto>(`${this.base}/${id}`, dto);
   }
 
-  delete(id: string) {
-    return this.http.delete(`${this.base}/${id}`);
+  // Σκοπίμως δεν υπάρχει delete(): το API δεν εκθέτει endpoint διαγραφής
+  // συμβολαίου. Η ματαίωση γίνεται με update σε RentalStatus.Cancelled.
+
+  sendEmail(id: string, dto: ContractEmailDto, files: File[] = []) {
+    const form = new FormData();
+    if (dto.to)      form.append('to', dto.to);
+    if (dto.subject) form.append('subject', dto.subject);
+    if (dto.message) form.append('message', dto.message);
+    form.append('activateContract', String(dto.activateContract));
+    files.forEach(f => form.append('files', f));
+    return this.http.post<ContractEmailResultDto>(`${this.base}/${id}/send-email`, form);
   }
 }

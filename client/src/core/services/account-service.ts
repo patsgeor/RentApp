@@ -1,7 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { computed, inject, Injectable, signal } from '@angular/core';
 import { environment } from '../../environments/environment';
-import { LoginDto, MemberInviteDto, MemberInviteInfoDto, MemberRegisterFromInviteDto, PlanType, TenantRegisterDto,  UserDto } from '../../types/user';
+import { LoginDto, MemberInviteDto, MemberInviteInfoDto, MemberRegisterFromInviteDto, PlanType, TenantMemberDto, TenantRegisterDto,  UserDto } from '../../types/user';
 import { catchError, tap, throwError } from 'rxjs';
 import { Router } from '@angular/router';
 
@@ -46,6 +46,15 @@ export class AccountService {
     );
   }
 
+  getMembers() {
+    return this.http.get<TenantMemberDto[]>(`${this.baseUrl}account/members`);
+  }
+
+  setMemberActive(id: string, isActive: boolean) {
+    return this.http.patch<{ message: string }>(
+      `${this.baseUrl}account/members/${id}/active`, { isActive });
+  }
+
   invite(dto: MemberInviteDto) {
     return this.http.post<{ message: string }>(`${this.baseUrl}account/invite`, dto);
   }
@@ -61,10 +70,12 @@ export class AccountService {
   }
 
 
-  logout() {
+  // redirect=false όταν ο caller θέλει να παραμείνει στη σελίδα του (π.χ. η
+  // σελίδα πρόσκλησης, όπου ο χρήστης αποσυνδέεται για να συνεχίσει εκεί).
+  logout(redirect: boolean = true) {
     localStorage.removeItem('user');
     this.currentUserSignal.set(null);
-    this.router.navigateByUrl('/login');
+    if (redirect) this.router.navigateByUrl('/login');
   }
   
   private setCurrentUser(user: UserDto) {

@@ -4,34 +4,60 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { debounceTime, distinctUntilChanged, Subject } from 'rxjs';
 import { ContractService } from '../../../core/services/contract-service';
 import { CustomerService } from '../../../core/services/customer-service';
-import { CustomerLookupDto } from '../../../types/customers';
+import { InstallmentService } from '../../../core/services/installment-service';
+import { CustomerLookupDto, ContactDto } from '../../../types/customers';
 import {
   AvailableAssetDto, ContractAssetLineItem, ContractDetailDto,
   InstallmentFrequency, RateUnit, RentalStatus
 } from '../../../types/contract';
-import { DecimalPipe } from '@angular/common';
+import { InstallmentDto, InstallmentStatus } from '../../../types/installment';
+import { DatePipe, DecimalPipe, Location } from '@angular/common';
 
 @Component({
   selector: 'app-contract-form',
-  imports: [ReactiveFormsModule, RouterLink, DecimalPipe],
+  imports: [ReactiveFormsModule, RouterLink, DecimalPipe, DatePipe],
   templateUrl: './contract-form.html',
 })
 export class ContractForm implements OnInit {
-  private fb          = inject(FormBuilder);
-  private svc         = inject(ContractService);
-  private customerSvc = inject(CustomerService);
-  private route       = inject(ActivatedRoute);
-  private router      = inject(Router);
+  private fb             = inject(FormBuilder);
+  private svc            = inject(ContractService);
+  private customerSvc    = inject(CustomerService);
+  private installmentSvc = inject(InstallmentService);
+  private route          = inject(ActivatedRoute);
+  private router         = inject(Router);
+  private location       = inject(Location);
 
   readonly RateUnit             = RateUnit;
   readonly InstallmentFrequency = InstallmentFrequency;
   readonly RentalStatus         = RentalStatus;
+  readonly InstallmentStatus    = InstallmentStatus;
+
+  // Αποστολή συμβολαίου με email
+  showEmailForm  = signal(false);
+  sendingEmail   = signal(false);
+  emailMsg       = signal('');
+  emailError     = signal('');
+  emailFiles     = signal<File[]>([]);
+
+  emailForm = this.fb.group({
+    to:               ['', Validators.email],
+    subject:          [''],
+    message:          [''],
+    activateContract: [true],
+  });
+
+  // Δόσεις (μόνο σε αποθηκευμένο συμβόλαιο)
+  installments        = signal<InstallmentDto[]>([]);
+  installmentsLoading = signal(false);
+  generatingSchedule  = signal(false);
+  scheduleMsg         = signal('');
+  scheduleError       = signal('');
 
   isEdit          = signal(false);
   loading         = signal(false);
   saving          = signal(false);
   errorMsg        = signal('');
-  private contractId: string | null = null;
+  contractId: string | null = null;
   private rowVersion = 0;
 
   // Customer lookup
@@ -39,6 +65,8 @@ export class ContractForm implements OnInit {
   customerResults  = signal<CustomerLookupDto[]>([]);
   showCustomerDrop = signal(false);
   selectedCustomer = signal<CustomerLookupDto | null>(null);
+  // Επαφές του επιλεγμένου πελάτη — για προσυμπλήρωση email αποστολής συμβολαίου
+  customerContacts = signal<ContactDto[]>([]);
 
   // Available assets
   availableAssets = signal<AvailableAssetDto[]>([]);
@@ -119,6 +147,7 @@ export class ContractForm implements OnInit {
   private patchForm(dto: ContractDetailDto) {
     this.rowVersion = dto.rowVersion;
     this.selectedCustomer.set({ id: dto.customerId, name: dto.customerName, afm: '' });
+    this.loadCustomerContacts(dto.customerId);
 
     this.form.patchValue({
       customerId:           dto.customerId,
@@ -148,6 +177,161 @@ export class ContractForm implements OnInit {
 
     this.loading.set(false);
     this.loadAvailableAssets();
+    this.loadInstallments();
+  }
+
+  // ── Δόσεις ─────────────────────────────────────────────────────────────
+  private loadInstallments() {
+    if (!this.contractId) return;
+    this.installmentsLoading.set(true);
+    this.installmentSvc.getByContract(this.contractId).subscribe({
+      next: list => { this.installments.set(list); this.installmentsLoading.set(false); },
+      error: () => this.installmentsLoading.set(false)
+    });
+  }
+
+  generateSchedule() {
+    if (!this.contractId) return;
+    const freq = this.freqLabel(Number(this.form.get('installmentFrequency')!.value) as InstallmentFrequency);
+    if (!confirm(`Δημιουργία δόσεων με συχνότητα «${freq}»; Οι υπάρχουσες δόσεις χωρίς πληρωμές θα αντικατασταθούν.`)) return;
+
+    this.generatingSchedule.set(true);
+    this.scheduleError.set('');
+    this.scheduleMsg.set('');
+
+    // Το backend διαβάζει συχνότητα/διάρκεια από τη βάση — αποθηκεύουμε πρώτα ώστε
+    // να χρησιμοποιηθούν οι τιμές που βλέπει ο χρήστης στη φόρμα, όχι οι παλιές.
+    this.saveCurrent().subscribe({
+      next: () => {
+        this.installmentSvc.generate(this.contractId!).subscribe({
+          next: r => {
+            this.generatingSchedule.set(false);
+            this.scheduleMsg.set(r.message);
+            this.reloadContract();
+          },
+          error: err => {
+            this.generatingSchedule.set(false);
+            this.scheduleError.set(err.error?.message ?? 'Σφάλμα δημιουργίας δόσεων.');
+          }
+        });
+      },
+      error: err => {
+        this.generatingSchedule.set(false);
+        this.scheduleError.set(err.error?.message ?? 'Σφάλμα αποθήκευσης συμβολαίου.');
+      }
+    });
+  }
+
+  private reloadContract() {
+    this.svc.getById(this.contractId!).subscribe({
+      next: dto => { this.rowVersion = dto.rowVersion; this.loadInstallments(); }
+    });
+  }
+
+  scheduledTotal() {
+    return this.installments().reduce((s, i) => s + i.totalAmount, 0);
+  }
+
+  // ── Αποστολή με email ──────────────────────────────────────────────────
+  toggleEmailForm() {
+    this.showEmailForm.update(v => !v);
+    this.emailMsg.set('');
+    this.emailError.set('');
+    if (this.showEmailForm()) {
+      const emails = this.contactEmails();
+      this.emailForm.patchValue({
+        to:      emails[0]?.email ?? '',
+        subject: `Συμβόλαιο Μίσθωσης${this.form.get('referenceCode')?.value ? ' — ' + this.form.get('referenceCode')!.value : ''}`,
+      });
+    }
+  }
+
+  onEmailFilesChange(event: Event) {
+    const input = event.target as HTMLInputElement;
+    this.emailFiles.set(Array.from(input.files ?? []));
+  }
+
+  removeEmailFile(idx: number) {
+    this.emailFiles.update(list => list.filter((_, i) => i !== idx));
+  }
+
+  sendContractEmail() {
+    if (this.emailForm.invalid) { this.emailForm.markAllAsTouched(); return; }
+    if (!this.form.get('customerId')!.value) {
+      this.emailError.set('Επιλέξτε πελάτη από τη λίστα.'); return;
+    }
+    if (this.assetLines().length === 0) {
+      this.emailError.set('Προσθέστε τουλάχιστον ένα πάγιο.'); return;
+    }
+
+    this.sendingEmail.set(true);
+    this.emailError.set('');
+    this.emailMsg.set('');
+
+    // Αποθηκεύουμε πρώτα — και σε νέο (μη αποθηκευμένο ακόμα) συμβόλαιο — ώστε
+    // το email να αντανακλά ακριβώς ό,τι βλέπει ο χρήστης στη φόρμα.
+    this.saveCurrent().subscribe({
+      next: saved => this.doSendEmail(saved.id, saved.rowVersion),
+      error: err => {
+        this.sendingEmail.set(false);
+        this.emailError.set(err.error?.message ?? 'Σφάλμα αποθήκευσης συμβολαίου.');
+      }
+    });
+  }
+
+  private doSendEmail(contractId: string, rowVersion: number) {
+    const wasNew = !this.isEdit();
+    this.contractId = contractId;
+    this.rowVersion = rowVersion;
+    this.isEdit.set(true);
+    if (wasNew) this.location.replaceState(`/contracts/${contractId}/edit`);
+
+    const v = this.emailForm.value;
+    this.svc.sendEmail(contractId, {
+      to:               v.to || undefined,
+      subject:          v.subject || undefined,
+      message:          v.message || undefined,
+      activateContract: v.activateContract ?? true,
+    }, this.emailFiles()).subscribe({
+      next: r => {
+        this.sendingEmail.set(false);
+        this.emailMsg.set(wasNew
+          ? 'Το συμβόλαιο αποθηκεύτηκε και ' + (r.message ?? 'στάλθηκε.').toLowerCase()
+          : (r.message ?? 'Το email στάλθηκε.'));
+        this.emailFiles.set([]);
+        this.showEmailForm.set(false);
+        if (r.statusChanged) {
+          this.form.patchValue({ status: RentalStatus.Active }, { emitEvent: false });
+        }
+        this.reloadContract();
+      },
+      error: err => {
+        this.sendingEmail.set(false);
+        this.emailError.set(err.error?.message ?? 'Αποτυχία αποστολής email.');
+      }
+    });
+  }
+
+  installmentStatusLabel(s: InstallmentStatus): string {
+    const map: Record<number, string> = {
+      [InstallmentStatus.Pending]:       'Εκκρεμής',
+      [InstallmentStatus.PartiallyPaid]: 'Μερικώς',
+      [InstallmentStatus.Paid]:          'Εξοφλημένη',
+      [InstallmentStatus.Overdue]:       'Ληξιπρόθεσμη',
+      [InstallmentStatus.Cancelled]:     'Ακυρωμένη',
+    };
+    return map[s] ?? '—';
+  }
+
+  installmentStatusBadge(s: InstallmentStatus): string {
+    const map: Record<number, string> = {
+      [InstallmentStatus.Pending]:       'badge-warning',
+      [InstallmentStatus.PartiallyPaid]: 'badge-info',
+      [InstallmentStatus.Paid]:          'badge-success',
+      [InstallmentStatus.Overdue]:       'badge-error',
+      [InstallmentStatus.Cancelled]:     'badge-ghost',
+    };
+    return `badge badge-xs ${map[s] ?? ''}`;
   }
 
   // ── Customer lookup ────────────────────────────────────────────────────
@@ -164,11 +348,31 @@ export class ContractForm implements OnInit {
     this.form.patchValue({ customerId: c.id, customerDisplay: `${c.name} (${c.afm})` });
     this.showCustomerDrop.set(false);
     this.customerResults.set([]);
+    this.loadCustomerContacts(c.id);
   }
 
   clearCustomer() {
     this.selectedCustomer.set(null);
+    this.customerContacts.set([]);
     this.form.patchValue({ customerId: '', customerDisplay: '' });
+  }
+
+  private loadCustomerContacts(customerId: string) {
+    this.customerContacts.set([]);
+    this.customerSvc.getById(customerId).subscribe({
+      next: c => this.customerContacts.set(c.contacts ?? [])
+    });
+  }
+
+  /** Emails επαφών του πελάτη που έχουν καταχωρημένο email — για προσυμπλήρωση/επιλογή στη φόρμα αποστολής. */
+  contactEmails(): { name: string; email: string }[] {
+    return this.customerContacts()
+      .filter(c => !!c.email)
+      .map(c => ({ name: c.name, email: c.email! }));
+  }
+
+  selectContactEmail(email: string) {
+    this.emailForm.patchValue({ to: email });
   }
 
   // ── Available assets ───────────────────────────────────────────────────
@@ -231,6 +435,24 @@ export class ContractForm implements OnInit {
         notes:            '',
       }]);
     }
+    this.syncContractDatesFromLines();
+  }
+
+  // Οι ημερομηνίες του συμβολαίου ακολουθούν πάντα τα πάγια: έναρξη = η νωρίτερη,
+  // λήξη = η αργότερη. emitEvent:false ώστε να μην ξαναφορτωθεί η λίστα διαθέσιμων
+  // παγίων και χαθεί η τρέχουσα επιλογή του χρήστη.
+  private syncContractDatesFromLines() {
+    const lines = this.assetLines();
+    if (lines.length === 0) return;
+
+    const starts = lines.map(l => l.startDate).filter(Boolean);
+    const ends   = lines.map(l => l.endDate).filter(Boolean);
+    if (starts.length === 0 || ends.length === 0) return;
+
+    this.form.patchValue({
+      startDate: starts.reduce((a, b) => (a < b ? a : b)),
+      endDate:   ends.reduce((a, b) => (a > b ? a : b)),
+    }, { emitEvent: false });
   }
 
   updateLine(idx: number, field: keyof ContractAssetLineItem, value: string | number) {
@@ -248,10 +470,12 @@ export class ContractForm implements OnInit {
       copy[idx] = line;
       return copy;
     });
+    if (field === 'startDate' || field === 'endDate') this.syncContractDatesFromLines();
   }
 
   removeLine(idx: number) {
     this.assetLines.update(lines => lines.filter((_, i) => i !== idx));
+    this.syncContractDatesFromLines();
   }
 
   calcAmount(rateUnit: RateUnit, unitCost: number, start: string, end: string): number {
@@ -310,17 +534,7 @@ export class ContractForm implements OnInit {
   }
 
   // ── Submit ─────────────────────────────────────────────────────────────
-  onSubmit() {
-    if (this.form.invalid) { this.form.markAllAsTouched(); return; }
-    if (!this.form.get('customerId')!.value) {
-      this.errorMsg.set('Επιλέξτε πελάτη από τη λίστα.'); return;
-    }
-    if (this.assetLines().length === 0) {
-      this.errorMsg.set('Προσθέστε τουλάχιστον ένα πάγιο.'); return;
-    }
-
-    this.saving.set(true);
-    this.errorMsg.set('');
+  private saveCurrent() {
     const f = this.form.value;
 
     const assets = this.assetLines().map(l => ({
@@ -347,12 +561,37 @@ export class ContractForm implements OnInit {
       assets,
     };
 
-    const req = this.isEdit()
+    return this.isEdit()
       ? this.svc.update(this.contractId!, { ...basePayload, rowVersion: this.rowVersion, status: Number(f.status) as RentalStatus })
       : this.svc.create(basePayload);
+  }
+
+  onSubmit(generateAfterSave = false) {
+    if (this.form.invalid) { this.form.markAllAsTouched(); return; }
+    if (!this.form.get('customerId')!.value) {
+      this.errorMsg.set('Επιλέξτε πελάτη από τη λίστα.'); return;
+    }
+    if (this.assetLines().length === 0) {
+      this.errorMsg.set('Προσθέστε τουλάχιστον ένα πάγιο.'); return;
+    }
+
+    this.saving.set(true);
+    this.errorMsg.set('');
+
+    const req = this.saveCurrent();
 
     req.subscribe({
-      next: () => { this.saving.set(false); this.router.navigate(['/contracts']); },
+      next: (saved) => {
+        this.saving.set(false);
+        if (!generateAfterSave) { this.router.navigate(['/contracts']); return; }
+
+        // Οι δόσεις χρειάζονται αποθηκευμένο συμβόλαιο — μένουμε στη σελίδα
+        // επεξεργασίας του ώστε ο χρήστης να δει αμέσως το πρόγραμμα δόσεων.
+        this.installmentSvc.generate(saved.id).subscribe({
+          next: () => this.router.navigate(['/contracts', saved.id, 'edit']),
+          error: () => this.router.navigate(['/contracts', saved.id, 'edit'])
+        });
+      },
       error: (err) => { this.errorMsg.set(err.error?.message ?? 'Σφάλμα αποθήκευσης.'); this.saving.set(false); }
     });
   }

@@ -19,7 +19,8 @@ public class EmailService: IEmailService
         string subject,
         string body,
         bool isHtml = true,
-        IEnumerable<string>? cc = null)
+        IEnumerable<string>? cc = null,
+        IEnumerable<EmailAttachment>? attachments = null)
     {
         var smtpHost = configuration["Email:SmtpHost"];
         var smtpPort = int.Parse(configuration["Email:SmtpPort"]!);
@@ -64,7 +65,7 @@ public class EmailService: IEmailService
 
             <p>
             Για οποιαδήποτε διευκρίνιση ή πληροφορία μπορείτε να επικοινωνήσετε με
-            Email: {cc?.ElementAt(0)}<br/>
+            Email: {cc?.FirstOrDefault()}<br/>
             </p>
 
             <p>
@@ -83,7 +84,7 @@ public class EmailService: IEmailService
 
             <p>
             For any questions or further information, please contact:<br/>
-            Email: {cc?.ElementAt(0)}<br/>
+            Email: {cc?.FirstOrDefault()}<br/>
             </p>
 
             <p>
@@ -92,6 +93,25 @@ public class EmailService: IEmailService
 
             message.Body += disclaimer;
 
-        await client.SendMailAsync(message);
+        // Τα streams πρέπει να ζουν μέχρι να ολοκληρωθεί η αποστολή
+        var streams = new List<MemoryStream>();
+        try
+        {
+            if (attachments != null)
+            {
+                foreach (var att in attachments)
+                {
+                    var ms = new MemoryStream(att.Content);
+                    streams.Add(ms);
+                    message.Attachments.Add(new Attachment(ms, att.FileName, att.ContentType));
+                }
+            }
+
+            await client.SendMailAsync(message);
+        }
+        finally
+        {
+            foreach (var ms in streams) ms.Dispose();
+        }
     }
 }

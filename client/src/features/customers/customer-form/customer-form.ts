@@ -42,9 +42,12 @@ export class CustomerForm implements OnInit {
   contactSaving    = signal(false);
   contactError     = signal('');
 
+  // Επιτρέπει και αριθμούς εξωτερικού (π.χ. +44 20 1234 5678) — απλά ελάχιστο μήκος 10
+  private static readonly PHONE_PATTERN = /^[+()\d\s-]{10,20}$/;
+
   contactForm = this.fb.group({
-    name:   ['', Validators.required],
-    phone:       [''],
+    name:        ['', Validators.required],
+    phone:       ['', Validators.pattern(CustomerForm.PHONE_PATTERN)],
     email:       ['', Validators.email],
     canUseAsset: [false],
     notes:       [''],

@@ -18,7 +18,8 @@ import {
   AssetTypeUpdateDto,
   AssetTypeCreateDto,
   AssetTypeFieldOptionUpdateDto,
-  AssetContractPeriodDto
+  AssetContractPeriodDto,
+  AssetFinancialSummaryDto
 } from '../../types/asset';
 import { PaginatedResult } from '../../types/pagination';
 
@@ -78,6 +79,10 @@ export class AssetService {
   
 getContractPeriods(assetId: string) {
   return this.http.get<AssetContractPeriodDto[]>(`${this.base}/${assetId}/contracts/periods`);
+}
+
+getFinancialSummary(assetId: string) {
+  return this.http.get<AssetFinancialSummaryDto>(`${this.base}/${assetId}/financial-summary`);
 }
 
 // --------------------------------------------------------------------------------

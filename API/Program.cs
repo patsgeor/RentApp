@@ -36,6 +36,7 @@ builder.Services.AddDbContext<AuditDbContext>(options =>
 
 builder.Services.AddSingleton<AuditChannel>(); //  για να δημιουργηθεί ένα μόνο instance του AuditChannel για όλη την εφαρμογή
 builder.Services.AddHostedService<AuditBackgroundService>(); // ξεκινά μαζί με το app και τρέχει στο background για να αποθηκεύει τα audit logs στη βάση δεδομένων
+builder.Services.AddHostedService<LogRetentionService>(); // καθαρίζει περιοδικά παλιά audit/error logs (βλ. appsettings Logging:*RetentionDays)
 // ------------------------------------------------------------------------------
 
 
@@ -144,7 +145,9 @@ app.UseCors(policy => policy.AllowAnyHeader()  // για να επιτρέψει
                             .AllowAnyMethod() // για να επιτρέψει όλα τα headers και όλες τις μεθόδους (GET, POST, κτλ) από το angular
                             .AllowCredentials() // για να επιτρέψει την αποστολή cookies από το angular
                             .WithOrigins("http://localhost:4200",
-                                        "https://localhost:4200"));//angular
+                                        "https://localhost:4200",
+                                        "http://localhost:4300",
+                                        "https://localhost:4300"));//angular
                                         
 
 

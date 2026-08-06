@@ -58,8 +58,13 @@ namespace API.Controllers
                         .SingleAsync(u => u.Id == member.Id);
 
             var result= await userManager.CheckPasswordAsync(user,loginDto.Password);
-            
-            if(!result)   return Unauthorized("Invalid password");   
+
+            if(!result)   return Unauthorized("Invalid password");
+
+            // Ο έλεγχος γίνεται ΜΕΤΑ τον κωδικό ώστε το μήνυμα να μην αποκαλύπτει
+            // σε τρίτον ότι ο λογαριασμός υπάρχει αλλά είναι απενεργοποιημένος.
+            if (!user.IsActive)
+                return Unauthorized("Ο λογαριασμός σας έχει απενεργοποιηθεί. Επικοινωνήστε με τον διαχειριστή της εταιρείας σας.");
 
             await SetRefreshTokenCookie(user);
 
@@ -70,6 +75,36 @@ namespace API.Controllers
         //========================================================================
         //          INVITE NEW MEMBER FROM TENANT
         //========================================================================
+
+        //========================================================================
+        //          MEMBER MANAGEMENT (tenant admin)
+        //========================================================================
+
+        // Το μενού «Διαχείριση → Χρήστες» εμφανίζεται ήδη μόνο σε admin, αλλά ο
+        // έλεγχος επιβάλλεται και εδώ: το UI δεν αποτελεί μηχανισμό ασφαλείας.
+        [Authorize(Policy = "RequireAdminRole")]
+        [HttpGet("members")]
+        public async Task<ActionResult<IReadOnlyList<TenantMemberDto>>> GetMembers()
+        {
+            return Ok(await uow.MemberRepository.GetTenantMembersAsync());
+        }
+
+        [Authorize(Policy = "RequireAdminRole")]
+        [HttpPatch("members/{id}/active")]
+        public async Task<IActionResult> SetMemberActive(string id, SetMemberActiveDto dto)
+        {
+            // Αυτοαπενεργοποίηση θα κλείδωνε τον διαχειριστή έξω από την εταιρεία
+            // του, χωρίς κανέναν τρόπο επαναφοράς από την εφαρμογή.
+            if (id == User.GetMemberId().ToString() && !dto.IsActive)
+                return BadRequest("Δεν μπορείτε να απενεργοποιήσετε τον δικό σας λογαριασμό.");
+
+            var ok = await uow.MemberRepository.SetMemberActiveAsync(id, dto.IsActive);
+
+            if (!ok) return NotFound("Ο χρήστης δεν βρέθηκε.");
+
+            return Ok(new { message = dto.IsActive ? "Ο χρήστης ενεργοποιήθηκε." : "Ο χρήστης απενεργοποιήθηκε." });
+        }
+
 
         [Authorize(Policy ="RequireAdminRole")]
         [HttpPost("invite")]
@@ -133,6 +168,11 @@ namespace API.Controllers
             {
                 return Unauthorized("Invalid or expired refresh token");
             }
+
+            // Χωρίς αυτόν τον έλεγχο, ένας απενεργοποιημένος χρήστης θα ανανέωνε
+            // επ' αόριστον τη συνεδρία του και η απενεργοποίηση δεν θα είχε ισχύ.
+            if (!user.IsActive)
+                return Unauthorized("Ο λογαριασμός σας έχει απενεργοποιηθεί.");
 
             await SetRefreshTokenCookie(user); // δημιουργία και αποθήκευση νέου refresh token στο cookie
 

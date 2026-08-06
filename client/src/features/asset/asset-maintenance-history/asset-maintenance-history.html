@@ -100,6 +100,32 @@
           </div>
         }
 
+        <!-- Σύνολα (σε όλες τις εγγραφές, όχι μόνο στη σελίδα) -->
+        @if (summary(); as s) {
+          @if (s.maintenanceCount > 0) {
+            <div class="flex flex-wrap items-center gap-x-6 gap-y-2 mt-3 p-3 rounded-xl bg-base-200/60">
+              <div>
+                <p class="text-xs text-base-content/50">Συνολικό κόστος συντήρησης</p>
+                <p class="font-mono font-bold text-error">{{ s.totalMaintenanceCost | currency:'EUR':'symbol':'1.2-2':'el' }}</p>
+              </div>
+              <div>
+                <p class="text-xs text-base-content/50">Εγγραφές</p>
+                <p class="font-semibold">{{ s.maintenanceCount }}</p>
+              </div>
+              <div>
+                <p class="text-xs text-base-content/50">Έσοδα μισθώσεων</p>
+                <p class="font-mono text-success">{{ s.totalRentalRevenue | currency:'EUR':'symbol':'1.2-2':'el' }}</p>
+              </div>
+              <div>
+                <p class="text-xs text-base-content/50">Καθαρό αποτέλεσμα</p>
+                <p class="font-mono font-bold" [class]="s.netResult >= 0 ? 'text-success' : 'text-error'">
+                  {{ s.netResult | currency:'EUR':'symbol':'1.2-2':'el' }}
+                </p>
+              </div>
+            </div>
+          }
+        }
+
         <!-- Records -->
         <div class="space-y-3 mt-3">
           @for (h of records(); track h.id) {

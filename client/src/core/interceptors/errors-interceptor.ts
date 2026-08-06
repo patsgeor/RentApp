@@ -39,7 +39,13 @@ export const errorsInterceptor: HttpInterceptorFn = (req, next) => {
             break;
           case 404:
             //toast.error('Not Found');
-            router.navigateByUrl('/not-found');
+            // Η αναζήτηση πρόσκλησης χειρίζεται μόνη της το «άκυρη ή ληγμένη
+            // πρόσκληση» με δικό της, κατανοητό μήνυμα. Χωρίς την εξαίρεση, ο
+            // προσκεκλημένος κατέληγε σε γενική σελίδα «Not found» και δεν
+            // καταλάβαινε τι πήγε στραβά.
+            if (!req.url.includes('account/invite')) {
+              router.navigateByUrl('/not-found');
+            }
             break;
           case 500:
             //toast.error('Server Error');

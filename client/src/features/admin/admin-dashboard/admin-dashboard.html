@@ -1,0 +1,147 @@
+<div class="max-w-6xl mx-auto space-y-6">
+
+  <!-- Header -->
+  <div class="flex flex-wrap items-center gap-3">
+    <div class="flex-1">
+      <h1 class="text-2xl font-bold tracking-tight">Επισκόπηση Πλατφόρμας</h1>
+      <p class="text-sm text-base-content/60">Συνολική εικόνα όλων των tenants</p>
+    </div>
+    <a routerLink="/admin/tenants" class="btn btn-primary btn-sm">Διαχείριση Tenants</a>
+    <a routerLink="/admin/logs" class="btn btn-ghost btn-sm">Logs</a>
+  </div>
+
+  @if (errorMsg()) {
+    <div role="alert" class="alert alert-error text-sm"><span>{{ errorMsg() }}</span></div>
+  }
+
+  @if (loading()) {
+    <div class="flex justify-center py-16"><span class="loading loading-spinner loading-lg text-primary"></span></div>
+  } @else if (summary(); as s) {
+
+    <!-- KPI cards -->
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div class="card bg-base-100 border border-base-300 shadow-sm">
+        <div class="card-body p-4">
+          <p class="text-xs text-base-content/50 uppercase tracking-wider font-medium">Tenants</p>
+          <p class="text-3xl font-bold mt-1">{{ s.totalTenants }}</p>
+          <div class="flex flex-wrap gap-x-3 gap-y-1 mt-2 text-xs">
+            <span class="text-success">Ενεργοί: {{ s.activeTenants }}</span>
+            <span class="text-info">Δοκιμή: {{ s.trialTenants }}</span>
+            @if (s.suspendedTenants > 0) {
+              <span class="text-warning">Ανασταλμένοι: {{ s.suspendedTenants }}</span>
+            }
+          </div>
+        </div>
+      </div>
+
+      <div class="card bg-base-100 border border-base-300 shadow-sm">
+        <div class="card-body p-4">
+          <p class="text-xs text-base-content/50 uppercase tracking-wider font-medium">Χρήστες</p>
+          <p class="text-3xl font-bold mt-1 text-primary">{{ s.totalUsers }}</p>
+          <p class="mt-2 text-xs text-base-content/40">Σε όλους τους tenants</p>
+        </div>
+      </div>
+
+      <div class="card bg-base-100 border border-base-300 shadow-sm">
+        <div class="card-body p-4">
+          <p class="text-xs text-base-content/50 uppercase tracking-wider font-medium">Πάγια</p>
+          <p class="text-3xl font-bold mt-1">{{ s.totalAssets }}</p>
+          <div class="flex flex-wrap gap-x-3 gap-y-1 mt-2 text-xs text-base-content/50">
+            <span>Συμβόλαια: {{ s.totalContracts }}</span>
+            <span>Πελάτες: {{ s.totalCustomers }}</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="card bg-base-100 border border-base-300 shadow-sm">
+        <div class="card-body p-4">
+          <p class="text-xs text-base-content/50 uppercase tracking-wider font-medium">Τζίρος Πλατφόρμας</p>
+          <p class="text-3xl font-bold mt-1 text-success">
+            {{ s.platformIncome | currency:'EUR':'symbol':'1.0-0':'el' }}
+          </p>
+          <div class="flex flex-wrap gap-x-3 gap-y-1 mt-2 text-xs">
+            <span class="text-error">Έξοδα: {{ s.platformExpenses | currency:'EUR':'symbol':'1.0-0':'el' }}</span>
+            <span class="font-semibold" [class]="netResult() >= 0 ? 'text-success' : 'text-error'">
+              Καθαρό: {{ netResult() | currency:'EUR':'symbol':'1.0-0':'el' }}
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+
+      <!-- Plan breakdown -->
+      <div class="card bg-base-100 border border-base-200 shadow-sm">
+        <div class="card-body p-5">
+          <h2 class="card-title text-base">Κατανομή Πλάνων</h2>
+          @if (s.planBreakdown.length === 0) {
+            <p class="text-sm text-base-content/40 py-4">Δεν υπάρχουν δεδομένα</p>
+          } @else {
+            <div class="space-y-3 mt-2">
+              @for (p of s.planBreakdown; track p.planType) {
+                <div>
+                  <div class="flex items-center justify-between text-sm mb-1">
+                    <span [class]="planBadge(p.planType)">{{ planLabel(p.planType) }}</span>
+                    <span class="font-semibold">{{ p.count }}</span>
+                  </div>
+                  <progress class="progress progress-primary w-full h-1.5"
+                            [value]="p.count" [max]="s.totalTenants"></progress>
+                </div>
+              }
+            </div>
+          }
+        </div>
+      </div>
+
+      <!-- Top tenants by usage -->
+      <div class="card bg-base-100 border border-base-200 shadow-sm lg:col-span-2">
+        <div class="card-body p-5">
+          <h2 class="card-title text-base">Πιο Ενεργοί Tenants</h2>
+          <p class="text-xs text-base-content/50 -mt-1">Κατάταξη βάσει συνολικών εγγραφών (πάγια + πελάτες + συμβόλαια + κινήσεις)</p>
+
+          @if (s.topTenants.length === 0) {
+            <p class="text-sm text-base-content/40 py-4">Δεν υπάρχουν δεδομένα</p>
+          } @else {
+            <div class="overflow-x-auto mt-2">
+              <table class="table table-sm">
+                <thead>
+                  <tr class="text-xs uppercase text-base-content/50">
+                    <th>Tenant</th>
+                    <th>Πλάνο</th>
+                    <th class="text-right">Εγγραφές</th>
+                    <th class="text-right hidden sm:table-cell">Αρχεία</th>
+                    <th class="text-right">Τζίρος</th>
+                    <th class="hidden md:table-cell">Τελ. δραστηριότητα</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (t of s.topTenants; track t.id) {
+                    <tr class="hover">
+                      <td>
+                        <div class="font-medium text-sm">{{ t.name }}</div>
+                        <div class="text-xs text-base-content/50">
+                          {{ t.assetCount }} πάγια · {{ t.contractCount }} συμβόλαια · {{ t.userCount }} χρήστες
+                        </div>
+                      </td>
+                      <td><span [class]="planBadge(t.planType)">{{ planLabel(t.planType) }}</span></td>
+                      <td class="text-right font-semibold">{{ t.totalRecords }}</td>
+                      <td class="text-right hidden sm:table-cell">{{ t.fileCount }}</td>
+                      <td class="text-right font-mono text-success">
+                        {{ t.totalIncome | currency:'EUR':'symbol':'1.0-0':'el' }}
+                      </td>
+                      <td class="hidden md:table-cell text-xs text-base-content/60">
+                        {{ t.lastActivity ? (t.lastActivity | date:'dd/MM/yyyy') : '—' }}
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          }
+        </div>
+      </div>
+    </div>
+  }
+
+</div>

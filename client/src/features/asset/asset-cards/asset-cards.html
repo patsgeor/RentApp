@@ -70,6 +70,7 @@
     <app-paginator
       [pageNumber]="pg.currentPage"
       [pageSize]="pg.pageSize"
+      [pageSizeOptions]="[12, 24, 48, 72]"
       [totalPages]="pg.totalPages"
       [totalCount]="pg.totalCount"
       (pageChange)="pageChange.emit($event)" />

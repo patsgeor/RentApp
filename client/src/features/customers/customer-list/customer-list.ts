@@ -50,10 +50,17 @@ export class CustomerList implements OnInit {
   
   onFilterChange(filter: string) {
     this.activeFilter.set(filter);
-    // 'new' maps to active customers (no special backend filter, just visual)
     this.params.showDeleted = filter === 'deleted' ? 'deleted'
                             : filter === 'all'     ? 'all'
                             : 'active';
+    // «Νέοι» = ενεργοί πελάτες που καταχωρήθηκαν τον τελευταίο μήνα
+    this.params.newThisMonth = filter === 'new';
+    this.params.pageNumber = 1;
+    this.load();
+  }
+
+  onSortChange(orderBy: string) {
+    this.params.orderBy = orderBy;
     this.params.pageNumber = 1;
     this.load();
   }

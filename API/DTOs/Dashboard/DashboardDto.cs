@@ -56,6 +56,8 @@ public class KpiDto
     public int TotalAssets { get; set; }
     // ↓ ΝΕΟ
     public decimal YearlyIncome { get; set; }
+    public decimal MonthlyExpenses { get; set; }
+    public decimal YearlyExpenses { get; set; }
 }
 
 

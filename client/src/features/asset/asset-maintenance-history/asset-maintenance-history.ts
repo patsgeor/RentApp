@@ -2,7 +2,7 @@ import { Component, OnInit, Input, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { DatePipe, CurrencyPipe } from '@angular/common';
 import { AssetService } from '../../../core/services/asset-service';
-import { CostAssetHistDto, CostAssetHistCreateDto, CostAssetHistUpdateDto } from '../../../types/asset';
+import { CostAssetHistDto, CostAssetHistCreateDto, CostAssetHistUpdateDto, AssetFinancialSummaryDto } from '../../../types/asset';
 import { PaginatedResult, PaginationMetadata } from '../../../types/pagination';
 
 @Component({
@@ -30,6 +30,9 @@ export class AssetMaintenanceHistory implements OnInit {
   page     = signal(1);
   pageSize = 5;
 
+  // Σύνολα σε ΟΛΕΣ τις εγγραφές (όχι μόνο στην τρέχουσα σελίδα)
+  summary = signal<AssetFinancialSummaryDto | null>(null);
+
   form = this.fb.group({
     date:         [new Date().toISOString().substring(0, 10), Validators.required],
     description:  ['', [Validators.required, Validators.maxLength(250)]],
@@ -56,9 +59,16 @@ export class AssetMaintenanceHistory implements OnInit {
     }
   }
 
+  private loadSummary() {
+    this.service.getFinancialSummary(this.assetId).subscribe({
+      next: s => this.summary.set(s)
+    });
+  }
+
   load(page = this.page()) {
     this.loading.set(true);
     this.error.set('');
+    this.loadSummary();
     this.service.getMaintenanceHistory(this.assetId, page, this.pageSize).subscribe({
       next: (result: PaginatedResult<CostAssetHistDto>) => {
         this.records.set(result.items);

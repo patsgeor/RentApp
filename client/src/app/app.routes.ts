@@ -10,6 +10,7 @@ import { ServerError } from '../shared/errors/server-error/server-error';
 import { NotFound } from '../shared/errors/not-found/not-found';
 import { MemberRegister } from '../features/user/member-register/member-register';
 import { MemberInvite } from '../features/user/member-invite/member-invite';
+import { MemberList } from '../features/user/member-list/member-list';
 import { AssetList } from '../features/asset/asset-list/asset-list';
 import { AssetForm } from '../features/asset/asset-form/asset-form';
 import { AssetDetail } from '../features/asset/asset-detail/asset-detail';
@@ -36,7 +37,45 @@ import { Upgrade } from '../home/upgrade/upgrade';
 import { PublicLayout } from '../home/public-layout/public-layout';
 import { guestCanMatchGuard } from '../core/guards/guest-can-match-guard';
 import { superAdminGuard } from '../core/guards/super-admin-guard';
+import { tenantOnlyGuard } from '../core/guards/tenant-only-guard';
 import { TenantList } from '../features/admin/tenant-list/tenant-list';
+import { AdminDashboard } from '../features/admin/admin-dashboard/admin-dashboard';
+import { AdminLogs } from '../features/admin/admin-logs/admin-logs';
+
+// Σελίδες που αφορούν δεδομένα ενός tenant. Ο tenantOnlyGuard μπαίνει αυτόματα
+// σε όλες, ώστε να μην ξεχαστεί σε καμία όταν προστεθούν νέες.
+const tenantRoutes: Routes = ([
+  { path: 'home', component: Dashboard },
+  { path: 'dashboard', component: Dashboard },
+
+  { path: 'customer', component: CustomerList },
+  { path: 'customer/new', component: CustomerForm },
+  { path: 'customer/:id/edit', component: CustomerForm },
+  { path: 'customer/:id', component: CustomerList },
+
+  { path: 'assets', component: AssetList },
+  { path: 'assets/new', component: AssetForm },
+  { path: 'assets/:id/edit', component: AssetForm },
+  { path: 'assets/:id', component: AssetDetail },
+
+  { path: 'asset-categories', component: AssetCategoryList },
+  { path: 'asset-categories/:id', component: AssetCategoryDetail },
+
+  { path: 'transactions', component: IncomeForm },
+  { path: 'transactions/income/new', component: IncomeForm },
+  { path: 'transactions/expense/new', component: ExpenseForm },
+  { path: 'transactions/history', component: TransactionList },
+
+  { path: 'contracts', component: ContractList },
+  { path: 'contracts/new', component: ContractForm },
+  { path: 'contracts/:id/edit', component: ContractForm },
+  { path: 'contracts/:id/installments', component: ContractInstallments },
+
+  { path: 'debts', component: DebtMonitor },
+  { path: 'scan', component: QrScanner },
+  { path: 'invite', component: MemberInvite },
+  { path: 'users', component: MemberList },
+] as Routes).map(r => ({ ...r, canActivate: [tenantOnlyGuard] }));
 
 export const routes: Routes = [
 
@@ -72,10 +111,11 @@ export const routes: Routes = [
     runGuardsAndResolvers: 'always',
     canActivate: [authGuard],
     children: [
-      { path: '', redirectTo: 'dashboard', pathMatch: 'full' },  
-      { path: 'home', component: Dashboard },    
-      { path: 'dashboard', component: Dashboard }, 
+      // Το 'dashboard' φέρει τον tenantOnlyGuard, οπότε ο SuperAdmin
+      // ανακατευθύνεται από εκεί στο δικό του dashboard.
+      { path: '', redirectTo: 'dashboard', pathMatch: 'full' },
 
+      // Κοινές σελίδες (προσβάσιμες από όλους)
       { path: 'contact',  component: Contact },
       { path: 'upgrade', component: Upgrade },
       { path: 'change-password', component: ChangePassword },
@@ -83,40 +123,23 @@ export const routes: Routes = [
       { path: 'gdpr',     component: GdprPolicy },
       { path: 'security', component: SecurityPolicy },
       { path: 'backups',  component: DataBackupPolicy },
-      { path: 'upgrade',  component: Upgrade },
-      
-      { path: 'customer', component: CustomerList },
-      { path: 'customer/new', component: CustomerForm },
-      { path: 'customer/:id/edit', component: CustomerForm },
-      { path: 'customer/:id', component: CustomerList },
 
-      { path: 'assets', component: AssetList },
-      { path: 'assets/new', component: AssetForm },
-      { path: 'assets/:id/edit', component: AssetForm },
-      { path: 'assets/:id', component: AssetDetail },
+      // Σελίδες SuperAdmin (πλατφόρμα)
+      { path: 'admin/dashboard', component: AdminDashboard, canActivate: [superAdminGuard] },
+      { path: 'admin/tenants',   component: TenantList,     canActivate: [superAdminGuard] },
+      { path: 'admin/logs',      component: AdminLogs,      canActivate: [superAdminGuard] },
 
-      { path: 'asset-categories', component: AssetCategoryList },
-      { path: 'asset-categories/:id', component: AssetCategoryDetail },
-
-      { path: 'transactions', component: IncomeForm },
-      { path: 'transactions/income/new', component: IncomeForm },
-      { path: 'transactions/expense/new', component: ExpenseForm },
-      { path: 'transactions/history', component: TransactionList },
-
-      { path: 'contracts', component: ContractList },
-      { path: 'contracts/new', component: ContractForm },
-      { path: 'contracts/:id/edit', component: ContractForm },
-
-      { path: 'contracts/:id/installments', component: ContractInstallments },
-      { path: 'debts', component: DebtMonitor },
-
-      { path: 'scan', component: QrScanner },
-
-      { path: 'invite', component: MemberInvite },
-
-      { path: 'admin/tenants', component: TenantList, canActivate: [superAdminGuard] }
+      // Σελίδες tenant — φραγμένες για τον SuperAdmin
+      ...tenantRoutes,
     ]
-   }, 
+   },
+  // Ο σύνδεσμος πρόσκλησης πρέπει να ανοίγει ΠΑΝΤΑ. Το group παραπάνω φέρει
+  // guestCanMatchGuard, οπότε αν κάποιος άλλος είναι ήδη συνδεδεμένος στον ίδιο
+  // browser (συχνό: ο admin λαμβάνει κοινοποίηση της πρόσκλησης) το path δεν
+  // ταίριαζε πουθενά και ο χρήστης κατέληγε σε «404» χωρίς καμία εξήγηση.
+  // Εδώ ταιριάζει χωρίς guard και το component δείχνει το κατάλληλο μήνυμα.
+  { path: 'register-invite', component: MemberRegister },
+
   {path:'server-error',component:ServerError},
   {path:'**',component:NotFound}
 ];

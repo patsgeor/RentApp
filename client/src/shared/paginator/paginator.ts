@@ -6,7 +6,8 @@ import { Component, computed, input, model, output } from '@angular/core';
   templateUrl: './paginator.html',
   styleUrl: './paginator.css',
 })
-export class Paginator {selectPage = [5, 10, 20, 50];
+export class Paginator {
+  pageSizeOptions = input<number[]>([5, 10, 20, 50]);
   pageNumber = model(1);
   pageSize = model(10);
   totalPages = input(1);

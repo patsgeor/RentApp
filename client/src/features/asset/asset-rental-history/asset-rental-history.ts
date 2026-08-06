@@ -1,12 +1,13 @@
 import { Component, OnInit, Input, inject, signal } from '@angular/core';
 import { DatePipe, CurrencyPipe } from '@angular/common';
+import { RouterLink } from '@angular/router';
 import { AssetService } from '../../../core/services/asset-service';
-import { AssetContractHistDto, RentalStatus } from '../../../types/asset';
+import { AssetContractHistDto, AssetFinancialSummaryDto, RentalStatus } from '../../../types/asset';
 import { PaginatedResult, PaginationMetadata,  } from '../../../types/pagination';
 
 @Component({
   selector: 'app-asset-rental-history',
-  imports: [DatePipe, CurrencyPipe],
+  imports: [DatePipe, CurrencyPipe, RouterLink],
   templateUrl: './asset-rental-history.html',
 })
 export class AssetRentalHistory implements OnInit {
@@ -25,6 +26,9 @@ export class AssetRentalHistory implements OnInit {
   page     = signal(1);
   pageSize = 5;
 
+  // Σύνολα σε ΟΛΕΣ τις μισθώσεις (όχι μόνο στην τρέχουσα σελίδα)
+  summary = signal<AssetFinancialSummaryDto | null>(null);
+
   ngOnInit() {  }
 
   toggle() {
@@ -39,6 +43,9 @@ export class AssetRentalHistory implements OnInit {
 
     this.loading.set(true);
     this.error.set('');
+    this.service.getFinancialSummary(this.assetId).subscribe({
+      next: s => this.summary.set(s)
+    });
     this.service.getContractHistory(this.assetId, page, this.pageSize).subscribe({
       next: (result: PaginatedResult<AssetContractHistDto>) => {
         this.records.set(result.items);

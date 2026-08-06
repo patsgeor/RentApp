@@ -345,9 +345,40 @@ public partial class AssetRepository
                 EndDate      = ca.Contract.EndDate,
                 Status       = ca.Contract.Status,
                 TotalAmount  = ca.Contract.TotalAmount,
+                AssetAmount  = ca.CalculatedAmount,
                 Notes        = ca.Notes
             });
         return await PaginationHelper.CreateAsync(query, pagingParams.PageNumber, pagingParams.PageSize);
+    }
+
+    public async Task<AssetFinancialSummaryDto> GetFinancialSummaryAsync(Guid assetId)
+    {
+        // Έξοδα συντήρησης = πληρωμές τύπου Expense συνδεδεμένες με το πάγιο
+        var maintenance = await context.Payments
+            .AsNoTracking()
+            .Where(p => p.TransactionType == TransactionType.Expense &&
+                        p.PaymentAssets.Any(pa => pa.AssetId == assetId))
+            .Select(p => p.Amount)
+            .ToListAsync();
+
+        // Έσοδα = το ποσό που αναλογεί στο πάγιο ανά συμβόλαιο (εκτός ακυρωμένων)
+        var rentals = await context.ContractAssets
+            .AsNoTracking()
+            .Where(ca => ca.AssetId == assetId && ca.Contract.Status != RentalStatus.Cancelled)
+            .Select(ca => ca.CalculatedAmount)
+            .ToListAsync();
+
+        var cost    = maintenance.Sum();
+        var revenue = rentals.Sum();
+
+        return new AssetFinancialSummaryDto
+        {
+            TotalMaintenanceCost = cost,
+            MaintenanceCount     = maintenance.Count,
+            TotalRentalRevenue   = revenue,
+            RentalCount          = rentals.Count,
+            NetResult            = revenue - cost
+        };
     }
  
     

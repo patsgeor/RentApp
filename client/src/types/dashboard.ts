@@ -26,7 +26,9 @@ export interface KpiDto {
   activeContracts: number;
   newContractsThisMonth: number;
   monthlyIncome: number;
-  yearlyIncome: number;          
+  yearlyIncome: number;
+  monthlyExpenses: number;
+  yearlyExpenses: number;
   totalOutstandingBalance: number;
   availableAssets: number;
   rentedAssets: number;

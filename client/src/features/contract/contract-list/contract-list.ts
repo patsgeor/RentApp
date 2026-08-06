@@ -17,7 +17,6 @@ export class ContractList implements OnInit {
 
   contracts    = signal<ContractListItemDto[]>([]);
   loading      = signal(false);
-  deleting     = signal<string | null>(null);
   errorMsg     = signal('');
   search       = signal('');
   statusFilter = signal<RentalStatus | null>(null);
@@ -55,17 +54,8 @@ export class ContractList implements OnInit {
 
   edit(id: string) { this.router.navigate(['/contracts', id, 'edit']); }
 
-  delete(id: string) {
-    if (!confirm('Διαγραφή συμβολαίου;')) return;
-    this.deleting.set(id);
-    this.svc.delete(id).subscribe({
-      next: () => { this.deleting.set(null); this.load(this.currentPage()); },
-      error: (err) => {
-        this.errorMsg.set(err.error?.message ?? 'Σφάλμα διαγραφής.');
-        this.deleting.set(null);
-      }
-    });
-  }
+  // Δεν υπάρχει διαγραφή συμβολαίου: η ματαίωση γίνεται μέσω επεξεργασίας,
+  // θέτοντας την κατάσταση σε «Ακυρωμένο» (βλ. contract-form).
 
   pages() { return Array.from({ length: this.totalPages() }, (_, i) => i + 1); }
 

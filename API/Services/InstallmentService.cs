@@ -21,13 +21,33 @@ public class InstallmentService(
             .FirstOrDefaultAsync(c => c.Id == contractId)
             ?? throw new NotFoundException($"Συμβόλαιο '{contractId}' δεν βρέθηκε.");
 
-         if (contract.Installments.Any(i => i.AllocatedAmount > 0))
-            throw new BadRequestException("Δεν επιτρέπεται αναδημιουργία — υπάρχουν κατανεμημένες πληρωμές σε δόσεις.");
+        // Δόσεις με έστω και μερική πληρωμή δεν αγγίζονται ποτέ — αντιπροσωπεύουν
+        // ήδη εισπραγμένα χρήματα. Ξαναχτίζουμε μόνο τις ανεξόφλητες, κατανέμοντας
+        // το ΥΠΟΛΟΙΠΟ ποσό (νέο σύνολο συμβολαίου μείον ό,τι έχει ήδη προγραμματιστεί
+        // σε πληρωμένες δόσεις) στον χρόνο που απομένει. Αυτό επιτρέπει να μεγαλώσει
+        // το συμβόλαιο (νέο πάγιο, παράταση) χωρίς να χαθεί το ιστορικό πληρωμών.
+        var preserved = contract.Installments
+            .Where(i => i.AllocatedAmount > 0)
+            .OrderBy(i => i.InstallmentNumber)
+            .ToList();
+        var toRemove = contract.Installments.Where(i => i.AllocatedAmount == 0).ToList();
 
-        // Replace existing installments (e.g. the initial single-installment)
-        context.Installments.RemoveRange(contract.Installments);
+        var preservedTotal = preserved.Sum(i => i.TotalAmount);
+        var remaining = contract.TotalAmount - preservedTotal;
 
-        var installments = BuildInstallments(contract, userId);
+        if (remaining < -0.01m)
+            throw new BadRequestException(
+                $"Το νέο συνολικό ποσό του συμβολαίου ({contract.TotalAmount:N2}€) είναι μικρότερο από το ήδη " +
+                $"προγραμματισμένο/εξοφλημένο ποσό στις υπάρχουσες δόσεις ({preservedTotal:N2}€). Αυξήστε το ποσό ή αφαιρέστε λιγότερα πάγια.");
+
+        context.Installments.RemoveRange(toRemove);
+
+        var periodStart = preserved.Count > 0 ? preserved.Max(i => i.PeriodEnd) : contract.StartDate;
+        if (periodStart < contract.StartDate) periodStart = contract.StartDate;
+
+        var nextNumber = preserved.Count > 0 ? preserved.Max(i => i.InstallmentNumber) + 1 : 1;
+
+        var installments = BuildRemainingInstallments(contract, periodStart, remaining, nextNumber, userId);
         await context.Installments.AddRangeAsync(installments);
         await context.SaveChangesAsync();
     }
@@ -73,7 +93,8 @@ public class InstallmentService(
 
         var query = context.Installments
             .AsNoTracking()
-            .Where(i => i.Status == InstallmentStatus.Overdue)
+            .Where(i => i.Status == InstallmentStatus.Overdue
+                     && i.Contract.Status != RentalStatus.Cancelled)
             .OrderBy(i => i.DueDate)
             .Select(i => new InstallmentDto
             {
@@ -102,8 +123,12 @@ public class InstallmentService(
 
         var query = context.Installments
             .AsNoTracking()
+            // Ακυρωμένα συμβόλαια δεν παράγουν οφειλές. Ο έλεγχος γίνεται και σε
+            // επίπεδο συμβολαίου, ώστε η οθόνη να συμφωνεί με το KPI «Ανεξόφλητα»
+            // του Πίνακα Ελέγχου, το οποίο οδηγεί εδώ.
             .Where(i => i.Status != InstallmentStatus.Paid &&
-                        i.Status != InstallmentStatus.Cancelled);
+                        i.Status != InstallmentStatus.Cancelled &&
+                        i.Contract.Status != RentalStatus.Cancelled);
 
         if (p.Status.HasValue)
             query = query.Where(i => i.Status == p.Status.Value);
@@ -163,7 +188,9 @@ public class InstallmentService(
     {
         var now = DateTime.UtcNow;
         var overdue = await context.Installments
-            .Where(i => i.Status == InstallmentStatus.Pending && i.DueDate < now)
+            .Where(i => i.Status == InstallmentStatus.Pending
+                     && i.DueDate < now
+                     && i.Contract.Status != RentalStatus.Cancelled)
             .ToListAsync();
 
         foreach (var inv in overdue)
@@ -330,7 +357,7 @@ public class InstallmentService(
         await context.SaveChangesAsync();
     }
 
-    public async Task NotifyByEmailAsync(Guid installmentId, string userId)
+    public async Task NotifyByEmailAsync(Guid installmentId, string userId, string? senderEmail = null)
     {
         var installment = await context.Installments
             .Include(i => i.Contract)
@@ -361,7 +388,8 @@ public class InstallmentService(
             <br>Παρακαλούμε επικοινωνήστε μαζί μας για οποιαδήποτε διευκρίνιση.
             """;
 
-        await emailService.SendEmailAsync(email, subject, body, isHtml: true);
+        await emailService.SendEmailAsync(email, subject, body, isHtml: true,
+            cc: string.IsNullOrWhiteSpace(senderEmail) ? null : [senderEmail]);
     }
 
     // ── Private helpers ────────────────────────────────────────────────────
@@ -374,14 +402,32 @@ public class InstallmentService(
         return InstallmentStatus.Pending;
     }
 
-    private static List<Installment> BuildInstallments(Contract contract, string userId)
+    /// <summary>
+    /// Χτίζει τις δόσεις για το ΥΠΟΛΟΙΠΟ ποσό ενός συμβολαίου, ξεκινώντας από
+    /// <paramref name="periodStart"/> μέχρι το τέλος του συμβολαίου. Όταν δεν υπάρχουν
+    /// ήδη πληρωμένες δόσεις (periodStart == contract.StartDate, startNumber == 1,
+    /// remainingTotal == contract.TotalAmount), παράγει το ίδιο αποτέλεσμα με πλήρη
+    /// αρχική δημιουργία.
+    /// </summary>
+    private static List<Installment> BuildRemainingInstallments(
+        Contract contract, DateTime periodStart, decimal remainingTotal, int startNumber, string userId)
     {
-        var periods = GetPeriods(contract.StartDate, contract.EndDate, contract.InstallmentFrequency);
-        var n = periods.Count;
-        if (n == 0) return [];
+        if (remainingTotal <= 0.01m) return [];
 
-        var netTotal = contract.TotalAmount - contract.TaxAmount;
-        var taxTotal = contract.TaxAmount;
+        var periods = periodStart < contract.EndDate
+            ? GetPeriods(periodStart, contract.EndDate, contract.InstallmentFrequency)
+            : [];
+
+        // Δεν απομένει χρόνος (μεγάλωσε μόνο το ποσό, όχι η διάρκεια) — μία δόση με όλο το υπόλοιπο.
+        if (periods.Count == 0)
+            periods = [(periodStart, contract.EndDate < periodStart ? periodStart : contract.EndDate)];
+
+        var n = periods.Count;
+
+        // Ίδια αναλογία φόρου/καθαρού με το συμβόλαιο συνολικά.
+        var taxRatio = contract.TotalAmount > 0 ? contract.TaxAmount / contract.TotalAmount : 0m;
+        var netTotal = Math.Round(remainingTotal * (1 - taxRatio), 2);
+        var taxTotal = remainingTotal - netTotal;
         var perNet   = Math.Round(netTotal / n, 2);
         var perTax   = Math.Round(taxTotal / n, 2);
 
@@ -398,7 +444,7 @@ public class InstallmentService(
             {
                 TenantId          = contract.TenantId,
                 ContractId        = contract.Id,
-                InstallmentNumber = i + 1,
+                InstallmentNumber = startNumber + i,
                 PeriodStart       = start,
                 PeriodEnd         = end,
                 DueDate           = end,
@@ -459,13 +505,17 @@ public class InstallmentService(
                 .ToHashSet();
 
             // Διαγραφή δόσεων που αφαιρέθηκαν από τον χρήστη
+            var removedIds = new HashSet<Guid>();
             foreach (var inv in existing.Where(e => !incomingIds.Contains(e.Id)))
             {
                 if (inv.AllocatedAmount > 0)
                     throw new BadRequestException(
                         $"Δεν μπορεί να διαγραφεί η δόση #{inv.InstallmentNumber} — έχει καταγεγραμμένες πληρωμές.");
                 context.Installments.Remove(inv);
+                removedIds.Add(inv.Id);
             }
+
+            var newlyAdded = new List<Installment>();
 
             // Ενημέρωση υπαρχουσών ή δημιουργία νέων
             foreach (var dto in schedule)
@@ -474,6 +524,17 @@ public class InstallmentService(
                 {
                     var inv = existing.FirstOrDefault(e => e.Id == dto.Id.Value)
                         ?? throw new NotFoundException($"Δόση '{dto.Id}' δεν βρέθηκε.");
+
+                    // Δόση με καταγεγραμμένη πληρωμή (έστω μερική) — τα ποσά/ημερομηνίες της
+                    // δεν αλλάζουν ποτέ από εδώ, όποιες τιμές κι αν στείλει ο client.
+                    // Επιτρέπουμε μόνο σημειώσεις.
+                    if (inv.AllocatedAmount > 0)
+                    {
+                        inv.Notes     = dto.Notes;
+                        inv.UpdatedBy = userId;
+                        inv.UpdatedAt = DateTime.UtcNow;
+                        continue;
+                    }
 
                     inv.InstallmentNumber = dto.InstallmentNumber;
                     inv.PeriodStart       = DateTime.SpecifyKind(dto.PeriodStart, DateTimeKind.Utc);
@@ -488,7 +549,7 @@ public class InstallmentService(
                 }
                 else
                 {
-                    await context.Installments.AddAsync(new Installment
+                    var newInv = new Installment
                     {
                         TenantId          = contract.TenantId,
                         ContractId        = contractId,
@@ -502,9 +563,20 @@ public class InstallmentService(
                         Status            = InstallmentStatus.Pending,
                         Notes             = dto.Notes,
                         CreatedBy         = userId,
-                    });
+                    };
+                    newlyAdded.Add(newInv);
+                    await context.Installments.AddAsync(newInv);
                 }
             }
+
+            // Invariant: το σύνολο του συμβολαίου πρέπει πάντα να ισούται με το
+            // άθροισμα των δόσεών του — ελέγχουμε πριν αποθηκεύσουμε οτιδήποτε.
+            var finalTotal = existing.Where(e => !removedIds.Contains(e.Id)).Sum(e => e.TotalAmount)
+                            + newlyAdded.Sum(e => e.TotalAmount);
+            if (Math.Abs(finalTotal - contract.TotalAmount) > 0.01m)
+                throw new BadRequestException(
+                    $"Το άθροισμα των δόσεων ({finalTotal:N2}€) πρέπει να ισούται με το συνολικό ποσό " +
+                    $"του συμβολαίου ({contract.TotalAmount:N2}€). Διαφορά: {(finalTotal - contract.TotalAmount):N2}€.");
 
             await context.SaveChangesAsync();
             await tx.CommitAsync();

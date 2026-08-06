@@ -47,7 +47,7 @@ public class InstallmentController(IInstallmentService installmentService) : Bas
     [HttpPost("{id:guid}/notify-email")]
     public async Task<IActionResult> NotifyEmail(Guid id)
     {
-        await installmentService.NotifyByEmailAsync(id, User.GetMemberId().ToString());
+        await installmentService.NotifyByEmailAsync(id, User.GetMemberId().ToString(), User.GetEmail());
         return Ok(new { message = "Το email υπενθύμισης εστάλη επιτυχώς." });
     }
 

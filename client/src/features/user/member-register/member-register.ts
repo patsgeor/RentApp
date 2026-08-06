@@ -1,4 +1,4 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { AbstractControl, FormBuilder, ReactiveFormsModule, ValidationErrors, ValidatorFn, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { AccountService } from '../../../core/services/account-service';
@@ -30,6 +30,15 @@ export class MemberRegister implements OnInit {
   loading = signal(false);
   errorMessage = signal('');
 
+  // Αν κάποιος άλλος είναι ήδη συνδεδεμένος σε αυτόν τον browser, η φόρμα δεν
+  // πρέπει να εμφανιστεί: η εγγραφή θα γινόταν με μπερδεμένη ταυτότητα. Αντί
+  // για σιωπηλή αποτυχία, εξηγούμε τι συμβαίνει και δίνουμε διέξοδο.
+  alreadyLoggedIn = computed(() => this.accountService.isLoggedIn());
+  currentUserLabel = computed(() => {
+    const u = this.accountService.currentUser();
+    return u ? `${u.displayName} (${u.email})` : '';
+  });
+
   form = this.fb.group({
     displayName: ['', [Validators.required, Validators.maxLength(50)]],
     password: ['', [Validators.required, Validators.minLength(6), Validators.maxLength(100), Validators.pattern(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).+$/)]],
@@ -55,6 +64,11 @@ export class MemberRegister implements OnInit {
         this.loadingInvite.set(false);
       }
     });
+  }
+
+  /** Αποσύνδεση χωρίς redirect, ώστε ο χρήστης να μείνει στη σελίδα πρόσκλησης. */
+  logoutAndContinue() {
+    this.accountService.logout(false);
   }
 
   onRegister() {

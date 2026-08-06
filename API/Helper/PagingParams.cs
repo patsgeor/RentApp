@@ -4,7 +4,7 @@ namespace API.Helper;
 
 public class PagingParams
 {
-    private const int MaxPageSize =50;
+    private const int MaxPageSize =72;
     private int _pageSize=5;
     public int PageNumber {get; set;}=1;
 
@@ -24,6 +24,12 @@ public class CustomerParams : PagingParams
 {
     /// <summary>active | deleted | all</summary>
     public string ShowDeleted { get; set; } = "active";
+
+    /// <summary>Μόνο πελάτες που καταχωρήθηκαν τον τελευταίο μήνα.</summary>
+    public bool NewThisMonth { get; set; }
+
+    /// <summary>name_asc | name_desc | afm_asc | afm_desc | address_asc | address_desc | date_asc | date_desc</summary>
+    public string? OrderBy { get; set; }
 }
 
 

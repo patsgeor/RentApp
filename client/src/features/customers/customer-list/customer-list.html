@@ -34,8 +34,10 @@
     <app-customer-table
       [items]="res.items"
       [pagination]="res.metadata"
+      [orderBy]="params.orderBy"
       (pageChange)="onPageChange($event)"
       (searchChange)="onSearch($event)"
+      (sortChange)="onSortChange($event)"
       (deleted)="onDeleted()"
       (restored)="onRestored()" />
   } @else if (loading()) {

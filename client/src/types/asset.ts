@@ -126,8 +126,17 @@ export interface AssetContractHistDto {
   endDate: string;
   status: RentalStatus;
   totalAmount: number;
+  assetAmount: number;
   notes?: string;
-  rowVersion?: number;  
+  rowVersion?: number;
+}
+
+export interface AssetFinancialSummaryDto {
+  totalMaintenanceCost: number;
+  maintenanceCount: number;
+  totalRentalRevenue: number;
+  rentalCount: number;
+  netResult: number;
 }
 
 

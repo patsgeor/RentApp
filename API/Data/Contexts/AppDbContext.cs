@@ -23,6 +23,7 @@ public class AppDbContext(
     public DbSet<AssetTypeField> AssetTypeFields { get; set; }
     public DbSet<AssetTypeFieldOption> AssetTypeFieldOptions { get; set; }
     public DbSet<AuditLog> AuditLogs { get; set; }
+    public DbSet<ErrorLog> ErrorLogs { get; set; }
     public DbSet<Contact> Contacts { get; set; }
     public DbSet<Contract> Contracts { get; set; }
     public DbSet<ContractAsset> ContractAssets { get; set; }

@@ -3,6 +3,7 @@ using API.Entities;
 using API.Errors;
 using API.Extensions;
 using API.Helper;
+using API.Interfaces;
 using static API.Entities.Enums;
  
 namespace API.Services;
@@ -166,6 +167,9 @@ namespace API.Services;
     // ==================================================================
     public async Task<PaginatedResult<AssetContractHistDto>> GetContractHistoryAsync(Guid assetId, PagingParams pagingParams)
         => await unitOfWork.AssetRepository.GetContractHistoryAsync(assetId, pagingParams);
+
+    public Task<AssetFinancialSummaryDto> GetFinancialSummaryAsync(Guid assetId)
+        => unitOfWork.AssetRepository.GetFinancialSummaryAsync(assetId);
 
     public async Task<AssetAvailabilityDto> CheckAvailabilityAsync(Guid assetId, DateTime from, DateTime to)
     {

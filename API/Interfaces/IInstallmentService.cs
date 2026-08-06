@@ -31,7 +31,7 @@ public interface IInstallmentService
 
     // Ακύρωση οφειλής
     Task CancelInstallmentAsync(Guid installmentId, string userId);
-    Task NotifyByEmailAsync(Guid installmentId, string userId);
+    Task NotifyByEmailAsync(Guid installmentId, string userId, string? senderEmail = null);
 
     Task UpdateScheduleAsync(Guid contractId, List<ScheduleInstallmentDto> schedule, string userId);
     Task<DebtStatsDto> GetStatsAsync(int? month, int? year);

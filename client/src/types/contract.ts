@@ -96,3 +96,17 @@ export interface ContractUpdateDto extends ContractCreateDto {
   rowVersion: number;
   status: RentalStatus;
 }
+
+export interface ContractEmailDto {
+  to?: string;
+  subject?: string;
+  message?: string;
+  activateContract: boolean;
+}
+
+export interface ContractEmailResultDto {
+  sent: boolean;
+  sentTo: string;
+  statusChanged: boolean;
+  message?: string;
+}

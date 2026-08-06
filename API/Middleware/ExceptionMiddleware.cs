@@ -1,15 +1,17 @@
 using System;
 using System.Net;
 using System.Text.Json;
+using API.Data.Contexts;
+using API.Entities;
 using API.Errors;
 
 namespace API.Middleware;
 
 public class ExceptionMiddleware(RequestDelegate next,
-ILogger<ExceptionMiddleware> logger, 
+ILogger<ExceptionMiddleware> logger,
 IHostEnvironment env)
 {
-    public async Task InvokeAsync(HttpContext context)
+    public async Task InvokeAsync(HttpContext context, AuditDbContext auditContext)
     {
         try
         {
@@ -32,6 +34,10 @@ IHostEnvironment env)
             var message = ex.InnerException?.Message ?? ex.Message;
             var response = new ApiException(context.Response.StatusCode, message, detail);
 
+            // Μόνιμη καταγραφή — χωρίς αυτό οι εξαιρέσεις υπάρχουν μόνο στην κονσόλα
+            // του διακομιστή και χάνονται με το επόμενο restart.
+            await TryPersistAsync(context, ex, auditContext);
+
             //serialize response to json και απο PascalCase που έχω στην C#  -> σε camelCase που θέλει το javascript
             var option = new JsonSerializerOptions
             {
@@ -43,4 +49,33 @@ IHostEnvironment env)
         }
     }
 
+    private async Task TryPersistAsync(HttpContext context, Exception ex, AuditDbContext auditContext)
+    {
+        try
+        {
+            Guid? tenantId = Guid.TryParse(
+                context.User.FindFirst("TenantId")?.Value, out var tid) ? tid : null;
+            var userId = context.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+
+            auditContext.ErrorLogs.Add(new ErrorLog
+            {
+                TenantId      = tenantId,
+                UserId        = userId,
+                Method        = context.Request.Method,
+                Path          = context.Request.Path.Value ?? "",
+                StatusCode    = context.Response.StatusCode,
+                Message       = (ex.InnerException?.Message ?? ex.Message).Length > 500
+                                    ? (ex.InnerException?.Message ?? ex.Message)[..500]
+                                    : ex.InnerException?.Message ?? ex.Message,
+                ExceptionType = ex.GetType().Name,
+                StackTrace    = ex.StackTrace
+            });
+            await auditContext.SaveChangesAsync();
+        }
+        catch (Exception persistEx)
+        {
+            // Ποτέ μην αφήσεις τη μόνιμη καταγραφή να ρίξει τον χειρισμό του αρχικού σφάλματος
+            logger.LogError(persistEx, "Failed to persist ErrorLog.");
+        }
+    }
 }

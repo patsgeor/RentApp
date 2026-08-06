@@ -304,6 +304,14 @@ public class AssetController(IAssetService assetService) : BaseApiController
         return Ok(result);
     }
 
+    // GET api/asset/{id}/financial-summary
+    [HttpGet("{id:guid}/financial-summary")]
+    public async Task<ActionResult<AssetFinancialSummaryDto>> GetFinancialSummary(Guid id)
+    {
+        var result = await assetService.GetFinancialSummaryAsync(id);
+        return Ok(result);
+    }
+
     // GET api/asset/{id}/contracts/periods
     [HttpGet("{id:guid}/contracts/periods")]
     public async Task<IActionResult> GetContractPeriods(Guid id)

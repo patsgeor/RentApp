@@ -49,9 +49,30 @@ public class CustomerRepository(AppDbContext context, ITenantProvider tenantProv
                     (ct.Phone != null && ct.Phone.Contains(term)) ||
                     (ct.Email != null && ct.Email.ToLower().Contains(term))));
         }
- 
-        var projected = query.OrderBy(c => c.Name).Select(ProjectToDto());
- 
+
+        // «Νέοι του μήνα» — ίδιο όριο με το NewThisMonth των στατιστικών
+        if (p.NewThisMonth)
+        {
+            var since = DateTime.UtcNow.AddMonths(-1);
+            query = query.Where(c => c.CreatedAt >= since);
+        }
+
+        // Η ταξινόμηση εφαρμόζεται πριν το paging, ώστε να είναι συνεπής
+        // ανάμεσα στις σελίδες και να συνεργάζεται με την αναζήτηση.
+        query = p.OrderBy switch
+        {
+            "name_desc"    => query.OrderByDescending(c => c.Name),
+            "afm_asc"      => query.OrderBy(c => c.Afm),
+            "afm_desc"     => query.OrderByDescending(c => c.Afm),
+            "address_asc"  => query.OrderBy(c => c.Address),
+            "address_desc" => query.OrderByDescending(c => c.Address),
+            "date_asc"     => query.OrderBy(c => c.CreatedAt),
+            "date_desc"    => query.OrderByDescending(c => c.CreatedAt),
+            _              => query.OrderBy(c => c.Name),
+        };
+
+        var projected = query.Select(ProjectToDto());
+
         return await PaginationHelper.CreateAsync(projected, p.PageNumber, p.PageSize);
     }
  

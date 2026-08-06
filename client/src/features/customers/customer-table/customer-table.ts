@@ -15,9 +15,11 @@ import { Paginator } from '../../../shared/paginator/paginator';
 export class CustomerTable {
   items      = input.required<CustomerDto[]>();
   pagination = input<PaginationMetadata | null>(null);
+  orderBy    = input<string>('name_asc');
 
   pageChange = output<{ pageNumber: number; pageSize: number }>();
   searchChange = output<string>();
+  sortChange   = output<string>();
   deleted      = output<string>();
   restored     = output<string>();
 
@@ -25,6 +27,23 @@ export class CustomerTable {
   private customerService = inject(CustomerService);
 
   onSearch(value: string) { this.searchChange.emit(value); }
+
+  /** Πρώτο κλικ → αύξουσα, δεύτερο στην ίδια στήλη → φθίνουσα. */
+  toggleSort(field: string) {
+    const current = this.orderBy();
+    this.sortChange.emit(current === `${field}_asc` ? `${field}_desc` : `${field}_asc`);
+  }
+
+  sortIcon(field: string): string {
+    const current = this.orderBy();
+    if (current === `${field}_asc`)  return '▲';
+    if (current === `${field}_desc`) return '▼';
+    return '';
+  }
+
+  isSorted(field: string): boolean {
+    return this.orderBy().startsWith(`${field}_`);
+  }
 
   viewHistory(id: string) { this.router.navigate(['/customer', id]); }
   

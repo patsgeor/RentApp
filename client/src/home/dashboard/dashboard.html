@@ -64,7 +64,16 @@
             </svg>
           </div>
         </div>
-        <p class="mt-2 text-xs text-base-content/40">Εισπράξεις {{ currentYear }}</p>
+        <div class="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+          <span class="text-base-content/40">Εισπράξεις {{ currentYear }}</span>
+          <span class="text-error">
+            Έξοδα: {{ kpi()?.yearlyExpenses | currency:'EUR':'symbol':'1.0-0':'el' }}
+          </span>
+          <span class="font-semibold"
+                [ngClass]="((kpi()?.yearlyIncome ?? 0) - (kpi()?.yearlyExpenses ?? 0)) >= 0 ? 'text-success' : 'text-error'">
+            Καθαρό: {{ (kpi()?.yearlyIncome ?? 0) - (kpi()?.yearlyExpenses ?? 0) | currency:'EUR':'symbol':'1.0-0':'el' }}
+          </span>
+        </div>
       </div>
     </a>
 
@@ -87,7 +96,16 @@
             </svg>
           </div>
         </div>
-        <p class="mt-2 text-xs text-base-content/40">Τρέχων μήνας</p>
+        <div class="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+          <span class="text-base-content/40">Τρέχων μήνας</span>
+          <span class="text-error">
+            Έξοδα: {{ kpi()?.monthlyExpenses | currency:'EUR':'symbol':'1.0-0':'el' }}
+          </span>
+          <span class="font-semibold"
+                [ngClass]="((kpi()?.monthlyIncome ?? 0) - (kpi()?.monthlyExpenses ?? 0)) >= 0 ? 'text-success' : 'text-error'">
+            Καθαρό: {{ (kpi()?.monthlyIncome ?? 0) - (kpi()?.monthlyExpenses ?? 0) | currency:'EUR':'symbol':'1.0-0':'el' }}
+          </span>
+        </div>
       </div>
     </a>
 

@@ -18,6 +18,7 @@ export class CustomerService {
     params = params.append('orderBy', customersParams.orderBy);
     if (customersParams.searchTerm) params = params.append('search', customersParams.searchTerm);
     if (customersParams.showDeleted) params = params.append('showDeleted', customersParams.showDeleted);
+    if (customersParams.newThisMonth) params = params.append('newThisMonth', true);
 
      return this.http.get<PaginatedResult<CustomerDto>>(this.baseUrl + 'customer', { params });
   }

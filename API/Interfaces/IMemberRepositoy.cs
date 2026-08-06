@@ -9,6 +9,8 @@ public interface IMemberRepository
     Task<Member?> GetMemberByIdAsync (string id);
     Task<Member?> GetMemberByEmailAsync(string email);
     Task<IReadOnlyList<Member>> GetAllAsync();
+    Task<IReadOnlyList<TenantMemberDto>> GetTenantMembersAsync();
+    Task<bool> SetMemberActiveAsync(string userId, bool isActive);
 
     Task<AppUser> AddTenantAsync(TenantRegisterDto tenantRegisterDto);
     
