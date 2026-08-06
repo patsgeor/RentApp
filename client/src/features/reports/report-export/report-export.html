@@ -1,0 +1,157 @@
+<div class="max-w-5xl mx-auto space-y-5">
+
+  <!-- Header -->
+  <div class="flex flex-wrap items-center gap-3">
+    <div class="flex-1">
+      <h1 class="text-2xl font-bold tracking-tight">Αναφορές &amp; Στατιστικά</h1>
+      <p class="text-sm text-base-content/60">
+        Επιλέξτε περίοδο και δεδομένα, και κατεβάστε τα σε αρχείο Excel
+      </p>
+    </div>
+  </div>
+
+  @if (errorMsg()) {
+    <div role="alert" class="alert alert-error text-sm">
+      <span>{{ errorMsg() }}</span>
+    </div>
+  }
+
+  <!-- ── Περίοδος ───────────────────────────────────────────── -->
+  <div class="card bg-base-100 shadow-sm border border-base-200">
+    <div class="card-body gap-4">
+      <h2 class="font-semibold">Περίοδος</h2>
+
+      <div class="flex flex-wrap gap-2">
+        <button type="button" class="btn btn-sm btn-outline" (click)="setPeriod('month')">Τρέχων μήνας</button>
+        <button type="button" class="btn btn-sm btn-outline" (click)="setPeriod('quarter')">Τελευταίο τρίμηνο</button>
+        <button type="button" class="btn btn-sm btn-outline" (click)="setPeriod('year')">Τρέχον έτος</button>
+      </div>
+
+      <div class="flex flex-wrap gap-4">
+        <div class="form-control">
+          <label class="label" for="from"><span class="label-text">Από</span></label>
+          <input id="from" type="date" class="input input-bordered input-sm"
+                 [ngModel]="dateFrom()" (ngModelChange)="dateFrom.set($event); onPeriodChange()" />
+        </div>
+        <div class="form-control">
+          <label class="label" for="to"><span class="label-text">Έως</span></label>
+          <input id="to" type="date" class="input input-bordered input-sm"
+                 [ngModel]="dateTo()" (ngModelChange)="dateTo.set($event); onPeriodChange()" />
+        </div>
+      </div>
+
+      @if (invalidPeriod()) {
+        <div role="alert" class="alert alert-warning text-sm">
+          <span>Η ημερομηνία λήξης πρέπει να είναι μετά την έναρξη.</span>
+        </div>
+      } @else if (periodTooLong()) {
+        <div role="alert" class="alert alert-warning text-sm">
+          <span>Η μέγιστη περίοδος εξαγωγής είναι 12 μήνες. Περιορίστε το χρονικό διάστημα.</span>
+        </div>
+      }
+    </div>
+  </div>
+
+  <!-- ── Δεδομένα ───────────────────────────────────────────── -->
+  <div class="card bg-base-100 shadow-sm border border-base-200">
+    <div class="card-body gap-4">
+      <div class="flex flex-wrap items-center gap-2">
+        <h2 class="font-semibold flex-1">Δεδομένα προς εξαγωγή</h2>
+        <button type="button" class="btn btn-xs btn-ghost" (click)="selectAll()">Όλα</button>
+        <button type="button" class="btn btn-xs btn-ghost" (click)="selectNone()">Κανένα</button>
+      </div>
+
+      <div class="grid gap-2 sm:grid-cols-2">
+        @for (opt of datasetOptions; track opt.value) {
+          <label class="flex items-start gap-3 rounded-lg border border-base-200 p-3 cursor-pointer hover:bg-base-200/40">
+            <input type="checkbox" class="checkbox checkbox-sm checkbox-primary mt-0.5"
+                   [checked]="isSelected(opt.value)" (change)="toggle(opt.value)" />
+            <span>
+              <span class="font-medium block">{{ opt.label }}</span>
+              <span class="text-xs text-base-content/60">{{ opt.hint }}</span>
+            </span>
+          </label>
+        }
+      </div>
+
+      @if (noneSelected()) {
+        <p class="text-sm text-warning">Επιλέξτε τουλάχιστον ένα σύνολο δεδομένων.</p>
+      }
+
+      <!-- Σημασιολογία παγίων -->
+      @if (isSelected(ReportDataset.Assets)) {
+        <div class="rounded-lg bg-base-200/50 p-3 space-y-2">
+          <p class="text-sm font-medium">Ποια πάγια να συμπεριληφθούν;</p>
+          <label class="flex items-center gap-2 text-sm cursor-pointer">
+            <input type="radio" class="radio radio-sm" name="assetMode"
+                   [checked]="assetMode() === AssetPeriodMode.Registered"
+                   (change)="assetMode.set(AssetPeriodMode.Registered); onPeriodChange()" />
+            Όσα καταχωρήθηκαν στην περίοδο
+          </label>
+          <label class="flex items-center gap-2 text-sm cursor-pointer">
+            <input type="radio" class="radio radio-sm" name="assetMode"
+                   [checked]="assetMode() === AssetPeriodMode.Rented"
+                   (change)="assetMode.set(AssetPeriodMode.Rented); onPeriodChange()" />
+            Όσα ήταν ενοικιασμένα στην περίοδο
+          </label>
+        </div>
+      }
+    </div>
+  </div>
+
+  <!-- ── Ενέργειες ──────────────────────────────────────────── -->
+  <div class="flex flex-wrap gap-3">
+    <button type="button" class="btn btn-outline" [disabled]="!canSubmit()" (click)="runPreview()">
+      @if (previewing()) { <span class="loading loading-spinner loading-sm"></span> }
+      Προεπισκόπηση
+    </button>
+    <button type="button" class="btn btn-primary" [disabled]="!canExport()" (click)="runExport()">
+      @if (exporting()) { <span class="loading loading-spinner loading-sm"></span> }
+      Εξαγωγή σε Excel
+    </button>
+  </div>
+
+  <!-- ── Προεπισκόπηση ──────────────────────────────────────── -->
+  @if (preview(); as p) {
+    <div class="card bg-base-100 shadow-sm border border-base-200">
+      <div class="card-body gap-3">
+        <h2 class="font-semibold">Προεπισκόπηση</h2>
+
+        @if (p.exceedsLimit) {
+          <div role="alert" class="alert alert-error text-sm">
+            <span>{{ p.message }}</span>
+          </div>
+        }
+
+        <div class="overflow-x-auto">
+          <table class="table table-sm">
+            <thead class="bg-base-200">
+              <tr class="text-xs uppercase text-base-content/50">
+                <th>Φύλλο</th>
+                <th class="text-right">Γραμμές</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (row of p.rows; track row.dataset) {
+                <tr [class.text-error]="row.exceedsSheetLimit">
+                  <td>{{ row.label }}</td>
+                  <td class="text-right font-mono">{{ row.rowCount }}</td>
+                </tr>
+              }
+              <tr class="font-semibold border-t">
+                <td>Σύνολο</td>
+                <td class="text-right font-mono">{{ p.totalRows }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <p class="text-xs text-base-content/50">
+          Όρια: {{ p.maxRowsPerSheet }} γραμμές ανά φύλλο, {{ p.maxRowsTotal }} συνολικά.
+          Τα ακυρωμένα συμβόλαια εξαιρούνται από όλα τα μεγέθη.
+        </p>
+      </div>
+    </div>
+  }
+
+</div>

@@ -12,6 +12,7 @@ using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using API.Helper;
 using System.Threading.Channels;
+using API.Services.Reports;
 
 
 
@@ -56,6 +57,16 @@ builder.Services.AddScoped<IContractService, ContractService>();
 builder.Services.AddScoped<IInstallmentService, InstallmentService>();
 builder.Services.AddHttpClient();
 builder.Services.AddScoped<AadeService>();
+
+// ------------------------------------------------------------------------------
+//  Αναφορές / εξαγωγή Excel
+//  Τα όρια είναι ρυθμιζόμενα (appsettings → "Reports") ώστε να προσαρμόζονται στο
+//  μηχάνημα χωρίς νέο deployment. Το ExportThrottle είναι singleton: το φράγμα
+//  ταυτόχρονων εξαγωγών πρέπει να είναι καθολικό για όλη τη διεργασία.
+// ------------------------------------------------------------------------------
+builder.Services.Configure<ReportSettings>(builder.Configuration.GetSection("Reports"));
+builder.Services.AddSingleton<ExportThrottle>();
+builder.Services.AddScoped<IReportService, ReportService>();
 
 
 
@@ -144,6 +155,9 @@ app.UseMiddleware<ExceptionMiddleware>();
 app.UseCors(policy => policy.AllowAnyHeader()  // για να επιτρέψει όλα τα headers που στέλνει το angular (π.χ. Authorization header με το jwt token)
                             .AllowAnyMethod() // για να επιτρέψει όλα τα headers και όλες τις μεθόδους (GET, POST, κτλ) από το angular
                             .AllowCredentials() // για να επιτρέψει την αποστολή cookies από το angular
+                            // Χωρίς αυτό ο browser κρύβει το Content-Disposition από τη JavaScript,
+                            // οπότε η λήψη αναφορών δεν μπορεί να διαβάσει το όνομα αρχείου του server.
+                            .WithExposedHeaders("Content-Disposition")
                             .WithOrigins("http://localhost:4200",
                                         "https://localhost:4200",
                                         "http://localhost:4300",

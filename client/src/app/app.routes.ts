@@ -11,6 +11,7 @@ import { NotFound } from '../shared/errors/not-found/not-found';
 import { MemberRegister } from '../features/user/member-register/member-register';
 import { MemberInvite } from '../features/user/member-invite/member-invite';
 import { MemberList } from '../features/user/member-list/member-list';
+import { ReportExport } from '../features/reports/report-export/report-export';
 import { AssetList } from '../features/asset/asset-list/asset-list';
 import { AssetForm } from '../features/asset/asset-form/asset-form';
 import { AssetDetail } from '../features/asset/asset-detail/asset-detail';
@@ -75,6 +76,7 @@ const tenantRoutes: Routes = ([
   { path: 'scan', component: QrScanner },
   { path: 'invite', component: MemberInvite },
   { path: 'users', component: MemberList },
+  { path: 'reports', component: ReportExport },
 ] as Routes).map(r => ({ ...r, canActivate: [tenantOnlyGuard] }));
 
 export const routes: Routes = [
