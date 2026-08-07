@@ -501,7 +501,11 @@ public partial class AssetRepository
     //  MapToDetailDto — full, used for single-asset endpoints (Photos included)
     // ==================================================================
     
-    private static AssetDto MapToDto(Asset asset) => new()
+    // Έγιναν instance methods (ήταν static) ώστε να μπορούν να καλέσουν
+    // fileStorage.ResolveUrl: το αποθηκευμένο PhotoUrl/Photo.Url είναι πλέον
+    // κλειδί αντικειμένου R2 (ή, για παλιές εγγραφές, απόλυτο Cloudinary URL),
+    // όχι έτοιμος για πλοήγηση σύνδεσμος.
+    private AssetDto MapToDto(Asset asset) => new()
     {
         Id           = asset.Id,
         AssetTypeId  = asset.AssetTypeId,
@@ -512,13 +516,13 @@ public partial class AssetRepository
         Cost         = asset.Cost,
         Status       = asset.Status,
         CreatedAt    = asset.CreatedAt,
-        PhotoUrl     = asset.PhotoUrl,
+        PhotoUrl     = fileStorage.ResolveUrl(asset.PhotoUrl),
         Attributes   = BuildAttributes(asset),
         RowVersion   = asset.xmin
 
     };
 
-    private static AssetDetailDto MapToDetailDto(Asset asset) => new()
+    private AssetDetailDto MapToDetailDto(Asset asset) => new()
     {
         Id           = asset.Id,
         AssetTypeId  = asset.AssetTypeId,
@@ -529,12 +533,14 @@ public partial class AssetRepository
         Cost         = asset.Cost,
         Status       = asset.Status,
         CreatedAt    = asset.CreatedAt,
-        PhotoUrl     = asset.PhotoUrl,
-        Photos       = asset.Photos.Select(p => new PhotoDto { Id = p.Id, Url = p.Url, IsMain = p.IsMain }).ToList(),
+        PhotoUrl     = fileStorage.ResolveUrl(asset.PhotoUrl),
+        Photos       = asset.Photos
+            .Select(p => new PhotoDto { Id = p.Id, Url = fileStorage.ResolveUrl(p.Url)!, IsMain = p.IsMain })
+            .ToList(),
         Attributes   = BuildAttributes(asset),
         RowVersion   = asset.xmin
 
-        
+
     };
 
     private static Dictionary<string, object?> BuildAttributes(Asset asset)

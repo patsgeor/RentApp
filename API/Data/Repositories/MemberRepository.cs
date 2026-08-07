@@ -12,7 +12,8 @@ public class MemberRepository (
                 AppDbContext context,
                 UserManager<AppUser> userManager,
                 IEmailService emailService,
-                ITenantProvider tenantProvider) : IMemberRepository
+                ITenantProvider tenantProvider,
+                IConfiguration config) : IMemberRepository
 {
     
     //==============================================================================
@@ -103,7 +104,13 @@ public class MemberRepository (
         await context.MemberInvites.AddAsync(invite);
         await context.SaveChangesAsync();
 
-        var registerLink = $"https://localhost:4200/register-invite?token={invite.Token}";
+        // Το domain έρχεται από ρυθμίσεις, όπως και στο forgot-password. Ήταν
+        // καρφωμένο σε localhost, οπότε κάθε πρόσκληση από παραγωγή θα κατέληγε
+        // σε σύνδεσμο που δεν ανοίγει.
+        var frontUrl = config["Frontend:BaseUrl"]
+            ?? throw new InvalidOperationException("Frontend:BaseUrl δεν έχει οριστεί.");
+
+        var registerLink = $"{frontUrl.TrimEnd('/')}/register-invite?token={invite.Token}";
 
 
         await emailService.SendEmailAsync(

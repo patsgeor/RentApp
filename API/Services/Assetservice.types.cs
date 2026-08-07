@@ -3,16 +3,19 @@ using API.DTOs.Asset;
 using API.Entities;
 using API.Errors;
 using API.Interfaces;
- 
+using API.Services.Storage;
+
 namespace API.Services;
  // Machine keys must be safe to interpolate into a jsonb ->> operator in raw
 // SQL (see AssetRepository.SearchAsync) — restricting them at creation time
 // to lowercase/digits/underscore means there is no further sanitization
 // needed downstream, and it keeps Angular's dynamic form binding predictable.
 public partial class AssetService(
-    IUnitOfWork unitOfWork, 
-    ITenantProvider tenantProvider, 
-    IPhotoService photoService) : IAssetService
+    IUnitOfWork unitOfWork,
+    ITenantProvider tenantProvider,
+    IFileStorage fileStorage,
+    FileValidationService fileValidator,
+    ImageCompressor imageCompressor) : IAssetService
 {
     private static readonly Regex FieldNamePattern = new(@"^[a-z][a-z0-9_]{1,49}$", RegexOptions.Compiled);
  

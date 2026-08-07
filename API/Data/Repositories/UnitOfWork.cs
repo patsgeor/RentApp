@@ -12,7 +12,9 @@ public class UnitOfWork(
     AppDbContext context,
     UserManager<AppUser> userManager,
     IEmailService emailService,
-    ITenantProvider tenantProvider    
+    ITenantProvider tenantProvider,
+    IConfiguration config,
+    IFileStorage fileStorage
 
     ) : IUnitOfWork
 {
@@ -32,16 +34,16 @@ public class UnitOfWork(
 
  
     public IAssetRepository AssetRepository =>
-        _assetRepository ??= new AssetRepository(context, tenantProvider);
- 
+        _assetRepository ??= new AssetRepository(context, tenantProvider, fileStorage);
+
     public IContractRepository ContractRepository =>
         _contractRepository ??= new ContractRepository(context);
- 
+
     public IMemberRepository MemberRepository =>
-        _memberRepository ??= new MemberRepository(context, userManager, emailService, tenantProvider );
+        _memberRepository ??= new MemberRepository(context, userManager, emailService, tenantProvider, config);
 
     public IPaymentRepository PaymentRepository =>
-        _paymentRepository ??= new PaymentRepository(context);
+        _paymentRepository ??= new PaymentRepository(context, fileStorage);
 
     public Task<Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction> BeginTransactionAsync()
     => context.Database.BeginTransactionAsync();

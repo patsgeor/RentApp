@@ -90,9 +90,17 @@ export class DebtMonitor implements OnInit {
     this.load(1);
   }
 
+  // Χωρίς αναμονή, κάθε πλήκτρο έστελνε αίτημα στο API. Ίδιο μοτίβο με το
+  // asset-list και το customer-list.
+  private searchTimer?: ReturnType<typeof setTimeout>;
+
   onSearch(e: Event) {
-    this.filterSearch.set((e.target as HTMLInputElement).value);
-    this.load(1);
+    const value = (e.target as HTMLInputElement).value;
+    if (this.searchTimer) clearTimeout(this.searchTimer);
+    this.searchTimer = setTimeout(() => {
+      this.filterSearch.set(value);
+      this.load(1);
+    }, 350);
   }
 
   sendEmail(id: string) {

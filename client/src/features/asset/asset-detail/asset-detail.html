@@ -128,5 +128,10 @@
   @if (assetId()) {
     <app-asset-rental-history [assetId]="assetId()" />
   }
+
+  <!-- Δικαιολογητικά (τιμολόγια αγοράς, εγχειρίδια, συμβόλαια αγοράς κ.λπ.) -->
+  @if (assetId()) {
+    <app-attachments entityType="Asset" [entityId]="assetId()" />
+  }
 </div>
 }

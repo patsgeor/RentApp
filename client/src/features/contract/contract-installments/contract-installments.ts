@@ -5,10 +5,11 @@ import { ContractService } from '../../../core/services/contract-service';
 import { InstallmentService } from '../../../core/services/installment-service';
 import { ContractDetailDto } from '../../../types/contract';
 import { EditLine, InstallmentDto, InstallmentStatus } from '../../../types/installment';
+import { Attachments } from '../../../shared/attachments/attachments';
 
 @Component({
   selector: 'app-contract-installments',
-  imports: [RouterLink, CurrencyPipe, DatePipe],
+  imports: [RouterLink, CurrencyPipe, DatePipe, Attachments],
   templateUrl: './contract-installments.html',
 })
 export class ContractInstallments implements OnInit {

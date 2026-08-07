@@ -11,15 +11,28 @@ namespace API.Data;
 
 public class DbInitializer
 {
+    /// <summary>
+    /// Γεμίζει τη βάση με δοκιμαστικά δεδομένα (Bogus) για ανάπτυξη.
+    ///
+    /// ΠΡΟΣΟΧΗ: δημιουργεί λογαριασμούς με γνωστό κωδικό και ~2.000 πλαστές
+    /// εγγραφές. Δεν πρέπει να εκτελεστεί ποτέ σε παραγωγή. Ο καλών το φράσσει
+    /// ήδη στο Program.cs· ο έλεγχος επαναλαμβάνεται εδώ ώστε η προστασία να μην
+    /// εξαρτάται από το να θυμηθεί κανείς τη συνθήκη στο σημείο κλήσης.
+    /// </summary>
     public static async Task InitializeAsync(
         AppDbContext context,
         UserManager<AppUser> userManager,
-        ITenantProvider tenantProvider)
+        ITenantProvider tenantProvider,
+        bool isDevelopment = true)
     {
-        // 1. Δημιουργία της βάσης αν δεν υπάρχει
-        await context.Database.EnsureCreatedAsync();
+        if (!isDevelopment)
+            throw new InvalidOperationException(
+                "Το DbInitializer παράγει δοκιμαστικά δεδομένα και δεν επιτρέπεται εκτός development.");
 
-        // 2. Έλεγχος αν υπάρχουν ήδη δεδομένα
+        // Δεν καλείται EnsureCreatedAsync: συγκρούεται με τα migrations — δημιουργεί
+        // το σχήμα χωρίς να καταγράψει ιστορικό, οπότε το επόμενο migration αποτυγχάνει.
+
+        // Έλεγχος αν υπάρχουν ήδη δεδομένα
         if (await context.Tenants.IgnoreQueryFilters().AnyAsync())
             return;
 

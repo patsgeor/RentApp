@@ -29,6 +29,9 @@ public class ErrorLog
     [Required, MaxLength(200)]
     public string ExceptionType { get; set; } = null!;
 
+    // Χωρίς όριο, ένα βαθύ stack trace γράφει αρκετά KB ανά σφάλμα. Σε βρόχο
+    // σφαλμάτων αυτό γεμίζει τη βάση ταχύτατα — κρίσιμο σε πάροχο με όριο χώρου.
+    [MaxLength(4000)]
     public string? StackTrace { get; set; }
 
     public DateTime Timestamp { get; set; } = DateTime.UtcNow;

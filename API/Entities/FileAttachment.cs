@@ -20,4 +20,11 @@ public class FileAttachment: BaseEntity
     public string FilePath { get; set; } = null!;    // Cloudinary URL
 
     public string? PublicId { get; set; }            // για διαγραφή από Cloudinary
+
+    /// <summary>
+    /// Μέγεθος του πραγματικά αποθηκευμένου αντικειμένου (μετά τη συμπίεση για
+    /// εικόνες) — όχι το αρχικό μέγεθος του upload. Χρησιμοποιείται για τον
+    /// έλεγχο συνολικής χωρητικότητας του R2 (βλ. AttachmentService.EnsureQuotaAsync).
+    /// </summary>
+    public long SizeBytes { get; set; }
 }

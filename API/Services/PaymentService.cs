@@ -3,6 +3,7 @@ using API.Entities;
 using API.Errors;
 using API.Helper;
 using API.Interfaces;
+using API.Services.Storage;
 using Microsoft.AspNetCore.Http;
 using static API.Entities.Enums;
 
@@ -11,7 +12,9 @@ namespace API.Services;
 public class PaymentService(
     IUnitOfWork uow,
     ITenantProvider tenantProvider,
-    IPhotoService photoService,
+    IFileStorage fileStorage,
+    FileValidationService fileValidator,
+    ImageCompressor imageCompressor,
     IInstallmentService installmentService): IPaymentService
 {
     public Task<PaginatedResult<ContractPaymentDto>> GetContractsAsync(
@@ -91,19 +94,35 @@ public class PaymentService(
 
         if (file != null)
         {
-            var uploaded = await photoService.AddPhotoAsync(file);
+            // Πριν την προσωρινή αποθήκευση εδώ, το ανέβασμα περνούσε από
+            // Cloudinary με ImageUploadParams — μια απόδειξη σε PDF απέτυχε
+            // σιωπηλά. Τώρα επιτρέπονται και τα δύο, με έλεγχο στα πρώτα bytes
+            // αντί για το Content-Type που δηλώνει ελεύθερα ο πελάτης.
+            var contentType = await fileValidator.ValidateAsync(file);
+
+            await using var source = file.OpenReadStream();
+            var isImage = imageCompressor.CanCompress(contentType);
+
+            using var compressed = isImage ? imageCompressor.Compress(source) : null;
+            var toUpload = (Stream?)compressed ?? source;
+            var finalContentType = isImage ? FileValidationService.ContentTypes.Jpeg : contentType;
+            var extension = isImage ? ".jpg" : ".pdf";
+
+            var objectKey = $"{tenantProvider.TenantId}/Payment/{payment.Id}/{Guid.NewGuid()}{extension}";
+            await fileStorage.UploadAsync(toUpload, objectKey, finalContentType);
+
             await uow.PaymentRepository.AddAttachmentAsync(new FileAttachment
             {
                 TenantId    = tenantProvider.TenantId,
                 EntityType  = "Payment",
                 EntityId    = payment.Id,
                 FileName    = file.FileName,
-                ContentType = file.ContentType,
-                FilePath    = uploaded.Url,
-                PublicId    = uploaded.PublicId,
+                ContentType = finalContentType,
+                FilePath    = objectKey,   // κλειδί αντικειμένου R2 — βλ. IFileStorage.ResolveUrl
+                PublicId    = objectKey,
                 CreatedBy   = userId
             });
-            attachmentUrl      = uploaded.Url;
+            attachmentUrl      = fileStorage.ResolveUrl(objectKey);
             attachmentFileName = file.FileName;
         }
 
@@ -131,7 +150,7 @@ public class PaymentService(
 
         var attachment = await uow.PaymentRepository.GetAttachmentAsync(id);
         if (attachment?.PublicId is not null)
-            await photoService.DeletePhotoAsync(attachment.PublicId);
+            await fileStorage.DeleteAsync(attachment.PublicId);
 
         if (attachment != null)
             uow.PaymentRepository.RemoveAttachment(attachment);

@@ -218,8 +218,11 @@ namespace API.Controllers
 
             var token     = await userManager.GeneratePasswordResetTokenAsync(user);// Δημιουργία token επαναφοράς κωδικού
             // var encodedToken = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(token)); // Κωδικοποίηση του token για χρήση σε URL
-            var frontUrl  = config["Frontend:BaseUrl"] ?? "http://localhost:4200";
-            var resetLink = $"{frontUrl}/reset-password?email={Uri.EscapeDataString(dto.Email)}&token={Uri.EscapeDataString(token)}";
+            // Χωρίς fallback σε localhost: ένα σιωπηλά λάθος domain στέλνει σε κάθε
+            // χρήστη σύνδεσμο που δεν ανοίγει, χωρίς κανένα σφάλμα να το προδίδει.
+            var frontUrl  = config["Frontend:BaseUrl"]
+                ?? throw new InvalidOperationException("Frontend:BaseUrl δεν έχει οριστεί.");
+            var resetLink = $"{frontUrl.TrimEnd('/')}/reset-password?email={Uri.EscapeDataString(dto.Email)}&token={Uri.EscapeDataString(token)}";
             var body = $"""
                 <p>Γεια σου <strong>{user.DisplayName}</strong>,</p>
                 <p>Λάβαμε αίτημα επαναφοράς κωδικού για τον λογαριασμό σου.</p>

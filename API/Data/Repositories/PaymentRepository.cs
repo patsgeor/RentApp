@@ -8,7 +8,7 @@ using static API.Entities.Enums;
 
 namespace API.Data.Repositories;
 
-public class PaymentRepository(AppDbContext context) : IPaymentRepository
+public class PaymentRepository(AppDbContext context, IFileStorage fileStorage) : IPaymentRepository
 {
     public async Task<PaginatedResult<ContractPaymentDto>> GetContractsAsync(
         string? search, RentalStatus? status, PagingParams pagingParams)
@@ -115,6 +115,10 @@ public class PaymentRepository(AppDbContext context) : IPaymentRepository
                 Notes              = p.Notes,
                 Description        = p.Description,
                 AssetNames         = p.PaymentAssets.Select(pa => pa.Asset.Name).ToList(),
+                // Ακατέργαστη τιμή (κλειδί αντικειμένου R2 ή παλιό απόλυτο URL).
+                // Η μετατροπή σε υπογεγραμμένο σύνδεσμο δεν μπορεί να γίνει εδώ
+                // μέσα στο LINQ-to-Entities — η SQL μετάφραση δεν καταλαβαίνει
+                // κλήση C# μεθόδου. Ανατίθεται μετά τη σελιδοποίηση, παρακάτω.
                 AttachmentUrl      = context.FileAttachments
                     .Where(fa => fa.EntityType == "Payment" && fa.EntityId == p.Id)
                     .Select(fa => fa.FilePath)
@@ -126,7 +130,12 @@ public class PaymentRepository(AppDbContext context) : IPaymentRepository
                 CreatedAt          = p.CreatedAt
             });
 
-        return await PaginationHelper.CreateAsync(projected, pagingParams.PageNumber, pagingParams.PageSize);
+        var result = await PaginationHelper.CreateAsync(projected, pagingParams.PageNumber, pagingParams.PageSize);
+
+        foreach (var item in result.Items)
+            item.AttachmentUrl = fileStorage.ResolveUrl(item.AttachmentUrl);
+
+        return result;
     }
 
     public async Task AddAsync(Payment payment)

@@ -13,6 +13,7 @@ using System.Text;
 using API.Helper;
 using System.Threading.Channels;
 using API.Services.Reports;
+using API.Services.Storage;
 
 
 
@@ -21,23 +22,50 @@ var builder = WebApplication.CreateBuilder(args);
 // Add services to the container.
 //=============================================================
 builder.Services.AddControllers();
+
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
+    ?? throw new InvalidOperationException("ConnectionStrings:DefaultConnection δεν έχει οριστεί.");
+
+// Κοινές ρυθμίσεις Npgsql για τα δύο DbContext.
+//  • EnableRetryOnFailure: η βάση σε serverless πάροχο (Neon) αναστέλλεται όταν
+//    είναι αδρανής. Χωρίς retry, το πρώτο αίτημα μετά την αφύπνιση αποτυγχάνει.
+//  • CommandTimeout: αποτρέπει ένα κολλημένο ερώτημα να κρατά σύνδεση επ' αόριστον.
+static void ConfigureNpgsql(Npgsql.EntityFrameworkCore.PostgreSQL.Infrastructure.NpgsqlDbContextOptionsBuilder npg)
+{
+    npg.EnableRetryOnFailure(maxRetryCount: 5, maxRetryDelay: TimeSpan.FromSeconds(10), errorCodesToAdd: null);
+    npg.CommandTimeout(30);
+}
+
 builder.Services.AddDbContext<AppDbContext>(options =>
 {
-    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection"));
+    options.UseNpgsql(connectionString, ConfigureNpgsql);
 
-    options.EnableSensitiveDataLogging();
-    options.EnableDetailedErrors();
+    // ΜΟΝΟ σε development: το SensitiveDataLogging γράφει τιμές παραμέτρων στα
+    // logs — δηλαδή κωδικούς κατά το login και προσωπικά δεδομένα.
+    if (builder.Environment.IsDevelopment())
+    {
+        options.EnableSensitiveDataLogging();
+        options.EnableDetailedErrors();
+    }
 });
 
 // ------------------------------------------------------------------------------
 //    για να μπορει να χρησιμοποιήσει το AuditChannel και το AuditBackgroundService
 //------------------------------------------------------------------------------
 builder.Services.AddDbContext<AuditDbContext>(options =>
-    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+    options.UseNpgsql(connectionString, ConfigureNpgsql));
 
 builder.Services.AddSingleton<AuditChannel>(); //  για να δημιουργηθεί ένα μόνο instance του AuditChannel για όλη την εφαρμογή
 builder.Services.AddHostedService<AuditBackgroundService>(); // ξεκινά μαζί με το app και τρέχει στο background για να αποθηκεύει τα audit logs στη βάση δεδομένων
 builder.Services.AddHostedService<LogRetentionService>(); // καθαρίζει περιοδικά παλιά audit/error logs (βλ. appsettings Logging:*RetentionDays)
+
+// Ενημέρωση ληξιπρόθεσμων δόσεων/ληγμένων συμβολαίων: όχι πλέον background
+// timer (χτυπούσε τη βάση κάθε 6 ώρες ό,τι κι αν γίνεται, εμποδίζοντας server
+// και serverless βάση να κοιμηθούν σε αδράνεια). Τρέχει τώρα μέσα σε αίτημα,
+// ανά tenant, με throttle — βλ. StatusRefreshMiddleware.
+builder.Services.Configure<StatusRefreshSettings>(builder.Configuration.GetSection("StatusRefresh"));
+builder.Services.AddSingleton<StatusRefreshThrottle>();
+builder.Services.AddScoped<IStatusRefreshService, TenantStatusRefreshService>();
 // ------------------------------------------------------------------------------
 
 
@@ -50,13 +78,25 @@ builder.Services.AddScoped<ITenantProvider, TenantProvider>();
 builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<ICustomerService, CustomerService>();
 builder.Services.AddScoped<IAssetService, AssetService>();
-builder.Services.AddScoped<IPhotoService, PhotoService>();
 builder.Services.AddScoped<IPaymentService, PaymentService>();
 builder.Services.AddScoped<IDashboardService, DashboardService>();
 builder.Services.AddScoped<IContractService, ContractService>();
 builder.Services.AddScoped<IInstallmentService, InstallmentService>();
 builder.Services.AddHttpClient();
 builder.Services.AddScoped<AadeService>();
+
+// ------------------------------------------------------------------------------
+//  Αποθήκευση αρχείων (Cloudflare R2) — αντικαθιστά το Cloudinary.
+//  Οι διαπιστευτήρια έρχονται από τη ρύθμιση "R2", τα όρια/ποιότητα από "Storage".
+//  Και οι δύο ενότητες δένονται στο ίδιο StorageSettings (η δέσμευση επιλογών
+//  του .NET τις εφαρμόζει διαδοχικά στο ίδιο instance).
+// ------------------------------------------------------------------------------
+builder.Services.Configure<StorageSettings>(builder.Configuration.GetSection("R2"));
+builder.Services.Configure<StorageSettings>(builder.Configuration.GetSection("Storage"));
+builder.Services.AddSingleton<IFileStorage, R2FileStorage>();
+builder.Services.AddScoped<FileValidationService>();
+builder.Services.AddScoped<ImageCompressor>();
+builder.Services.AddScoped<IAttachmentService, AttachmentService>();
 
 // ------------------------------------------------------------------------------
 //  Αναφορές / εξαγωγή Excel
@@ -80,14 +120,20 @@ builder.Services.AddScoped<IReportService, ReportService>();
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
-        var tokenKey = builder.Configuration["TokenKey"] 
+        var tokenKey = builder.Configuration["TokenKey"]
             ?? throw new Exception("TokenKey not found in configuration - program.cs");
+        var tokenIssuer = builder.Configuration["TokenIssuer"]
+            ?? throw new Exception("TokenIssuer not found in configuration - program.cs");
+        var tokenAudience = builder.Configuration["TokenAudience"]
+            ?? throw new Exception("TokenAudience not found in configuration - program.cs");
        options.TokenValidationParameters = new TokenValidationParameters
        {
            ValidateIssuerSigningKey = true, // ελέγχει αν το token έχει υπογραφεί με το σωστό κλειδί
            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(tokenKey)), // το κλειδί που χρησιμοποιείται για την υπογραφή του token
-           ValidateIssuer = false, // δεν ελέγχει τον εκδότη του token 
-           ValidateAudience = false // δεν ελέγχει το κοινό του token 
+           ValidateIssuer = true, // απορρίπτει tokens που δεν εκδόθηκαν από αυτή την εφαρμογή (π.χ. από άλλο περιβάλλον με το ίδιο κλειδί)
+           ValidIssuer = tokenIssuer,
+           ValidateAudience = true, // απορρίπτει tokens που δεν προορίζονταν για αυτό το API
+           ValidAudience = tokenAudience
         };
         
         // Αυτό το κομμάτι είναι για να επιτρέψουμε στο SignalR να λαμβάνει το JWT token από το Query String, 
@@ -140,8 +186,6 @@ builder.Services.AddIdentityCore<AppUser>(options =>
     .AddDefaultTokenProviders(); // για να προσθέσουμε υποστήριξη για token providers (π.χ. για reset password, email confirmation, κτλ)
 // ------------------------------------------------------------------------------
 
-builder.Services.Configure<CloudinarySettings>(builder.Configuration.GetSection("CloudinarySettings"));
-
 var app = builder.Build();
 //=============================================================
 // Configure the HTTP request pipeline.
@@ -151,46 +195,79 @@ var app = builder.Build();
 app.UseMiddleware<ExceptionMiddleware>();
 
 
-// Configure the HTTP request pipeline.
-app.UseCors(policy => policy.AllowAnyHeader()  // για να επιτρέψει όλα τα headers που στέλνει το angular (π.χ. Authorization header με το jwt token)
-                            .AllowAnyMethod() // για να επιτρέψει όλα τα headers και όλες τις μεθόδους (GET, POST, κτλ) από το angular
-                            .AllowCredentials() // για να επιτρέψει την αποστολή cookies από το angular
+// Εκτός development: ανακατεύθυνση σε HTTPS και HSTS.
+if (!app.Environment.IsDevelopment())
+{
+    app.UseHsts();
+    app.UseHttpsRedirection();
+}
+
+// Οι επιτρεπόμενες προελεύσεις έρχονται από ρυθμίσεις (Cors:AllowedOrigins),
+// ώστε το domain παραγωγής να μπαίνει χωρίς αλλαγή κώδικα. Τα localhost μένουν
+// ως fallback μόνο για development.
+var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>();
+
+if (allowedOrigins is null or { Length: 0 })
+{
+    if (!app.Environment.IsDevelopment())
+        throw new InvalidOperationException(
+            "Cors:AllowedOrigins δεν έχει οριστεί. Χωρίς αυτό καμία εφαρμογή-πελάτης δεν μπορεί να συνδεθεί.");
+
+    allowedOrigins = ["http://localhost:4200", "https://localhost:4200",
+                      "http://localhost:4300", "https://localhost:4300"];
+}
+
+app.UseCors(policy => policy.AllowAnyHeader()
+                            .AllowAnyMethod()
+                            .AllowCredentials() // απαιτεί ρητές προελεύσεις — δεν επιτρέπεται "*"
                             // Χωρίς αυτό ο browser κρύβει το Content-Disposition από τη JavaScript,
                             // οπότε η λήψη αναφορών δεν μπορεί να διαβάσει το όνομα αρχείου του server.
                             .WithExposedHeaders("Content-Disposition")
-                            .WithOrigins("http://localhost:4200",
-                                        "https://localhost:4200",
-                                        "http://localhost:4300",
-                                        "https://localhost:4300"));//angular
-                                        
-
+                            .WithOrigins(allowedOrigins));
 
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseMiddleware<StatusRefreshMiddleware>();
 app.MapControllers();
 
-//============================== Seed data=============================//
+// Ελαφρύ σημείο ελέγχου ζωής — χρήσιμο για να ξυπνά η εφαρμογή μετά από αδράνεια
+// και για να επιβεβαιώνεται ότι απαντά χωρίς να αγγίζεται η βάση.
+app.MapGet("/health", () => Results.Ok(new { status = "ok", utc = DateTime.UtcNow }))
+   .AllowAnonymous();
+
+//====================== Migrations & seed data =======================//
+// Τα migrations εφαρμόζονται πάντα· τα δοκιμαστικά δεδομένα ΠΟΤΕ εκτός development.
+// Το DbInitializer παράγει ~2.000 πλαστές εγγραφές και λογαριασμούς με γνωστό
+// κωδικό — σε παραγωγική βάση θα ήταν και ρύπανση δεδομένων και κενό ασφαλείας.
 using var scope = app.Services.CreateScope();
 var services = scope.ServiceProvider;
+var startupLogger = services.GetRequiredService<ILogger<Program>>();
+
 try
 {
-    //1. για να δημιουργήσει τη βάση αν δεν υπάρχει
     var context = services.GetRequiredService<AppDbContext>();
-    // 2. ΠΡΟΣΘΗΚΗ: Παίρνουμε το UserManager! 
-    var userManager = services.GetRequiredService<UserManager<AppUser>>();
-    var tenantProvider = services.GetRequiredService<ITenantProvider>();
 
+    await context.Database.MigrateAsync();
 
-    //3.  Για να εφαρμόσει τυχόν pending migrations σαν να τρέχαμε το "dotnet ef database update"
-    await context.Database.MigrateAsync(); 
-
-    //4. Καλούμε την InitializeAsync περνώντας ΚΑΙ ΤΑ ΔΥΟ ορίσματα
-    await DbInitializer.InitializeAsync(context, userManager, tenantProvider);
+    if (app.Environment.IsDevelopment())
+    {
+        var userManager = services.GetRequiredService<UserManager<AppUser>>();
+        var tenantProvider = services.GetRequiredService<ITenantProvider>();
+        await DbInitializer.InitializeAsync(context, userManager, tenantProvider, isDevelopment: true);
     }
+    else
+    {
+        startupLogger.LogInformation("Production: migrations applied, seeding skipped.");
+    }
+}
 catch (Exception ex)
 {
-    var logger = services.GetRequiredService<ILogger<Program>>();
-    logger.LogError(ex, "An error occurred seeding the database.");
+    startupLogger.LogError(ex, "Database migration/seed failed.");
+
+    // Σε development συνεχίζουμε για να μη μπλοκάρει η δουλειά. Σε παραγωγή όχι:
+    // η εκκίνηση πάνω σε μισο-μεταναστευμένη βάση παράγει σφάλματα που μοιάζουν
+    // με bug εφαρμογής και είναι πολύ δυσκολότερα στη διάγνωση.
+    if (!app.Environment.IsDevelopment()) throw;
 }
 
 app.Run();

@@ -10,12 +10,13 @@ import {
 } from '../../../types/payment';
 import { InstallmentDto, InstallmentStatus } from '../../../types/installment';
 import { PaginatedResult } from '../../../types/pagination';
+import { Attachments } from '../../../shared/attachments/attachments';
 
 type Tab = 'income' | 'expense';
 
 @Component({
   selector: 'app-transaction-list',
-  imports: [CurrencyPipe, DatePipe, RouterLink, FormsModule],
+  imports: [CurrencyPipe, DatePipe, RouterLink, FormsModule, Attachments],
   templateUrl: './transaction-list.html',
 })
 export class TransactionList implements OnInit {
@@ -28,6 +29,13 @@ export class TransactionList implements OnInit {
   readonly InstallmentStatus  = InstallmentStatus;
 
   activeTab = signal<Tab>('income');
+
+  // ── Δικαιολογητικά (αναδιπλούμενη γραμμή, ίδιο μοτίβο με matchingPaymentId) ──
+  attachmentsPaymentId = signal<string | null>(null);
+
+  toggleAttachments(id: string) {
+    this.attachmentsPaymentId.set(this.attachmentsPaymentId() === id ? null : id);
+  }
 
   // ── Αντιστοίχιση πληρωμής (auto-match / χειροκίνητη κατανομή) ──────────
   matchingPaymentId    = signal<string | null>(null);

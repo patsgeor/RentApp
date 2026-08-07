@@ -103,6 +103,11 @@ public class AppDbContext(
             .HasIndex(x => new { x.ContractId, x.AssetId })
             .IsUnique();
 
+        // Σημείωση: τα ερωτήματα «ανά πάγιο» (ιστορικό, διαθεσιμότητα, ημερολόγιο)
+        // δεν εξυπηρετούνται από τον παραπάνω σύνθετο, που ξεκινά από ContractId.
+        // Καλύπτονται όμως από το IX_ContractAssets_AssetId που δημιουργεί
+        // αυτόματα το EF για το foreign key — δεν χρειάζεται ρητή δήλωση.
+
         // ── Contract ────────────────────────────────────────────────────
         builder.Entity<Contract>()
             .HasOne(c => c.Customer)
@@ -118,6 +123,24 @@ public class AppDbContext(
 
         builder.Entity<Contract>()
             .HasIndex(c => c.TenantId);
+
+        // Ενεργά/ληγμένα συμβόλαια: λίστα συμβολαίων, KPI και περιοδική ενημέρωση.
+        builder.Entity<Contract>()
+            .HasIndex(c => new { c.TenantId, c.Status, c.EndDate })
+            .HasDatabaseName("idx_contract_tenant_status_end");
+
+        // ── Πίνακες καταγραφής ──────────────────────────────────────────
+        // Δεν είχαν κανένα index, ενώ το LogRetentionService εκτελεί καθημερινά
+        // DELETE με φίλτρο στο Timestamp και οι οθόνες διαχειριστή σελιδοποιούν
+        // με την ίδια στήλη. Είναι οι ταχύτερα αυξανόμενοι πίνακες της βάσης.
+        builder.Entity<AuditLog>()
+            .HasIndex(a => a.Timestamp);
+
+        builder.Entity<AuditLog>()
+            .HasIndex(a => new { a.TenantId, a.Timestamp });
+
+        builder.Entity<ErrorLog>()
+            .HasIndex(e => e.Timestamp);
 
 
 
@@ -158,12 +181,25 @@ public class AppDbContext(
         builder.Entity<Installment>()
             .HasIndex(i => i.TenantId);
 
+        // Ο σημαντικότερος index της εφαρμογής: εξυπηρετεί την οθόνη Οφειλών, τα
+        // ληξιπρόθεσμα, το KPI «Ανεξόφλητα» και την περιοδική ενημέρωση
+        // καταστάσεων — όλα φιλτράρουν σε ένοικο, κατάσταση και ημερομηνία λήξης.
+        builder.Entity<Installment>()
+            .HasIndex(i => new { i.TenantId, i.Status, i.DueDate })
+            .HasDatabaseName("idx_installment_tenant_status_due");
+
         // ── Payment ─────────────────────────────────────────────────────
         builder.Entity<Payment>()
             .HasIndex(p => p.TenantId);
 
         builder.Entity<Payment>()
             .HasIndex(p => p.MatchStatus);
+
+        // Ο Πίνακας Ελέγχου και οι αναφορές σαρώνουν επανειλημμένα πληρωμές ανά
+        // τύπο συναλλαγής και χρονικό διάστημα.
+        builder.Entity<Payment>()
+            .HasIndex(p => new { p.TenantId, p.TransactionType, p.PaymentDate })
+            .HasDatabaseName("idx_payment_tenant_type_date");
 
         // ── AssetTypeField ───────────────────────────────────────────────
         builder.Entity<AssetTypeField>()

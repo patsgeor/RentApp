@@ -6,7 +6,10 @@ using Microsoft.EntityFrameworkCore;
 
 namespace API.Data.Repositories;
 
-public partial class AssetRepository(AppDbContext context,  ITenantProvider tenantProvider) : IAssetRepository
+public partial class AssetRepository(
+    AppDbContext context,
+    ITenantProvider tenantProvider,
+    IFileStorage fileStorage) : IAssetRepository
 {
   
 

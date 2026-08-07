@@ -4,6 +4,7 @@ using API.Errors;
 using API.Extensions;
 using API.Helper;
 using API.Interfaces;
+using API.Services.Storage;
 using static API.Entities.Enums;
  
 namespace API.Services;
@@ -192,15 +193,24 @@ namespace API.Services;
         var asset = await unitOfWork.AssetRepository.GetEntityByIdAsync(assetId)
             ?? throw new NotFoundException($"Asset '{assetId}' was not found.");
 
-        var uploadResult = await photoService.AddPhotoAsync(file);
+        var contentType = await fileValidator.ValidateAsync(file);
+
+        await using var source = file.OpenReadStream();
+
+        // Οι φωτογραφίες παγίων συμπιέζονται πάντα — δεν έχει νόημα PDF εδώ, το
+        // validator ήδη περιόρισε τον τύπο σε εικόνα.
+        using var compressed = imageCompressor.Compress(source);
+
+        var objectKey = $"{asset.TenantId}/asset-photo/{assetId}/{Guid.NewGuid()}.jpg";
+        await fileStorage.UploadAsync(compressed, objectKey, FileValidationService.ContentTypes.Jpeg);
 
         var isFirst = !await unitOfWork.AssetRepository.HasPhotosAsync(assetId);
 
         var photo = new Photo
         {
             TenantId = asset.TenantId,
-            Url = uploadResult.Url,
-            PublicId = uploadResult.PublicId,
+            Url = objectKey,       // κλειδί αντικειμένου R2 — βλ. IFileStorage.ResolveUrl
+            PublicId = objectKey,
             IsMain = isFirst,
             AssetId = assetId
         };
@@ -209,13 +219,13 @@ namespace API.Services;
 
         if (isFirst)
         {
-            asset.PhotoUrl = uploadResult.Url;
+            asset.PhotoUrl = objectKey;
             unitOfWork.AssetRepository.Update(asset);
         }
 
         await unitOfWork.Complete();
 
-        return new PhotoDto { Id = photo.Id, Url = photo.Url, IsMain = photo.IsMain };
+        return new PhotoDto { Id = photo.Id, Url = fileStorage.ResolveUrl(photo.Url)!, IsMain = photo.IsMain };
     }
 
     public async Task DeletePhotoAsync(Guid assetId, Guid photoId, string currentUserId)
@@ -229,8 +239,12 @@ namespace API.Services;
         if (photo.AssetId != assetId)
             throw new BadRequestException("Photo does not belong to this asset.");
 
+        // Για φωτογραφίες που ανέβηκαν πριν τη μετάβαση στο R2, το PublicId είναι
+        // Cloudinary public_id και όχι κλειδί R2· η διαγραφή δεν βρίσκει τίποτα
+        // στο R2 (no-op, χωρίς σφάλμα) και το παλιό αρχείο μένει ορφανό στο
+        // Cloudinary. Αποδεκτό: καμία μεταφορά (backfill) δεν προβλέφθηκε.
         if (photo.PublicId is not null)
-            await photoService.DeletePhotoAsync(photo.PublicId);
+            await fileStorage.DeleteAsync(photo.PublicId);
 
         var wasMain = photo.IsMain;
         unitOfWork.AssetRepository.RemovePhoto(photo);

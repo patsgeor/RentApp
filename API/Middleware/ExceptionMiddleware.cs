@@ -68,7 +68,11 @@ IHostEnvironment env)
                                     ? (ex.InnerException?.Message ?? ex.Message)[..500]
                                     : ex.InnerException?.Message ?? ex.Message,
                 ExceptionType = ex.GetType().Name,
-                StackTrace    = ex.StackTrace
+                // Περικοπή στο όριο της στήλης: χωρίς αυτήν, ένα βαθύ stack trace
+                // θα προκαλούσε αποτυχία εισαγωγής και θα χανόταν όλη η καταγραφή.
+                StackTrace    = ex.StackTrace is { Length: > 4000 }
+                                    ? ex.StackTrace[..4000]
+                                    : ex.StackTrace
             });
             await auditContext.SaveChangesAsync();
         }

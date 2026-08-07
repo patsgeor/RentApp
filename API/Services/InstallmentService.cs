@@ -54,7 +54,9 @@ public class InstallmentService(
 
     public async Task<List<InstallmentDto>> GetByContractAsync(Guid contractId)
     {
-        await RefreshOverdueStatusesAsync();
+        // Καμία εγγραφή σε διαδρομή ανάγνωσης: το «ληξιπρόθεσμη» υπολογίζεται
+        // δηλωτικά από την ημερομηνία, αντί να ενημερώνεται η στήλη σε κάθε GET.
+        var now = DateTime.UtcNow;
 
         return await context.Installments
             .AsNoTracking()
@@ -74,7 +76,9 @@ public class InstallmentService(
                 TaxAmount            = i.TaxAmount,
                 TotalAmount          = i.TotalAmount,
                 AllocatedAmount      = i.AllocatedAmount,
-                Status               = i.Status,
+                Status               = i.Status == InstallmentStatus.Pending && i.DueDate < now
+                                           ? InstallmentStatus.Overdue
+                                           : i.Status,
                 Notes                = i.Notes,
                 Allocations = i.Allocations.Select(a => new AllocationSummaryDto
                 {
@@ -89,11 +93,16 @@ public class InstallmentService(
 
     public async Task<PaginatedResult<InstallmentDto>> GetOverdueAsync(PagingParams p)
     {
-        await RefreshOverdueStatusesAsync();
+        var now = DateTime.UtcNow;
 
+        // «Ληξιπρόθεσμη» = απλήρωτη με ημερομηνία που πέρασε. Ο έλεγχος γίνεται
+        // στην ημερομηνία και όχι στην αποθηκευμένη κατάσταση, ώστε το αποτέλεσμα
+        // να είναι σωστό χωρίς να χρειάζεται προηγούμενη ενημέρωση της στήλης.
         var query = context.Installments
             .AsNoTracking()
-            .Where(i => i.Status == InstallmentStatus.Overdue
+            .Where(i => i.Status != InstallmentStatus.Paid
+                     && i.Status != InstallmentStatus.Cancelled
+                     && i.DueDate < now
                      && i.Contract.Status != RentalStatus.Cancelled)
             .OrderBy(i => i.DueDate)
             .Select(i => new InstallmentDto
@@ -110,7 +119,7 @@ public class InstallmentService(
                 TaxAmount            = i.TaxAmount,
                 TotalAmount          = i.TotalAmount,
                 AllocatedAmount      = i.AllocatedAmount,
-                Status               = i.Status,
+                Status               = InstallmentStatus.Overdue,
                 Notes                = i.Notes,
             });
 
@@ -119,7 +128,7 @@ public class InstallmentService(
 
     public async Task<PaginatedResult<InstallmentDto>> GetDebtsAsync(DebtParams p)
     {
-        await RefreshOverdueStatusesAsync();
+        var now = DateTime.UtcNow;
 
         var query = context.Installments
             .AsNoTracking()
@@ -130,8 +139,19 @@ public class InstallmentService(
                         i.Status != InstallmentStatus.Cancelled &&
                         i.Contract.Status != RentalStatus.Cancelled);
 
+        // Το «Ληξιπρόθεσμη» και το «Εκκρεμής» κρίνονται από την ημερομηνία, όχι από
+        // την αποθηκευμένη στήλη — αλλιώς το φίλτρο θα εξαρτιόταν από το αν έχει
+        // προηγηθεί ενημέρωση καταστάσεων.
         if (p.Status.HasValue)
-            query = query.Where(i => i.Status == p.Status.Value);
+        {
+            query = p.Status.Value switch
+            {
+                InstallmentStatus.Overdue => query.Where(i => i.DueDate < now),
+                InstallmentStatus.Pending => query.Where(i => i.Status == InstallmentStatus.Pending
+                                                           && i.DueDate >= now),
+                _                         => query.Where(i => i.Status == p.Status.Value)
+            };
+        }
 
         if (p.Month.HasValue)
         {
@@ -177,7 +197,9 @@ public class InstallmentService(
                 TaxAmount            = i.TaxAmount,
                 TotalAmount          = i.TotalAmount,
                 AllocatedAmount      = i.AllocatedAmount,
-                Status               = i.Status,
+                Status               = i.Status == InstallmentStatus.Pending && i.DueDate < now
+                                           ? InstallmentStatus.Overdue
+                                           : i.Status,
                 Notes                = i.Notes,
             });
 
@@ -584,33 +606,40 @@ public class InstallmentService(
         catch { await tx.RollbackAsync(); throw; }
     }
 
+    /// <summary>
+    /// Συγκεντρωτικά οφειλών. Υπολογίζονται εξ ολοκλήρου στη βάση με ένα ερώτημα:
+    /// η προηγούμενη υλοποίηση φόρτωνε ΟΛΕΣ τις ανεξόφλητες δόσεις στη μνήμη και
+    /// άθροιζε τοπικά — κόστος που μεγάλωνε γραμμικά με τα δεδομένα του πελάτη.
+    /// Το «ληξιπρόθεσμο» κρίνεται από την ημερομηνία, χωρίς εγγραφή στη βάση.
+    /// </summary>
     public async Task<DebtStatsDto> GetStatsAsync(int? month, int? year)
     {
-        await RefreshOverdueStatusesAsync();
-
         var now    = DateTime.UtcNow;
         var m      = month ?? now.Month;
         var y      = year  ?? now.Year;
         var mStart = new DateTime(y, m, 1, 0, 0, 0, DateTimeKind.Utc);
         var mEnd   = mStart.AddMonths(1);
 
-        var rows = await context.Installments
+        var stats = await context.Installments
             .AsNoTracking()
             .Where(i => i.Status != InstallmentStatus.Paid &&
-                        i.Status != InstallmentStatus.Cancelled)
-            .Select(i => new { i.Status, i.TotalAmount, i.AllocatedAmount, i.DueDate })
-            .ToListAsync();
+                        i.Status != InstallmentStatus.Cancelled &&
+                        i.Contract.Status != RentalStatus.Cancelled)
+            .GroupBy(_ => 1)
+            .Select(g => new DebtStatsDto
+            {
+                ExpectedThisMonth  = g.Where(i => i.DueDate >= mStart && i.DueDate < mEnd)
+                                      .Sum(i => (decimal?)(i.TotalAmount - i.AllocatedAmount)) ?? 0m,
+                TotalOutstanding   = g.Sum(i => (decimal?)(i.TotalAmount - i.AllocatedAmount)) ?? 0m,
+                OverdueCount       = g.Count(i => i.DueDate < now),
+                OverdueAmount      = g.Where(i => i.DueDate < now)
+                                      .Sum(i => (decimal?)(i.TotalAmount - i.AllocatedAmount)) ?? 0m,
+                PendingCount       = g.Count(i => i.Status == InstallmentStatus.Pending && i.DueDate >= now),
+                PartiallyPaidCount = g.Count(i => i.Status == InstallmentStatus.PartiallyPaid),
+            })
+            .FirstOrDefaultAsync();
 
-        return new DebtStatsDto
-        {
-            ExpectedThisMonth  = rows.Where(r => r.DueDate >= mStart && r.DueDate < mEnd)
-                                    .Sum(r => r.TotalAmount - r.AllocatedAmount),
-            TotalOutstanding   = rows.Sum(r  => r.TotalAmount - r.AllocatedAmount),
-            OverdueCount       = rows.Count(r => r.Status == InstallmentStatus.Overdue),
-            OverdueAmount      = rows.Where(r => r.Status == InstallmentStatus.Overdue)
-                                    .Sum(r   => r.TotalAmount - r.AllocatedAmount),
-            PendingCount       = rows.Count(r => r.Status == InstallmentStatus.Pending),
-            PartiallyPaidCount = rows.Count(r => r.Status == InstallmentStatus.PartiallyPaid),
-        };
+        // Χωρίς καμία ανεξόφλητη δόση το GroupBy δεν επιστρέφει γραμμή.
+        return stats ?? new DebtStatsDto();
     }
 }

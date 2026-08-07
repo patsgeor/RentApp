@@ -16,6 +16,8 @@ public class TokenService (IConfiguration config,UserManager<AppUser> userManage
     {
         // Ανάκτηση του TokenKey από το configuration
         var tokenKey = config["TokenKey"] ?? throw new Exception("Cannot find TokenKey in configuration.");
+        var tokenIssuer = config["TokenIssuer"] ?? throw new Exception("Cannot find TokenIssuer in configuration.");
+        var tokenAudience = config["TokenAudience"] ?? throw new Exception("Cannot find TokenAudience in configuration.");
 
         // Ελεγχος μήκους του TokenKey για ασφάλεια
         if (tokenKey.Length < 64)
@@ -50,7 +52,9 @@ public class TokenService (IConfiguration config,UserManager<AppUser> userManage
             Subject = new ClaimsIdentity(claims),
             NotBefore = DateTime.UtcNow,
             Expires = DateTime.Now.AddDays(7),
-            SigningCredentials = creds
+            SigningCredentials = creds,
+            Issuer = tokenIssuer,
+            Audience = tokenAudience
         };
 
         // δημιουργία του token

@@ -16,11 +16,10 @@ public class ContractService(
     IEmailService emailService,
     IInstallmentService installmentService) : IContractService
 {
-    public async Task<PaginatedResult<ContractListItemDto>> GetAllAsync(ContractParams p)
-    {
-        await RefreshCompletedStatusesAsync();
-        return await uow.ContractRepository.GetAllAsync(p);
-    }
+    // Η ενημέρωση ληγμένων συμβολαίων έφευγε από εδώ: έγραφε στη βάση σε κάθε
+    // GET της λίστας. Εκτελείται πλέον περιοδικά από το StatusRefreshService.
+    public Task<PaginatedResult<ContractListItemDto>> GetAllAsync(ContractParams p)
+        => uow.ContractRepository.GetAllAsync(p);
 
     public Task<ContractDetailDto?> GetByIdAsync(Guid id)
         => uow.ContractRepository.GetByIdAsync(id);
