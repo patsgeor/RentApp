@@ -8,5 +8,5 @@
 // λειτουργεί μόνο όταν frontend και API σερβίρονται από το ίδιο domain.
 export const environment = {
   production: true,
-  apiUrl: 'https://REPLACE-ME.azurewebsites.net/api/'
+  apiUrl: 'rentapp-api-gpcode-fvagarg2bzg6dvhg.denmarkeast-01.azurewebsites.net'
 };
