@@ -7,6 +7,6 @@
 // Το apiUrl πρέπει να δείχνει στο API του Azure. Ήταν σχετικό ('api/'), που
 // λειτουργεί μόνο όταν frontend και API σερβίρονται από το ίδιο domain.
 export const environment = {
-  production: true,
+  production: true, 
   apiUrl: 'https://rentapp-api-gpcode-fvagarg2bzg6dvhg.denmarkeast-01.azurewebsites.net/api/'
 };
