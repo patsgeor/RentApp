@@ -511,6 +511,12 @@ public class InstallmentService(
 
     public async Task UpdateScheduleAsync(Guid contractId, List<ScheduleInstallmentDto> schedule, string userId)
     {
+        // Το EnableRetryOnFailure (βλ. Program.cs — απαραίτητο για τη Neon) απαγορεύει
+        // χειροκίνητα transactions εκτός CreateExecutionStrategy — βλ. ίδιο fix στο
+        // MemberRepository.AddTenantAsync και ContractService.UpdateAsync.
+        var strategy = context.Database.CreateExecutionStrategy();
+        await strategy.ExecuteAsync(async () =>
+        {
         await using var tx = await context.Database.BeginTransactionAsync();
         try
         {
@@ -604,6 +610,7 @@ public class InstallmentService(
             await tx.CommitAsync();
         }
         catch { await tx.RollbackAsync(); throw; }
+        });
     }
 
     /// <summary>

@@ -21,56 +21,65 @@ public class MemberRepository (
     //==============================================================================
     public async Task<AppUser> AddTenantAsync(TenantRegisterDto dto)
     {
-        using var transaction = await context.Database.BeginTransactionAsync();
+        // Το EnableRetryOnFailure (βλ. Program.cs — απαραίτητο για τη Neon, που
+        // αναστέλλεται όταν είναι αδρανής) απαγορεύει χειροκίνητα transactions
+        // εκτός CreateExecutionStrategy: χωρίς αυτό, ολόκληρη η εγγραφή πετούσε
+        // πάντα "NpgsqlRetryingExecutionStrategy does not support user-initiated
+        // transactions" — δεν ήταν θέμα ρύθμισης της βάσης, ήταν αυτό.
+        var strategy = context.Database.CreateExecutionStrategy();
 
-        try
+        return await strategy.ExecuteAsync(async () =>
         {
-            Tenant tenant= new Tenant
+            using var transaction = await context.Database.BeginTransactionAsync();
+
+            try
             {
-                Name= dto.CompanyName ,
-                VatNumber=dto.VatNumber,
-                ContactInfo= dto.ContactInfo
-            };
+                Tenant tenant= new Tenant
+                {
+                    Name= dto.CompanyName ,
+                    VatNumber=dto.VatNumber,
+                    ContactInfo= dto.ContactInfo
+                };
 
-            await context.Tenants.AddAsync(tenant);
-            await context.SaveChangesAsync();
+                await context.Tenants.AddAsync(tenant);
+                await context.SaveChangesAsync();
 
-            tenantProvider.SetCurrentTenant(tenant.Id);
+                tenantProvider.SetCurrentTenant(tenant.Id);
 
-            AppUser user = new AppUser
-            {
-                UserName = dto.Email,
-                Email = dto.Email,
-                DisplayName = dto.DisplayName,
-                IsActive = true,
-                TenantId=tenant.Id,
-                Member = new Member
-                    {
-                        FirstName = dto.FirstName,
-                        LastName = dto.LastName,
-                    }
-            };
+                AppUser user = new AppUser
+                {
+                    UserName = dto.Email,
+                    Email = dto.Email,
+                    DisplayName = dto.DisplayName,
+                    IsActive = true,
+                    TenantId=tenant.Id,
+                    Member = new Member
+                        {
+                            FirstName = dto.FirstName,
+                            LastName = dto.LastName,
+                        }
+                };
 
-            var result = await userManager.CreateAsync(user, dto.Password);
+                var result = await userManager.CreateAsync(user, dto.Password);
 
-            if(!result.Succeeded)
-            {
-                var errors =result.Errors.Select(e => e.Description);
-                throw new Exception(string.Join(" , ",errors));
+                if(!result.Succeeded)
+                {
+                    var errors =result.Errors.Select(e => e.Description);
+                    throw new Exception(string.Join(" , ",errors));
+                }
+
+                await userManager.AddToRoleAsync(user,"Admin");
+
+                // 3. Commit
+                await transaction.CommitAsync();
+                return user;
             }
-
-            await userManager.AddToRoleAsync(user,"Admin");
-            
-            // 3. Commit
-            await transaction.CommitAsync();
-            return user;
-        }
-        catch (Exception ex)
-        {
-            await transaction.RollbackAsync();
-            throw ex;
-        }
-
+            catch
+            {
+                await transaction.RollbackAsync();
+                throw;
+            }
+        });
     }
 
     //==============================================================================

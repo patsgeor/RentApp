@@ -110,56 +110,67 @@ public class ContractService(
 
     var oldTotal = contract.TotalAmount;
     var wasCancelled = contract.Status == RentalStatus.Cancelled;
-    decimal totalAmount;
+    // Αρχικοποιημένο σε 0 μόνο για να ικανοποιήσει το definite-assignment: ο
+    // compiler δεν μπορεί να αποδείξει ότι το ExecuteAsync καλεί πάντα το delegate
+    // πριν τη χρήση παρακάτω — στην πράξη πάντα εκτελείται πρώτα.
+    decimal totalAmount = 0;
 
-    await using var tx = await uow.BeginTransactionAsync();
-    try
+    // Το EnableRetryOnFailure (βλ. Program.cs — απαραίτητο για τη Neon) απαγορεύει
+    // χειροκίνητα transactions εκτός CreateExecutionStrategy — χωρίς αυτό, κάθε
+    // ενημέρωση συμβολαίου θα πετούσε "NpgsqlRetryingExecutionStrategy does not
+    // support user-initiated transactions".
+    var strategy = context.Database.CreateExecutionStrategy();
+    await strategy.ExecuteAsync(async () =>
     {
-        await uow.ContractRepository.DeleteAllAssetsAsync(id);
-
-        var newAssets = dto.Assets.Select(a => new ContractAsset
+        await using var tx = await uow.BeginTransactionAsync();
+        try
         {
-            ContractId       = id,
-            AssetId          = a.AssetId,
-            StartDate        = DateTime.SpecifyKind(a.StartDate, DateTimeKind.Utc),
-            EndDate          = DateTime.SpecifyKind(a.EndDate,   DateTimeKind.Utc),
-            UnitCost         = a.UnitCost,
-            RateUnit         = a.RateUnit,
-            CalculatedAmount = a.CalculatedAmount,
-            Notes            = a.Notes
-        }).ToList();
+            await uow.ContractRepository.DeleteAllAssetsAsync(id);
 
-        await EnsureNoAssetOverlapAsync(newAssets, excludeContractId: id);
+            var newAssets = dto.Assets.Select(a => new ContractAsset
+            {
+                ContractId       = id,
+                AssetId          = a.AssetId,
+                StartDate        = DateTime.SpecifyKind(a.StartDate, DateTimeKind.Utc),
+                EndDate          = DateTime.SpecifyKind(a.EndDate,   DateTimeKind.Utc),
+                UnitCost         = a.UnitCost,
+                RateUnit         = a.RateUnit,
+                CalculatedAmount = a.CalculatedAmount,
+                Notes            = a.Notes
+            }).ToList();
 
-        uow.ContractRepository.AddAssets(newAssets);
+            await EnsureNoAssetOverlapAsync(newAssets, excludeContractId: id);
 
-        totalAmount = dto.Assets.Sum(a => a.CalculatedAmount) - dto.DiscountAmount + dto.TaxAmount;
+            uow.ContractRepository.AddAssets(newAssets);
 
-        contract.CustomerId           = dto.CustomerId;
-        contract.StartDate            = DateTime.SpecifyKind(dto.StartDate, DateTimeKind.Utc);
-        contract.EndDate              = DateTime.SpecifyKind(dto.EndDate,   DateTimeKind.Utc);
-        contract.SignedDate           = dto.SignedDate.HasValue
-                                            ? DateTime.SpecifyKind(dto.SignedDate.Value, DateTimeKind.Utc)
-                                            : null;
-        contract.ReferenceCode        = string.IsNullOrWhiteSpace(dto.ReferenceCode) ? null : dto.ReferenceCode.Trim();
-        contract.TaxAmount            = dto.TaxAmount;
-        contract.DiscountAmount       = dto.DiscountAmount;
-        contract.TotalAmount          = totalAmount;
-        contract.InstallmentFrequency = dto.InstallmentFrequency;
-        contract.Notes                = dto.Notes;
-        contract.Terms                = dto.Terms;
-        contract.Status               = dto.Status;
-        contract.UpdatedBy            = memberId;
-        contract.UpdatedAt            = DateTime.UtcNow;
+            totalAmount = dto.Assets.Sum(a => a.CalculatedAmount) - dto.DiscountAmount + dto.TaxAmount;
 
-        await uow.Complete();
-        await tx.CommitAsync();
-    }
-    catch
-    {
-        await tx.RollbackAsync();
-        throw;
-    }
+            contract.CustomerId           = dto.CustomerId;
+            contract.StartDate            = DateTime.SpecifyKind(dto.StartDate, DateTimeKind.Utc);
+            contract.EndDate              = DateTime.SpecifyKind(dto.EndDate,   DateTimeKind.Utc);
+            contract.SignedDate           = dto.SignedDate.HasValue
+                                                ? DateTime.SpecifyKind(dto.SignedDate.Value, DateTimeKind.Utc)
+                                                : null;
+            contract.ReferenceCode        = string.IsNullOrWhiteSpace(dto.ReferenceCode) ? null : dto.ReferenceCode.Trim();
+            contract.TaxAmount            = dto.TaxAmount;
+            contract.DiscountAmount       = dto.DiscountAmount;
+            contract.TotalAmount          = totalAmount;
+            contract.InstallmentFrequency = dto.InstallmentFrequency;
+            contract.Notes                = dto.Notes;
+            contract.Terms                = dto.Terms;
+            contract.Status               = dto.Status;
+            contract.UpdatedBy            = memberId;
+            contract.UpdatedAt            = DateTime.UtcNow;
+
+            await uow.Complete();
+            await tx.CommitAsync();
+        }
+        catch
+        {
+            await tx.RollbackAsync();
+            throw;
+        }
+    });
 
     // Invariant: το σύνολο του συμβολαίου πρέπει πάντα να ισούται με το άθροισμα
     // των δόσεών του. Όταν η αλλαγή (π.χ. νέο πάγιο) μεταβάλλει το σύνολο, ξανα-
