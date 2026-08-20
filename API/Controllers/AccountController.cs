@@ -2,6 +2,7 @@
 using API.DTOs;
 using API.DTOs.User;
 using API.Entities;
+using API.Errors;
 using API.Extensions;
 using API.Interfaces;
 using Microsoft.AspNetCore.Authorization;
@@ -9,6 +10,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.EntityFrameworkCore;
+using static API.Entities.Enums;
 
 namespace API.Controllers
 {
@@ -18,7 +20,8 @@ namespace API.Controllers
                 ITokenService tokenService,
                 ITenantProvider tenantProvider,
                 IEmailService emailService,
-                IConfiguration config) : BaseApiController
+                IConfiguration config,
+                IPlanGate planGate) : BaseApiController
     {
         [HttpPost]
         public async Task<ActionResult<UserDto>> Register(TenantRegisterDto dto)
@@ -110,11 +113,20 @@ namespace API.Controllers
         [HttpPost("invite")]
         public async Task<IActionResult> Invite(MemberInviteDto dto)
         {
-            var tenantId = User.GetTenantId();
-            await uow.MemberRepository.InviteMemberAsync(dto, tenantId, User.GetMemberId().ToString(),
-                cc: new List<string> { User.GetEmail() });
+            try
+            {
+                await planGate.EnsureAtLeastAsync(PlanType.Basic);
 
-            return Ok(new { message = "Invite sent" });
+                var tenantId = User.GetTenantId();
+                await uow.MemberRepository.InviteMemberAsync(dto, tenantId, User.GetMemberId().ToString(),
+                    cc: new List<string> { User.GetEmail() });
+
+                return Ok(new { message = "Invite sent" });
+            }
+            catch (PlanRestrictionException ex)
+            {
+                return StatusCode(403, new { message = ex.Message, upgradeRequired = true, requiredPlan = ex.RequiredPlan.ToString() });
+            }
         }
 
 
@@ -161,13 +173,24 @@ namespace API.Controllers
             var refreshToken = Request.Cookies["refreshToken"]; // ανάκτηση του refresh token από το cookie
             if (string.IsNullOrEmpty(refreshToken)) return NoContent();
 
-            var user = await userManager.Users.FirstOrDefaultAsync(u => u.RefreshToken == refreshToken 
-                                                                && u.RefreshTokenExpiry > DateTime.UtcNow);
+            // IgnoreQueryFilters: όπως ForgotPassword/ResetPassword παραπάνω, αυτό το
+            // request είναι ανώνυμο (μόνο refresh cookie, χωρίς JWT) — δεν υπάρχει
+            // ambient tenant ώστε να εφαρμοστεί το global query filter του AppUser.
+            // Include(Tenant): χωρίς αυτό, το TokenService.CreateToken (user.Tenant.Name/
+            // PlanType) πετούσε NullReferenceException σε κάθε refresh — το Tenant
+            // είναι μη-nullable navigation και δεν υπάρχει lazy loading σε αυτό το project.
+            var user = await userManager.Users
+                .IgnoreQueryFilters()
+                .Include(u => u.Tenant)
+                .FirstOrDefaultAsync(u => u.RefreshToken == refreshToken
+                                       && u.RefreshTokenExpiry > DateTime.UtcNow);
 
             if (user == null)
             {
                 return Unauthorized("Invalid or expired refresh token");
             }
+
+            tenantProvider.SetCurrentTenant(user.TenantId);
 
             // Χωρίς αυτόν τον έλεγχο, ένας απενεργοποιημένος χρήστης θα ανανέωνε
             // επ' αόριστον τη συνεδρία του και η απενεργοποίηση δεν θα είχε ισχύ.

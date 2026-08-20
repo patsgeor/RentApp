@@ -1,0 +1,67 @@
+<div class="max-w-5xl mx-auto space-y-5">
+
+  <!-- Header -->
+  <div class="flex flex-wrap items-center gap-3">
+    <div class="flex-1">
+      <h1 class="text-2xl font-bold tracking-tight">Αιτήματα Αναβάθμισης</h1>
+      <p class="text-sm text-base-content/60">Εκκρεμή αιτήματα αναβάθμισης πλάνου από tenants</p>
+    </div>
+    <a routerLink="/admin/tenants" class="btn btn-ghost btn-sm">Tenants</a>
+    <span class="badge badge-ghost">{{ requests().length }} εκκρεμή</span>
+  </div>
+
+  @if (errorMsg()) {
+    <div role="alert" class="alert alert-error text-sm">
+      <span>{{ errorMsg() }}</span>
+    </div>
+  }
+
+  @if (loading()) {
+    <div class="flex justify-center py-12">
+      <span class="loading loading-spinner loading-lg text-primary"></span>
+    </div>
+  } @else if (requests().length === 0) {
+    <div class="text-center py-16 text-base-content/40">
+      <p class="text-sm">Δεν υπάρχουν εκκρεμή αιτήματα</p>
+    </div>
+  } @else {
+    <div class="card bg-base-100 shadow-sm border border-base-200 overflow-hidden">
+      <div class="overflow-x-auto">
+        <table class="table table-sm">
+          <thead class="bg-base-200">
+            <tr class="text-xs uppercase text-base-content/50">
+              <th>Tenant</th>
+              <th>Τρέχον πλάνο</th>
+              <th>Ζητούμενο πλάνο</th>
+              <th>Σημείωση</th>
+              <th>Ημερομηνία</th>
+              <th class="text-right">Ενέργειες</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (r of requests(); track r.id) {
+              <tr class="hover">
+                <td class="font-medium text-sm">{{ r.tenantName ?? '—' }}</td>
+                <td><span class="badge badge-ghost badge-sm">{{ planLabel(r.currentPlanType) }}</span></td>
+                <td><span class="badge badge-primary badge-sm">{{ planLabel(r.requestedPlanType) }}</span></td>
+                <td class="text-sm text-base-content/60 max-w-xs truncate">{{ r.note || '—' }}</td>
+                <td class="text-sm text-base-content/60">{{ r.createdAt | date:'dd/MM/yyyy HH:mm' }}</td>
+                <td class="text-right">
+                  @if (actingId() === r.id) {
+                    <span class="loading loading-spinner loading-sm"></span>
+                  } @else {
+                    <div class="flex gap-2 justify-end">
+                      <button type="button" class="btn btn-success btn-xs" (click)="approve(r)">Έγκριση</button>
+                      <button type="button" class="btn btn-error btn-outline btn-xs" (click)="reject(r)">Απόρριψη</button>
+                    </div>
+                  }
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+  }
+
+</div>

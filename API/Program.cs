@@ -82,6 +82,7 @@ builder.Services.AddScoped<IPaymentService, PaymentService>();
 builder.Services.AddScoped<IDashboardService, DashboardService>();
 builder.Services.AddScoped<IContractService, ContractService>();
 builder.Services.AddScoped<IInstallmentService, InstallmentService>();
+builder.Services.AddScoped<IPlanGate, PlanGateService>();
 builder.Services.AddHttpClient();
 builder.Services.AddScoped<AadeService>();
 
@@ -107,6 +108,9 @@ builder.Services.AddScoped<IAttachmentService, AttachmentService>();
 builder.Services.Configure<ReportSettings>(builder.Configuration.GetSection("Reports"));
 builder.Services.AddSingleton<ExportThrottle>();
 builder.Services.AddScoped<IReportService, ReportService>();
+// Πλήρες backup ανά tenant — μοιράζεται το ίδιο ExportThrottle με τις αναφορές
+// αφού και τα δύο κρατούν ολόκληρο workbook στη μνήμη (ClosedXML).
+builder.Services.AddScoped<IBackupService, API.Services.Backup.BackupService>();
 
 
 

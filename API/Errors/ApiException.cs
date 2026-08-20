@@ -1,3 +1,5 @@
+using static API.Entities.Enums;
+
 namespace API.Errors;
 
 public class ApiException (int statusCode, string message, string? details)
@@ -17,3 +19,9 @@ public class BadRequestException(string message) : Exception(message);
  
 // Maps to 409 — used when a concurrent update is detected (xmin mismatch)
 public class ConflictException(string message) : Exception(message);
+
+// Maps to 403 — the tenant's current plan doesn't allow this action.
+public class PlanRestrictionException(string message, PlanType requiredPlan) : Exception(message)
+{
+    public PlanType RequiredPlan { get; } = requiredPlan;
+}

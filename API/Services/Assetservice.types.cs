@@ -15,7 +15,8 @@ public partial class AssetService(
     ITenantProvider tenantProvider,
     IFileStorage fileStorage,
     FileValidationService fileValidator,
-    ImageCompressor imageCompressor) : IAssetService
+    ImageCompressor imageCompressor,
+    IPlanGate planGate) : IAssetService
 {
     private static readonly Regex FieldNamePattern = new(@"^[a-z][a-z0-9_]{1,49}$", RegexOptions.Compiled);
  

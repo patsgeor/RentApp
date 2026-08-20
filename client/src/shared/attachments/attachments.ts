@@ -1,6 +1,7 @@
 import { Component, Input, OnInit, inject, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { AttachmentService } from '../../core/services/attachment-service';
+import { AccountService } from '../../core/services/account-service';
 import { AttachmentDto, AttachmentEntityType } from '../../types/attachment';
 
 /**
@@ -20,8 +21,10 @@ export class Attachments implements OnInit {
   @Input({ required: true }) entityId!: string;
 
   private service = inject(AttachmentService);
+  private accountService = inject(AccountService);
 
   readonly maxUploadMb = AttachmentService.MAX_UPLOAD_MB;
+  readonly canUpload = this.accountService.isBasic;
 
   items    = signal<AttachmentDto[]>([]);
   loading  = signal(false);

@@ -2,6 +2,7 @@ using System;
 using API.Data.Contexts;
 using API.DTOs.Tenant;
 using API.Entities;
+using API.Extensions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -220,7 +221,7 @@ public class TenantController(
         return Ok(summary);
     }
 
-    // PATCH api/tenant/{id}/plan
+    // PATCH api/tenant/{id}/plan — άμεση χειροκίνητη αλλαγή, χωρίς αίτημα
     [HttpPatch("{id:guid}/plan")]
     public async Task<IActionResult> UpdatePlan(Guid id, [FromBody] UpdatePlanDto dto)
     {
@@ -230,11 +231,87 @@ public class TenantController(
 
         if (tenant == null) return NotFound();
 
-        tenant.PlanType = dto.PlanType;
+        SetTenantPlan(tenant, dto.PlanType);
         await context.SaveChangesAsync();
 
         return Ok(new { tenant.Id, tenant.Name, tenant.PlanType });
     }
+
+    // GET api/tenant/upgrade-requests?status=Pending
+    [HttpGet("upgrade-requests")]
+    public async Task<ActionResult<List<UpgradeRequestDto>>> GetUpgradeRequests([FromQuery] UpgradeRequestStatus? status)
+    {
+        var query = context.PlanUpgradeRequests.IgnoreQueryFilters().AsNoTracking().AsQueryable();
+        if (status.HasValue) query = query.Where(r => r.Status == status.Value);
+
+        var requests = await query.OrderByDescending(r => r.CreatedAt).ToListAsync();
+
+        var tenants = await context.Tenants.IgnoreQueryFilters()
+            .Where(t => requests.Select(r => r.TenantId).Contains(t.Id))
+            .ToDictionaryAsync(t => t.Id, t => t);
+
+        var items = requests.Select(r =>
+        {
+            tenants.TryGetValue(r.TenantId, out var t);
+            return new UpgradeRequestDto
+            {
+                Id                = r.Id,
+                TenantId          = r.TenantId,
+                TenantName        = t?.Name,
+                CurrentPlanType   = t?.PlanType ?? default,
+                RequestedPlanType = r.RequestedPlanType,
+                Status            = r.Status,
+                Note              = r.Note,
+                ReviewNote        = r.ReviewNote,
+                CreatedAt         = r.CreatedAt,
+                ReviewedAt        = r.Status == UpgradeRequestStatus.Pending ? null : r.UpdatedAt
+            };
+        }).ToList();
+
+        return Ok(items);
+    }
+
+    // POST api/tenant/upgrade-requests/{id}/approve
+    [HttpPost("upgrade-requests/{id:guid}/approve")]
+    public async Task<IActionResult> ApproveUpgradeRequest(Guid id, [FromBody] ReviewUpgradeRequestDto dto)
+    {
+        var request = await context.PlanUpgradeRequests.IgnoreQueryFilters().FirstOrDefaultAsync(r => r.Id == id);
+        if (request == null) return NotFound();
+        if (request.Status != UpgradeRequestStatus.Pending)
+            return BadRequest(new { message = "Το αίτημα έχει ήδη αξιολογηθεί." });
+
+        var tenant = await context.Tenants.IgnoreQueryFilters().FirstOrDefaultAsync(t => t.Id == request.TenantId);
+        if (tenant == null) return NotFound();
+
+        SetTenantPlan(tenant, request.RequestedPlanType);
+        request.Status     = UpgradeRequestStatus.Approved;
+        request.ReviewNote = dto.ReviewNote;
+        request.UpdatedBy  = User.GetMemberId();
+
+        await context.SaveChangesAsync();
+
+        return Ok(new { tenant.Id, tenant.Name, tenant.PlanType });
+    }
+
+    // POST api/tenant/upgrade-requests/{id}/reject
+    [HttpPost("upgrade-requests/{id:guid}/reject")]
+    public async Task<IActionResult> RejectUpgradeRequest(Guid id, [FromBody] ReviewUpgradeRequestDto dto)
+    {
+        var request = await context.PlanUpgradeRequests.IgnoreQueryFilters().FirstOrDefaultAsync(r => r.Id == id);
+        if (request == null) return NotFound();
+        if (request.Status != UpgradeRequestStatus.Pending)
+            return BadRequest(new { message = "Το αίτημα έχει ήδη αξιολογηθεί." });
+
+        request.Status     = UpgradeRequestStatus.Rejected;
+        request.ReviewNote = dto.ReviewNote;
+        request.UpdatedBy  = User.GetMemberId();
+
+        await context.SaveChangesAsync();
+
+        return Ok(new { request.Id, request.Status });
+    }
+
+    private static void SetTenantPlan(Entities.Tenant tenant, PlanType planType) => tenant.PlanType = planType;
 
     // PATCH api/tenant/{id}/status
     [HttpPatch("{id:guid}/status")]

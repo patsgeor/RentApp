@@ -6,6 +6,20 @@ export type InviteCreds= {
 }
 
 export enum PlanType { Free = 0, Basic = 1, Pro = 2 }
+export enum UpgradeRequestStatus { Pending = 0, Approved = 1, Rejected = 2 }
+
+export interface UpgradeRequestDto {
+  id: string;
+  tenantId: string;
+  tenantName?: string;
+  currentPlanType: PlanType;
+  requestedPlanType: PlanType;
+  status: UpgradeRequestStatus;
+  note?: string;
+  reviewNote?: string;
+  createdAt: string;
+  reviewedAt?: string;
+}
 
 /** Μέλος της εταιρείας, όπως εμφανίζεται στη σελίδα διαχείρισης χρηστών. */
 export interface TenantMemberDto {

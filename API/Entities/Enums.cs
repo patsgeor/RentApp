@@ -12,6 +12,7 @@ public static class Enums
     public enum PaymentMethod { Cash = 0, Card = 1, BankTransfer = 2 }
     public enum TransactionType { Income = 0, Expense = 1 }
     public enum SubscriptionStatus { Trial = 0, Active = 1, Suspended = 2, Cancelled = 3 }
+    public enum UpgradeRequestStatus { Pending = 0, Approved = 1, Rejected = 2 }
     public enum FieldDataType { Text = 0, Number = 1, Boolean = 2, Date = 3, DateTime = 4 }
 
     // Κατάσταση περιοδικής οφειλής

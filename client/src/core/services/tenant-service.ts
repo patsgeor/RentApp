@@ -5,7 +5,7 @@ import {
   TenantAdminDto, SubscriptionStatus, TenantUserDto,
   AuditLogDto, ErrorLogDto, PlatformSummaryDto
 } from '../../types/tenant';
-import { PlanType } from '../../types/user';
+import { PlanType, UpgradeRequestDto, UpgradeRequestStatus } from '../../types/user';
 import { PaginatedResult } from '../../types/pagination';
 
 @Injectable({ providedIn: 'root' })
@@ -58,6 +58,24 @@ export class TenantService {
   updateStatus(id: string, subscriptionStatus: SubscriptionStatus) {
     return this.http.patch<{ id: string; name: string; subscriptionStatus: SubscriptionStatus }>(
       `${this.base}/${id}/status`, { subscriptionStatus }
+    );
+  }
+
+  getUpgradeRequests(status?: UpgradeRequestStatus) {
+    let params = new HttpParams();
+    if (status !== undefined) params = params.set('status', status);
+    return this.http.get<UpgradeRequestDto[]>(`${this.base}/upgrade-requests`, { params });
+  }
+
+  approveUpgradeRequest(id: string, reviewNote?: string) {
+    return this.http.post<{ id: string; name: string; planType: PlanType }>(
+      `${this.base}/upgrade-requests/${id}/approve`, { reviewNote }
+    );
+  }
+
+  rejectUpgradeRequest(id: string, reviewNote?: string) {
+    return this.http.post<{ id: string; status: UpgradeRequestStatus }>(
+      `${this.base}/upgrade-requests/${id}/reject`, { reviewNote }
     );
   }
 }

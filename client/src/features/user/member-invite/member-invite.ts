@@ -13,6 +13,8 @@ export class MemberInvite {
   private fb = inject(FormBuilder);
   private accountService = inject(AccountService);
 
+  readonly canInvite = this.accountService.isBasic;
+
   loading = signal(false);
   errorMessage = signal('');
   successMessage = signal('');

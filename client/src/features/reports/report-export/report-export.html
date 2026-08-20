@@ -16,6 +16,24 @@
     </div>
   }
 
+  <!-- ── Πλήρες Backup ──────────────────────────────────────── -->
+  @if (isAdmin()) {
+    <div class="card bg-base-100 shadow-sm border border-base-200">
+      <div class="card-body gap-2 sm:flex-row sm:items-center">
+        <div class="flex-1">
+          <h2 class="font-semibold">Πλήρες Backup Δεδομένων</h2>
+          <p class="text-sm text-base-content/60">
+            Ένα αρχείο Excel με όλα τα δεδομένα της εταιρείας σας — πελάτες, πάγια, συμβόλαια, δόσεις, πληρωμές και μέλη.
+          </p>
+        </div>
+        <button type="button" class="btn btn-outline gap-2" [disabled]="backingUp()" (click)="runBackup()">
+          @if (backingUp()) { <span class="loading loading-spinner loading-sm"></span> }
+          Λήψη Πλήρους Backup
+        </button>
+      </div>
+    </div>
+  }
+
   <!-- ── Περίοδος ───────────────────────────────────────────── -->
   <div class="card bg-base-100 shadow-sm border border-base-200">
     <div class="card-body gap-4">

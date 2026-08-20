@@ -5,6 +5,7 @@ import { debounceTime, distinctUntilChanged, Subject } from 'rxjs';
 import { ContractService } from '../../../core/services/contract-service';
 import { CustomerService } from '../../../core/services/customer-service';
 import { InstallmentService } from '../../../core/services/installment-service';
+import { AccountService } from '../../../core/services/account-service';
 import { CustomerLookupDto, ContactDto } from '../../../types/customers';
 import {
   AvailableAssetDto, ContractAssetLineItem, ContractDetailDto,
@@ -26,7 +27,9 @@ export class ContractForm implements OnInit {
   private route          = inject(ActivatedRoute);
   private router         = inject(Router);
   private location       = inject(Location);
+  private accountService = inject(AccountService);
 
+  readonly canSendEmail         = this.accountService.isBasic;
   readonly RateUnit             = RateUnit;
   readonly InstallmentFrequency = InstallmentFrequency;
   readonly RentalStatus         = RentalStatus;

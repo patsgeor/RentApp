@@ -42,6 +42,7 @@ import { tenantOnlyGuard } from '../core/guards/tenant-only-guard';
 import { TenantList } from '../features/admin/tenant-list/tenant-list';
 import { AdminDashboard } from '../features/admin/admin-dashboard/admin-dashboard';
 import { AdminLogs } from '../features/admin/admin-logs/admin-logs';
+import { UpgradeRequests } from '../features/admin/upgrade-requests/upgrade-requests';
 
 // Σελίδες που αφορούν δεδομένα ενός tenant. Ο tenantOnlyGuard μπαίνει αυτόματα
 // σε όλες, ώστε να μην ξεχαστεί σε καμία όταν προστεθούν νέες.
@@ -127,9 +128,10 @@ export const routes: Routes = [
       { path: 'backups',  component: DataBackupPolicy },
 
       // Σελίδες SuperAdmin (πλατφόρμα)
-      { path: 'admin/dashboard', component: AdminDashboard, canActivate: [superAdminGuard] },
-      { path: 'admin/tenants',   component: TenantList,     canActivate: [superAdminGuard] },
-      { path: 'admin/logs',      component: AdminLogs,      canActivate: [superAdminGuard] },
+      { path: 'admin/dashboard',         component: AdminDashboard,   canActivate: [superAdminGuard] },
+      { path: 'admin/tenants',           component: TenantList,       canActivate: [superAdminGuard] },
+      { path: 'admin/logs',              component: AdminLogs,        canActivate: [superAdminGuard] },
+      { path: 'admin/upgrade-requests',  component: UpgradeRequests,  canActivate: [superAdminGuard] },
 
       // Σελίδες tenant — φραγμένες για τον SuperAdmin
       ...tenantRoutes,

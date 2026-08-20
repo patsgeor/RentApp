@@ -6,6 +6,7 @@ using API.Helper;
 using API.Interfaces;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
+using static API.Entities.Enums;
 
 namespace API.Services.Storage;
 
@@ -25,7 +26,8 @@ public class AttachmentService(
     IFileStorage storage,
     FileValidationService validator,
     ImageCompressor compressor,
-    IOptions<StorageSettings> storageOptions) : IAttachmentService
+    IOptions<StorageSettings> storageOptions,
+    IPlanGate planGate) : IAttachmentService
 {
     private readonly StorageSettings _storageSettings = storageOptions.Value;
 
@@ -47,6 +49,7 @@ public class AttachmentService(
         string entityType, Guid entityId, IFormFile file, string currentUserId)
     {
         EnsureKnownEntityType(entityType);
+        await planGate.EnsureAtLeastAsync(PlanType.Basic);
         await EnsureParentBelongsToTenantAsync(entityType, entityId);
 
         var contentType = await validator.ValidateAsync(file);

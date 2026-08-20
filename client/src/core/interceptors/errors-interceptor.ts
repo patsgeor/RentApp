@@ -37,6 +37,16 @@ export const errorsInterceptor: HttpInterceptorFn = (req, next) => {
               toast.error('Unauthorized');
             }
             break;
+          case 403:
+            // Ξεχωριστό μήνυμα για plan-gating (upgradeRequired) από γενική
+            // απαγόρευση ρόλου — ο χρήστης πρέπει να καταλάβει αν φταίει το
+            // πλάνο του ή αν απλά δεν έχει δικαίωμα πρόσβασης.
+            if (error.error?.upgradeRequired) {
+              toast.error(error.error.message || 'Αυτή η ενέργεια απαιτεί αναβάθμιση πλάνου.');
+            } else {
+              toast.error(error.error?.message || 'Δεν έχετε δικαίωμα για αυτή την ενέργεια.');
+            }
+            break;
           case 404:
             //toast.error('Not Found');
             // Η αναζήτηση πρόσκλησης χειρίζεται μόνη της το «άκυρη ή ληγμένη

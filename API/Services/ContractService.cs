@@ -14,7 +14,8 @@ public class ContractService(
     ITenantProvider tenantProvider,
     AppDbContext context,
     IEmailService emailService,
-    IInstallmentService installmentService) : IContractService
+    IInstallmentService installmentService,
+    IPlanGate planGate) : IContractService
 {
     // Η ενημέρωση ληγμένων συμβολαίων έφευγε από εδώ: έγραφε στη βάση σε κάθε
     // GET της λίστας. Εκτελείται πλέον περιοδικά από το StatusRefreshService.
@@ -251,6 +252,8 @@ public class ContractService(
     public async Task<ContractEmailResultDto> SendByEmailAsync(
         Guid id, ContractEmailDto dto, IEnumerable<EmailAttachment> attachments, string memberId, string? senderEmail = null)
     {
+        await planGate.EnsureAtLeastAsync(PlanType.Basic);
+
         var contract = await context.Contracts
             .Include(c => c.Customer).ThenInclude(cu => cu.Contacts)
             .Include(c => c.ContractAssets).ThenInclude(ca => ca.Asset)

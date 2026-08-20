@@ -2,6 +2,7 @@ import { Component, OnInit, inject, signal } from '@angular/core';
 import { FormBuilder, FormGroup, ReactiveFormsModule, ValidatorFn, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { AssetService } from '../../../core/services/asset-service';
+import { AccountService } from '../../../core/services/account-service';
 import {
   AssetCreateDto, AssetDetailDto, AssetDto, AssetStatus, AssetTypeFieldDto,
   AssetTypeLookupDto, AssetUpdateDto, FieldDataType,
@@ -22,7 +23,9 @@ export class AssetForm implements OnInit {
   private router  = inject(Router);
   private route   = inject(ActivatedRoute);
   private service = inject(AssetService);
+  private accountService = inject(AccountService);
 
+  readonly canUpload = this.accountService.isBasic;
   readonly RateUnit      = RateUnit;
   readonly FieldDataType = FieldDataType;
   readonly AssetStatus   = AssetStatus;

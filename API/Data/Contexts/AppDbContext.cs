@@ -36,6 +36,7 @@ public class AppDbContext(
     public DbSet<Payment> Payments { get; set; }
     public DbSet<PaymentAsset> PaymentAssets { get; set; }
     public DbSet<PaymentInstallment> PaymentInstallments { get; set; }
+    public DbSet<PlanUpgradeRequest> PlanUpgradeRequests { get; set; }
     public DbSet<Tenant> Tenants { get; set; }
 
     protected override void OnModelCreating(ModelBuilder builder)
@@ -57,6 +58,11 @@ public class AppDbContext(
             .WithOne(m => m.User)
             .HasForeignKey<Member>(m => m.Id)
             .OnDelete(DeleteBehavior.Cascade);
+
+        // Το POST api/account/refresh-token κάνει lookup με βάση αυτή τη στήλη σε
+        // κάθε ανανέωση συνεδρίας — χωρίς index ήταν πλήρες σάρωμα του πίνακα χρηστών.
+        builder.Entity<AppUser>()
+            .HasIndex(u => u.RefreshToken);
 
         // Global Query Filters: Multi-Tenancy & Soft Delete
         foreach (var entityType in builder.Model.GetEntityTypes())
@@ -245,6 +251,14 @@ public class AppDbContext(
         builder.Entity<Asset>()
             .HasIndex(a => a.PropertiesJson, "idx_asset_properties_jsonb")
             .HasMethod("GIN");
+
+        // ── PlanUpgradeRequest ──────────────────────────────────────────
+        // Ένα εκκρεμές αίτημα ανά tenant τη φορά — επιβάλλεται στη βάση
+        // (partial unique index) ως δίχτυ ασφαλείας πάνω στον έλεγχο εφαρμογής.
+        builder.Entity<PlanUpgradeRequest>()
+            .HasIndex(x => x.TenantId)
+            .IsUnique()
+            .HasFilter("\"Status\" = 0");
 
         // ── Photo ────────────────────────────────────────────────────────
         builder.Entity<Photo>()

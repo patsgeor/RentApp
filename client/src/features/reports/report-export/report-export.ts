@@ -1,6 +1,7 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ReportService } from '../../../core/services/report-service';
+import { AccountService } from '../../../core/services/account-service';
 import {
   AssetPeriodMode, ReportDataset, ReportPreviewDto, ReportRequestDto
 } from '../../../types/report';
@@ -18,9 +19,15 @@ interface DatasetOption {
 })
 export class ReportExport {
   private svc = inject(ReportService);
+  private accountService = inject(AccountService);
 
   readonly AssetPeriodMode = AssetPeriodMode;
   readonly ReportDataset = ReportDataset;
+
+  // Το backup endpoint είναι RequireAdminRole στο backend — κρύβουμε το κουμπί
+  // για μη-admin μέλη αντί να τους αφήσουμε να πάρουν 403.
+  readonly isAdmin = computed(() => (this.accountService.currentUser() as any)?.roles?.includes('Admin') ?? false);
+  backingUp = signal(false);
 
   readonly datasetOptions: DatasetOption[] = [
     { value: ReportDataset.Kpi,          label: 'Σύνοψη',     hint: 'Συγκεντρωτικά μεγέθη της περιόδου' },
@@ -113,6 +120,25 @@ export class ReportExport {
       error: async e => {
         this.errorMsg.set(await this.blobMessage(e));
         this.exporting.set(false);
+      }
+    });
+  }
+
+  runBackup() {
+    if (this.backingUp()) return;
+    this.backingUp.set(true);
+    this.errorMsg.set('');
+
+    this.svc.backup().subscribe({
+      next: res => {
+        const fallback = `rentapp-backup-${this.isoDate(new Date())}.xlsx`;
+        const name = this.svc.filenameFrom(res.headers.get('Content-Disposition'), fallback);
+        if (res.body) this.svc.saveBlob(res.body, name);
+        this.backingUp.set(false);
+      },
+      error: async e => {
+        this.errorMsg.set(await this.blobMessage(e));
+        this.backingUp.set(false);
       }
     });
   }

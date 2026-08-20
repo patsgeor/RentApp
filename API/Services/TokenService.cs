@@ -12,6 +12,12 @@ namespace API.Services;
 
 public class TokenService (IConfiguration config,UserManager<AppUser> userManager): ITokenService
 {
+    // Σύντομη διάρκεια σκόπιμα: το access token ζει στο localStorage του browser
+    // (εκτεθειμένο σε XSS), οπότε το «παράθυρο» έκθεσης πρέπει να είναι μικρό. Η
+    // ανανέωση συνεδρίας γίνεται αθόρυβα μέσω του ήδη σωστά χτισμένου refresh
+    // token (HttpOnly/Secure/SameSite=Strict cookie, 7 ημέρες) — βλ. AccountController.RefreshToken.
+    private const int AccessTokenLifetimeMinutes = 30;
+
     public async Task<string> CreateToken(AppUser user)
     {
         // Ανάκτηση του TokenKey από το configuration
@@ -51,7 +57,7 @@ public class TokenService (IConfiguration config,UserManager<AppUser> userManage
         {
             Subject = new ClaimsIdentity(claims),
             NotBefore = DateTime.UtcNow,
-            Expires = DateTime.Now.AddDays(7),
+            Expires = DateTime.UtcNow.AddMinutes(AccessTokenLifetimeMinutes),
             SigningCredentials = creds,
             Issuer = tokenIssuer,
             Audience = tokenAudience

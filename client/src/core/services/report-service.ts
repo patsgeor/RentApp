@@ -7,6 +7,15 @@ import { ReportPreviewDto, ReportRequestDto } from '../../types/report';
 export class ReportService {
   private http = inject(HttpClient);
   private base = `${environment.apiUrl}report`;
+  private backupBase = `${environment.apiUrl}backup`;
+
+  /** Πλήρες backup όλων των δεδομένων του tenant — ίδιο μοτίβο κατεβάσματος με το export(). */
+  backup() {
+    return this.http.get(`${this.backupBase}/export`, {
+      responseType: 'blob',
+      observe: 'response',
+    });
+  }
 
   /** Πλήθος γραμμών ανά φύλλο, πριν ξεκινήσει η εξαγωγή. */
   preview(req: ReportRequestDto) {

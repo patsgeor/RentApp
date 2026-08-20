@@ -39,6 +39,10 @@ public class AttachmentController(IAttachmentService attachmentService) : BaseAp
         }
         catch (NotFoundException ex)   { return NotFound(new { message = ex.Message }); }
         catch (BadRequestException ex) { return BadRequest(new { message = ex.Message }); }
+        catch (PlanRestrictionException ex)
+        {
+            return StatusCode(403, new { message = ex.Message, upgradeRequired = true, requiredPlan = ex.RequiredPlan.ToString() });
+        }
     }
 
     [HttpDelete("{id:guid}")]

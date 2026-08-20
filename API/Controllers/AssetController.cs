@@ -183,6 +183,10 @@ public class AssetController(IAssetService assetService) : BaseApiController
             return Ok(photo);
         }
         catch (NotFoundException ex) { return NotFound(new { message = ex.Message }); }
+        catch (PlanRestrictionException ex)
+        {
+            return StatusCode(403, new { message = ex.Message, upgradeRequired = true, requiredPlan = ex.RequiredPlan.ToString() });
+        }
         catch (Exception ex) { return BadRequest(new { message = ex.Message }); }
     }
 

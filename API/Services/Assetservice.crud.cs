@@ -193,6 +193,8 @@ namespace API.Services;
         var asset = await unitOfWork.AssetRepository.GetEntityByIdAsync(assetId)
             ?? throw new NotFoundException($"Asset '{assetId}' was not found.");
 
+        await planGate.EnsureAtLeastAsync(PlanType.Basic);
+
         var contentType = await fileValidator.ValidateAsync(file);
 
         await using var source = file.OpenReadStream();

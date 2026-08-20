@@ -65,20 +65,26 @@
       }
     }
 
-    <label class="btn btn-sm btn-outline btn-primary gap-1.5 self-start">
-      @if (uploading()) {
-        <span class="loading loading-spinner loading-xs"></span>
-      } @else {
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5"
-             stroke="currentColor" class="size-4">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-        </svg>
-      }
-      Προσθήκη Αρχείου
-      <input type="file" class="hidden" accept="image/jpeg,image/png,image/webp,application/pdf"
-             [disabled]="uploading()" (change)="onFileSelected($event)" />
-    </label>
-    <p class="text-xs text-base-content/40">JPEG, PNG, WebP ή PDF — έως {{ maxUploadMb }} MB.</p>
+    @if (canUpload()) {
+      <label class="btn btn-sm btn-outline btn-primary gap-1.5 self-start">
+        @if (uploading()) {
+          <span class="loading loading-spinner loading-xs"></span>
+        } @else {
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5"
+               stroke="currentColor" class="size-4">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+          </svg>
+        }
+        Προσθήκη Αρχείου
+        <input type="file" class="hidden" accept="image/jpeg,image/png,image/webp,application/pdf"
+               [disabled]="uploading()" (change)="onFileSelected($event)" />
+      </label>
+      <p class="text-xs text-base-content/40">JPEG, PNG, WebP ή PDF — έως {{ maxUploadMb }} MB.</p>
+    } @else {
+      <div class="alert alert-warning py-2 text-sm">
+        <span>Η προσθήκη αρχείων απαιτεί πλάνο Basic ή ανώτερο.</span>
+      </div>
+    }
 
   </div>
 </div>
