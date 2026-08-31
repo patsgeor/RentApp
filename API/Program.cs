@@ -110,7 +110,7 @@ builder.Services.AddSingleton<ExportThrottle>();
 builder.Services.AddScoped<IReportService, ReportService>();
 // Πλήρες backup ανά tenant — μοιράζεται το ίδιο ExportThrottle με τις αναφορές
 // αφού και τα δύο κρατούν ολόκληρο workbook στη μνήμη (ClosedXML).
-builder.Services.AddScoped<IBackupService, API.Services.Backup.BackupService>();
+builder.Services.AddScoped<IBackupService, API.Services.DataExport.BackupService>();
 
 
 

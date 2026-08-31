@@ -21,6 +21,7 @@
 
           <div class="w-14 h-14 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-xl shrink-0">
             {{ customer()!.name[0].toUpperCase() }}
+            {{ customer()!.name[0].toLocaleUpperCase('el') }}
           </div>
 
           <div class="flex-1 min-w-0">

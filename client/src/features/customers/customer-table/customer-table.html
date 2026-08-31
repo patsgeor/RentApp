@@ -70,6 +70,7 @@
                      [class.bg-primary/10]="!c.isDeleted"
                      [class.text-primary]="!c.isDeleted">
                   {{ c.name[0].toUpperCase() }}
+                  {{ c.name[0].toLocaleUpperCase('el') }}
                 </div>
                 <div>
                   <p class="font-medium leading-tight" [class.line-through]="c.isDeleted">{{ c.name }}</p>
