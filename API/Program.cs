@@ -182,12 +182,41 @@ builder.Services.AddAuthorizationBuilder()
 // ------------------------------------------------------------------------------
 static string ClientKey(HttpContext ctx)
 {
-    var forwarded = ctx.Request.Headers["X-Forwarded-For"].FirstOrDefault();
+    var forwarded = ctx.Request.Headers["X-Forwarded-For"].ToString();
 
     if (!string.IsNullOrWhiteSpace(forwarded))
-        return forwarded.Split(',')[0].Trim();
+    {
+        // Η ΤΕΛΕΥΤΑΙΑ τιμή και όχι η πρώτη: ο πελάτης μπορεί να στείλει μόνος του
+        // X-Forwarded-For με ό,τι IP θέλει, και αν μετρούσαμε την πρώτη τιμή θα
+        // άλλαζε ψεύτικη IP σε κάθε αίτημα μηδενίζοντας τον μετρητή. Ο αντίστροφος
+        // διακομιστής προσθέτει τη δική του, αληθινή παρατήρηση στο τέλος.
+        var last = forwarded.Split(',')[^1].Trim();
+        var ip = StripPort(last);
+
+        if (!string.IsNullOrEmpty(ip)) return ip;
+    }
 
     return ctx.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+}
+
+/// <summary>
+/// Το App Service γράφει τη διεύθυνση με θύρα (π.χ. 203.0.113.5:49812). Χωρίς
+/// αφαίρεσή της, κάθε νέα σύνδεση του ίδιου πελάτη θα έπαιρνε δικό της μετρητή.
+/// </summary>
+static string StripPort(string value)
+{
+    if (value.StartsWith('['))                       // [2001:db8::1]:49812
+    {
+        var close = value.IndexOf(']');
+        return close > 0 ? value[1..close] : value;
+    }
+
+    var colon = value.IndexOf(':');
+
+    // Ένα μόνο ':' σημαίνει IPv4 με θύρα. Περισσότερα σημαίνουν γυμνή IPv6.
+    if (colon > 0 && value.IndexOf(':', colon + 1) < 0) return value[..colon];
+
+    return value;
 }
 
 builder.Services.AddRateLimiter(options =>
@@ -229,7 +258,7 @@ builder.Services.AddRateLimiter(options =>
         ClientKey(ctx), _ => new FixedWindowRateLimiterOptions
         {
             PermitLimit = 30,
-            Window = TimeSpan.FromMinutes(1),
+            Window = TimeSpan.FromMinutes(5),
             QueueLimit = 0
         }));
 });
