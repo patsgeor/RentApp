@@ -47,6 +47,7 @@ public class ContractService(
             Notes            = a.Notes
         }).ToList();
 
+        await EnsureAssetsRentableAsync(assetLines.Select(a => a.AssetId), alreadyInContract: []);
         await EnsureNoAssetOverlapAsync(assetLines, excludeContractId: null);
 
         var totalAmount = assetLines.Sum(a => a.CalculatedAmount) - dto.DiscountAmount + dto.TaxAmount;
@@ -116,6 +117,14 @@ public class ContractService(
     // πριν τη χρήση παρακάτω — στην πράξη πάντα εκτελείται πρώτα.
     decimal totalAmount = 0;
 
+    // Τα πάγια που είχε ήδη το συμβόλαιο επιτρέπεται να μείνουν σε αυτό ακόμη κι αν στο μεταξύ
+    // μπήκαν σε συντήρηση· ο έλεγχος κατάστασης αφορά μόνο πάγια που προστίθενται τώρα.
+    var existingAssetIds = await context.ContractAssets
+        .AsNoTracking()
+        .Where(ca => ca.ContractId == id)
+        .Select(ca => ca.AssetId)
+        .ToListAsync();
+
     // Το EnableRetryOnFailure (βλ. Program.cs — απαραίτητο για τη Neon) απαγορεύει
     // χειροκίνητα transactions εκτός CreateExecutionStrategy — χωρίς αυτό, κάθε
     // ενημέρωση συμβολαίου θα πετούσε "NpgsqlRetryingExecutionStrategy does not
@@ -140,6 +149,7 @@ public class ContractService(
                 Notes            = a.Notes
             }).ToList();
 
+            await EnsureAssetsRentableAsync(newAssets.Select(a => a.AssetId), existingAssetIds);
             await EnsureNoAssetOverlapAsync(newAssets, excludeContractId: id);
 
             uow.ContractRepository.AddAssets(newAssets);
@@ -387,6 +397,26 @@ public class ContractService(
     // Ξανατσεκάρει επικάλυψη ημερομηνιών ανά πάγιο πριν το save — το read-only
     // GetAvailableAssetsAsync (dropdown) δεν εμποδίζει δύο ταυτόχρονα requests
     // από το να διπλοκλείσουν το ίδιο πάγιο.
+    /// <summary>
+    /// Νέα μίσθωση επιτρέπεται μόνο για πάγια σε κατάσταση «Διαθέσιμο». Ο έλεγχος γίνεται και
+    /// εδώ, όχι μόνο στη λίστα available-assets, ώστε να μην παρακάμπτεται με απευθείας κλήση API.
+    /// </summary>
+    private async Task EnsureAssetsRentableAsync(IEnumerable<Guid> assetIds, IReadOnlyCollection<Guid> alreadyInContract)
+    {
+        var toCheck = assetIds.Except(alreadyInContract).Distinct().ToList();
+        if (toCheck.Count == 0) return;
+
+        var unavailable = await context.Assets
+            .AsNoTracking()
+            .Where(a => toCheck.Contains(a.Id) && a.Status != AssetStatus.Active)
+            .Select(a => a.Name)
+            .ToListAsync();
+
+        if (unavailable.Count > 0)
+            throw new BadRequestException(
+                $"Δεν είναι διαθέσιμα για μίσθωση (συντήρηση, κατεστραμμένα ή αποσυρμένα): {string.Join(", ", unavailable)}.");
+    }
+
     private async Task EnsureNoAssetOverlapAsync(List<ContractAsset> assetLines, Guid? excludeContractId)
     {
         var assetIds = assetLines.Select(a => a.AssetId).ToList();

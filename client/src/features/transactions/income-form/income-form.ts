@@ -3,7 +3,7 @@ import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { CurrencyPipe, DatePipe, DecimalPipe } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { PaymentService } from '../../../core/services/payment-service';
-import { AllocationItemDto, ContractPaymentDto, PaymentMethod } from '../../../types/payment';
+import { AllocationItemDto, ContractPaymentDto, PaymentMatchStatus, PaymentMethod } from '../../../types/payment';
 import { RentalStatus } from '../../../types/asset';
 import { InstallmentService } from '../../../core/services/installment-service';
 import { InstallmentDto, InstallmentStatus } from '../../../types/installment';
@@ -35,13 +35,18 @@ export class IncomeForm implements OnInit {
   selected     = signal<ContractPaymentDto | null>(null);
   installments = signal<InstallmentDto[]>([]);  saving   = signal(false);
 
-  success  = signal(false);
-  errorMsg = signal('');
+  successMsg  = signal('');
+  // 'warning' όταν η είσπραξη καταχωρίστηκε αλλά δεν βρέθηκε συμβόλαιο για τον κωδικό αναφοράς
+  successKind = signal<'success' | 'warning'>('success');
+  errorMsg    = signal('');
 
   form = this.fb.group({
     amount:        [null as number | null, [Validators.required, Validators.min(0.01)]],
     paymentDate:   [new Date().toISOString().slice(0, 10), Validators.required],
     paymentMethod: [PaymentMethod.Cash as number],
+    // Ο κωδικός που έγραψε ο πελάτης στην αιτιολογία της κατάθεσης. Χωρίς επιλεγμένο συμβόλαιο,
+    // ο server εντοπίζει μόνος του το συμβόλαιο με αυτόν τον κωδικό και κατανέμει με FIFO.
+    referenceCode: ['', Validators.maxLength(100)],
     notes:         [''],
   });
 
@@ -96,7 +101,7 @@ export class IncomeForm implements OnInit {
     this.selected.set(c);
     this.installments.set([]);
     this.errorMsg.set('');
-    this.success.set(false);
+    this.successMsg.set('');
     this.form.patchValue({ amount: c.outstandingBalance > 0 ? c.outstandingBalance : null });
     this.installmentSvc.getByContract(c.id).subscribe({
       next: list => this.installments.set(list),
@@ -113,22 +118,30 @@ export class IncomeForm implements OnInit {
   }
 
   submit() {
-    if (this.form.invalid || !this.selected()) { this.form.markAllAsTouched(); return; }
+    const referenceCode = (this.form.value.referenceCode ?? '').trim();
+    if (this.form.invalid) { this.form.markAllAsTouched(); return; }
+    if (!this.selected() && !referenceCode) {
+      this.errorMsg.set('Επιλέξτε συμβόλαιο από τη λίστα ή συμπληρώστε κωδικό αναφοράς.');
+      return;
+    }
     this.saving.set(true);
     this.errorMsg.set('');
-    this.success.set(false);
+    this.successMsg.set('');
     const v = this.form.value;
     this.svc.recordIncome({
-      amount:        v.amount!,
-      paymentDate:   v.paymentDate!,
-      paymentMethod: Number(v.paymentMethod) as PaymentMethod,
-      notes:         v.notes || undefined,
-      allocations:   this.fifoAllocations().length > 0 ? this.fifoAllocations() : undefined,
+      amount:              v.amount!,
+      paymentDate:         v.paymentDate!,
+      paymentMethod:       Number(v.paymentMethod) as PaymentMethod,
+      notes:               v.notes || undefined,
+      tenantReferenceCode: referenceCode || undefined,
+      allocations:         this.fifoAllocations().length > 0 ? this.fifoAllocations() : undefined,
     }).subscribe({
-      next: () => {
-        this.success.set(true);
+      next: payment => {
+        this.showResult(payment.matchStatus, payment.unallocatedAmount, referenceCode);
         this.saving.set(false);
-        this.form.patchValue({ amount: null, notes: '' });
+        this.form.patchValue({ amount: null, notes: '', referenceCode: '' });
+        // Αλλιώς το άδειο πλέον «Ποσό» εμφανίζεται αμέσως ως λάθος πάνω από το μήνυμα επιτυχίας
+        this.form.markAsUntouched();
         this.load(this.currentPage());
         // Refresh installments
         const sel = this.selected();
@@ -141,6 +154,27 @@ export class IncomeForm implements OnInit {
         this.saving.set(false);
       }
     });
+  }
+
+  /** Μήνυμα αποτελέσματος: με επιλεγμένο συμβόλαιο η κατανομή είναι η προεπισκόπηση FIFO·
+   *  χωρίς συμβόλαιο, ο server επιχείρησε αυτόματη αντιστοίχιση με τον κωδικό αναφοράς. */
+  private showResult(matchStatus: PaymentMatchStatus, unallocated: number, referenceCode: string) {
+    if (this.selected()) {
+      this.successKind.set('success');
+      this.successMsg.set('Η εισπράξη καταχωρίστηκε!');
+      return;
+    }
+    if (matchStatus === PaymentMatchStatus.AutoMatched) {
+      const rest = unallocated > 0
+        ? ` Αδιάθετο υπόλοιπο: ${unallocated.toLocaleString('el-GR', { minimumFractionDigits: 2 })} €.`
+        : '';
+      this.successKind.set('success');
+      this.successMsg.set(`Η εισπράξη αντιστοιχίστηκε αυτόματα στο συμβόλαιο με κωδικό «${referenceCode}».${rest}`);
+    } else {
+      this.successKind.set('warning');
+      this.successMsg.set(`Η εισπράξη καταχωρίστηκε, αλλά δεν βρέθηκε συμβόλαιο με κωδικό «${referenceCode}». ` +
+        'Αντιστοιχίστε τη χειροκίνητα από το Ιστορικό Κινήσεων.');
+    }
   }
 
   installmentStatusLabel(s: InstallmentStatus): string {

@@ -178,10 +178,10 @@
     <!-- ══ Payment form (2 / 5) ══ -->
     <div class="lg:col-span-2 lg:sticky lg:top-20">
 
-      @if (selected(); as c) {
         <div class="card bg-base-100 shadow border border-base-200">
           <div class="card-body gap-4">
 
+          @if (selected(); as c) {
             <!-- Contract summary -->
             <div class="flex items-start justify-between gap-2">
               <div class="min-w-0">
@@ -240,17 +240,28 @@
                 }
               </div>
             }
-
+          } @else {
+            <!-- Χωρίς επιλεγμένο συμβόλαιο: είσπραξη με κωδικό αναφοράς -->
+            <div class="rounded-xl bg-base-200/60 px-3 py-3">
+              <p class="font-semibold text-sm text-base-content/70 mb-1">Δεν επιλέξατε συμβόλαιο</p>
+              <p class="text-xs text-base-content/60">
+                Επιλέξτε ένα συμβόλαιο από τη λίστα αριστερά ή συμπληρώστε τον
+                <span class="font-semibold">κωδικό αναφοράς</span> που έγραψε ο πελάτης στην κατάθεση
+                — η εφαρμογή θα εντοπίσει μόνη της το συμβόλαιο και θα κατανείμει το ποσό.
+              </p>
+            </div>
+          }
 
             <div class="divider my-0"></div>
 
             <!-- Alerts -->
-            @if (success()) {
-              <div class="alert alert-success py-2">
+            @if (successMsg()) {
+              <div class="alert py-2" [class.alert-success]="successKind() === 'success'"
+                   [class.alert-warning]="successKind() === 'warning'">
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-5 shrink-0">
                   <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/>
                 </svg>
-                <span class="text-sm">Η εισπράξη καταχωρίστηκε!</span>
+                <span class="text-sm">{{ successMsg() }}</span>
               </div>
             }
             @if (errorMsg()) {
@@ -289,6 +300,15 @@
               </div>
 
               <div class="form-control">
+                <label class="label pb-1">
+                  <span class="label-text font-medium text-sm">Κωδικός αναφοράς</span>
+                  @if (!selected()) { <span class="label-text-alt text-xs">απαιτείται χωρίς συμβόλαιο</span> }
+                </label>
+                <input type="text" formControlName="referenceCode" class="input input-bordered input-sm"
+                       maxlength="100" placeholder="π.χ. REF-1638-0012"/>
+              </div>
+
+              <div class="form-control">
                 <label class="label pb-1"><span class="label-text font-medium text-sm">Σημειώσεις</span></label>
                 <textarea formControlName="notes" class="textarea textarea-bordered textarea-sm" rows="2"
                           placeholder="Προαιρετικό"></textarea>
@@ -308,18 +328,6 @@
 
           </div>
         </div>
-
-      } @else {
-        <div class="card border-2 border-dashed border-base-300 bg-base-50">
-          <div class="card-body items-center justify-center py-20 text-center">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-12 text-base-content/20 mb-3">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 10.5V6a3.75 3.75 0 1 0-7.5 0v4.5m11.356-1.993 1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 0 1-1.12-1.243l1.264-12A1.125 1.125 0 0 1 5.513 7.5h12.974c.576 0 1.059.435 1.119 1.007Z"/>
-            </svg>
-            <p class="font-semibold text-base-content/40">Δεν επιλέξατε συμβόλαιο</p>
-            <p class="text-xs text-base-content/30 mt-1">Κάντε κλικ σε ένα συμβόλαιο<br>από τη λίστα αριστερά</p>
-          </div>
-        </div>
-      }
     </div>
 
   </div>

@@ -103,9 +103,22 @@ public class ContractRepository(AppDbContext context) : IContractRepository
             .Distinct()
             .ToListAsync();
 
+        // Πάγια που ανήκουν ήδη στο συμβόλαιο που επεξεργαζόμαστε: παραμένουν επιλέξιμα ακόμη
+        // κι αν στο μεταξύ μπήκαν σε συντήρηση, ώστε η επεξεργασία να μην «χάνει» τις γραμμές του.
+        List<Guid> currentIds = excludeContractId == null
+            ? []
+            : await context.ContractAssets
+                .AsNoTracking()
+                .Where(ca => ca.ContractId == excludeContractId)
+                .Select(ca => ca.AssetId)
+                .ToListAsync();
+
         return await context.Assets
             .AsNoTracking()
-            .Where(a => !busyIds.Contains(a.Id))
+            // Χρονικά ελεύθερο ΚΑΙ σε κατάσταση «Διαθέσιμο»: πάγια σε συντήρηση, κατεστραμμένα
+            // ή αποσυρμένα δεν προσφέρονται για νέα μίσθωση.
+            .Where(a => !busyIds.Contains(a.Id) &&
+                        (a.Status == AssetStatus.Active || currentIds.Contains(a.Id)))
             .OrderBy(a => a.Name)
             .Select(a => new AvailableAssetDto
             {

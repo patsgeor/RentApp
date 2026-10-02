@@ -38,7 +38,8 @@ public class PaymentService(
             PaymentDate         = DateTime.SpecifyKind(dto.PaymentDate, DateTimeKind.Utc),
             PaymentMethod       = dto.PaymentMethod,
             Notes               = dto.Notes,
-            TenantReferenceCode = dto.TenantReferenceCode,
+            // Trim: ο κωδικός συγκρίνεται με ακρίβεια με το (ήδη trimmed) Contract.ReferenceCode
+            TenantReferenceCode = string.IsNullOrWhiteSpace(dto.TenantReferenceCode) ? null : dto.TenantReferenceCode.Trim(),
             TransactionType     = TransactionType.Income,
             CreatedBy           = userId
         };
@@ -47,7 +48,21 @@ public class PaymentService(
         await uow.Complete();
 
         if (dto.Allocations is { Count: > 0 })
+        {
             await installmentService.AllocateManuallyAsync(payment.Id, dto.Allocations, userId);
+        }
+        else if (payment.TenantReferenceCode != null)
+        {
+            // Ο χρήστης δεν διάλεξε συμβόλαιο αλλά έδωσε κωδικό αναφοράς (π.χ. από την αιτιολογία
+            // τραπεζικής κατάθεσης): το συμβόλαιο εντοπίζεται αυτόματα και εφαρμόζεται FIFO.
+            // Αν δεν υπάρχει συμβόλαιο με αυτόν τον κωδικό, η είσπραξη μένει Unmatched για
+            // χειροκίνητη αντιστοίχιση από το Ιστορικό Κινήσεων — δεν απορρίπτεται.
+            try
+            {
+                await installmentService.AutoMatchAsync(payment.Id, userId);
+            }
+            catch (NotFoundException) { }
+        }
 
         return new PaymentListItemDto
         {
