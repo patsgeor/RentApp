@@ -1,13 +1,15 @@
-using System;
+﻿using System;
 using API.DTOs.Contacts;
 using API.Interfaces;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace API.Controllers;
 
 public class EmailContactController (IEmailService emailService, IConfiguration config): BaseApiController
 {
 
+    [EnableRateLimiting("email")]
     [HttpPost]
     public async Task<IActionResult> SendMessage([FromBody] EmailContactDto dto)
     {

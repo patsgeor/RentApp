@@ -1,4 +1,4 @@
-using API.Data;
+﻿using API.Data;
 using API.Data.Contexts;
 using API.Data.Repositories;
 using API.Entities;
@@ -14,6 +14,8 @@ using API.Helper;
 using System.Threading.Channels;
 using API.Services.Reports;
 using API.Services.Storage;
+using System.Threading.RateLimiting;
+using Microsoft.AspNetCore.RateLimiting;
 
 
 
@@ -169,6 +171,69 @@ builder.Services.AddAuthorizationBuilder()
 .AddPolicy("RequireAdminRole", p => p.RequireRole("Admin"))
 .AddPolicy("SuperAdminRole", p => p.RequireRole("SuperAdmin"));
 
+// ------------------------------------------------------------------------------
+// Όρια ρυθμού (rate limiting)
+//
+// Προστατεύει τα endpoints που μπορεί να καταχραστεί κάποιος χωρίς λογαριασμό:
+// δοκιμές κωδικών στο login, μαζική αποστολή email μέσω της φόρμας επικοινωνίας
+// και υπερκατανάλωση των κλήσεων προς την ΑΑΔΕ. Ο διαχωρισμός γίνεται ανά
+// διεύθυνση IP· πίσω από το App Service η πραγματική IP έρχεται στην κεφαλίδα
+// X-Forwarded-For, γι' αυτό προτιμάται όταν υπάρχει.
+// ------------------------------------------------------------------------------
+static string ClientKey(HttpContext ctx)
+{
+    var forwarded = ctx.Request.Headers["X-Forwarded-For"].FirstOrDefault();
+
+    if (!string.IsNullOrWhiteSpace(forwarded))
+        return forwarded.Split(',')[0].Trim();
+
+    return ctx.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+}
+
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+
+    // Ο πελάτης χρειάζεται μήνυμα στα ελληνικά, όχι ένα κενό 429.
+    options.OnRejected = async (context, token) =>
+    {
+        context.HttpContext.Response.ContentType = "application/json";
+
+        await context.HttpContext.Response.WriteAsJsonAsync(new
+        {
+            message = "Πάρα πολλές προσπάθειες. Δοκιμάστε ξανά σε λίγο."
+        }, cancellationToken: token);
+    };
+
+    // Σύνδεση, εγγραφή, επαναφορά κωδικού: αρκετά ώστε να μην ενοχλείται ο χρήστης
+    // που πληκτρολόγησε λάθος, λίγα ώστε να μην έχει νόημα η δοκιμή κωδικών.
+    options.AddPolicy("auth", ctx => RateLimitPartition.GetFixedWindowLimiter(
+        ClientKey(ctx), _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = 10,
+            Window = TimeSpan.FromMinutes(1),
+            QueueLimit = 0
+        }));
+
+    // Φόρμα επικοινωνίας: κάθε κλήση στέλνει δύο emails από τον λογαριασμό μας.
+    options.AddPolicy("email", ctx => RateLimitPartition.GetFixedWindowLimiter(
+        ClientKey(ctx), _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = 3,
+            Window = TimeSpan.FromHours(1),
+            QueueLimit = 0
+        }));
+
+    // Αναζήτηση ΑΑΔΕ: εξωτερική υπηρεσία με δικά της όρια χρήσης.
+    options.AddPolicy("aade", ctx => RateLimitPartition.GetFixedWindowLimiter(
+        ClientKey(ctx), _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = 30,
+            Window = TimeSpan.FromMinutes(1),
+            QueueLimit = 0
+        }));
+});
+
 
 //για να επιτρεψει αιτησεις απο angular
 builder.Services.AddCors();
@@ -229,6 +294,7 @@ app.UseCors(policy => policy.AllowAnyHeader()
                             .WithExposedHeaders("Content-Disposition")
                             .WithOrigins(allowedOrigins));
 
+app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseMiddleware<StatusRefreshMiddleware>();

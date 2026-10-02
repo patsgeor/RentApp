@@ -482,3 +482,6 @@ $RECYCLE.BIN/
 *.swp
 API/appsettings.json
 API/appsettings.Development.json
+
+# Παραδοτέα και υλικό τεκμηρίωσης — μένουν τοπικά
+docs/

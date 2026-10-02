@@ -1,4 +1,4 @@
-
+﻿
 using API.DTOs;
 using API.DTOs.User;
 using API.Entities;
@@ -8,6 +8,7 @@ using API.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.EntityFrameworkCore;
 using static API.Entities.Enums;
@@ -23,6 +24,7 @@ namespace API.Controllers
                 IConfiguration config,
                 IPlanGate planGate) : BaseApiController
     {
+        [EnableRateLimiting("auth")]
         [HttpPost]
         public async Task<ActionResult<UserDto>> Register(TenantRegisterDto dto)
         {
@@ -46,6 +48,7 @@ namespace API.Controllers
             }
         }
 
+        [EnableRateLimiting("auth")]
         [HttpPost("login")]//api/account/login
         public async Task<ActionResult<UserDto>> Login(LoginDto loginDto)
         {
@@ -68,6 +71,12 @@ namespace API.Controllers
             // σε τρίτον ότι ο λογαριασμός υπάρχει αλλά είναι απενεργοποιημένος.
             if (!user.IsActive )
                 return Unauthorized("Ο λογαριασμός σας έχει απενεργοποιηθεί. Επικοινωνήστε με τον διαχειριστή της εταιρείας σας.");
+
+            // Το IsActive αφορά τον χρήστη μέσα στον tenant (το ελέγχει ο Admin του).
+            // Το SubscriptionStatus αφορά ολόκληρη την εταιρεία (το ελέγχει ο SuperAdmin) —
+            // χωρίς αυτό, ένας tenant που ανεστάλη μπορούσε να συνεχίσει να κάνει login κανονικά.
+            if (user.Tenant.SubscriptionStatus != SubscriptionStatus.Active)
+                return Unauthorized("Ο λογαριασμός της εταιρείας σας δεν είναι ενεργός. Επικοινωνήστε μαζί μας.");
 
             await SetRefreshTokenCookie(user);
 
@@ -142,6 +151,7 @@ namespace API.Controllers
         }
 
 
+        [EnableRateLimiting("auth")]
         [HttpPost("MemberRegister")]
         public async Task<ActionResult<UserDto>> Register(MemberRegisterFromInviteDto dto)
         {
@@ -197,11 +207,54 @@ namespace API.Controllers
             if (!user.IsActive)
                 return Unauthorized("Ο λογαριασμός σας έχει απενεργοποιηθεί.");
 
+            // Ίδιος λόγος με το Login: αν ο SuperAdmin αναστείλει τον tenant ΜΕΤΑ
+            // το login, χωρίς αυτόν τον έλεγχο η υπάρχουσα συνεδρία θα συνέχιζε να
+            // ανανεώνεται επ' αόριστον μέσω refresh-token, αγνοώντας την αναστολή.
+            if (user.Tenant.SubscriptionStatus != SubscriptionStatus.Active)
+                return Unauthorized("Ο λογαριασμός της εταιρείας σας δεν είναι ενεργός.");
+
             await SetRefreshTokenCookie(user); // δημιουργία και αποθήκευση νέου refresh token στο cookie
 
             return await user.ToDto(tokenService);
         }
-        
+
+        /// <summary>
+        /// Τερματισμός συνεδρίας: ακυρώνει το refresh token στη βάση και διαγράφει το
+        /// cookie. Χωρίς αυτό, η «αποσύνδεση» καθάριζε μόνο τον browser και το token
+        /// παρέμενε έγκυρο στη βάση — σε κοινόχρηστο υπολογιστή, πραγματικό κενό.
+        /// Είναι ανώνυμο επίτηδες: καλείται και όταν το access token έχει ήδη λήξει.
+        /// </summary>
+        [AllowAnonymous]
+        [HttpPost("logout")]
+        public async Task<IActionResult> Logout()
+        {
+            var refreshToken = Request.Cookies["refreshToken"];
+
+            if (!string.IsNullOrEmpty(refreshToken))
+            {
+                // IgnoreQueryFilters: το αίτημα είναι ανώνυμο, άρα δεν υπάρχει ενεργός
+                // tenant για να εφαρμοστεί το global query filter του AppUser.
+                var user = await userManager.Users
+                    .IgnoreQueryFilters()
+                    .FirstOrDefaultAsync(u => u.RefreshToken == refreshToken);
+
+                if (user is not null)
+                {
+                    // Όπως και στο RefreshToken: η αποθήκευση περνά από το AppDbContext,
+                    // που απαιτεί ενεργό tenant για τα global query filters και το audit.
+                    tenantProvider.SetCurrentTenant(user.TenantId);
+
+                    user.RefreshToken = null;
+                    user.RefreshTokenExpiry = null;
+                    await userManager.UpdateAsync(user);
+                }
+            }
+
+            Response.Cookies.Delete("refreshToken", RefreshCookieOptions());
+
+            return Ok(new { message = "Αποσυνδεθήκατε." });
+        }
+
          private async Task SetRefreshTokenCookie(AppUser appUser)
         {
             //1 δημιουργία του refresh token
@@ -213,22 +266,43 @@ namespace API.Controllers
             await userManager.UpdateAsync(appUser);
 
             //3 ρυθμίζουμε το cookie για να αποθηκεύσουμε το refresh token στο browser του χρήστη
-            var cookieOptions = new CookieOptions
-            {
-                HttpOnly=true,// για να μην μπορεί να προσπελαστεί από JavaScript (π.χ. σε περίπτωση XSS επίθεσης)
-                Secure= true,// για να αποστέλλεται μόνο μέσω HTTPS
-                SameSite = SameSiteMode.Strict,// για να μην αποστέλλεται σε αιτήσεις από άλλες ιστοσελίδες (π.χ. σε περίπτωση CSRF επίθεσης)
-                Expires= DateTime.UtcNow.AddDays(7)  // για να λήγει μετά από 7 ημέρες (πρέπει να είναι το ίδιο με το expiry του refresh token στη βάση δεδομένων)          
-            };
+            Response.Cookies.Append("refreshToken", refreshToken, RefreshCookieOptions());
+        }
 
-            //4 αποθήκευση του refresh token στο cookie
-            Response.Cookies.Append("refreshToken",refreshToken,cookieOptions); 
-        }  
+        /// <summary>
+        /// Οι ρυθμίσεις του cookie ανανέωσης. Χρησιμοποιούνται και στη δημιουργία και
+        /// στη διαγραφή του: ο browser σβήνει ένα cookie μόνο αν τα χαρακτηριστικά
+        /// ταιριάζουν με εκείνα που είχε όταν δημιουργήθηκε.
+        /// </summary>
+        private static CookieOptions RefreshCookieOptions() => new()
+        {
+            // Δεν διαβάζεται από JavaScript — περιορίζει τη ζημιά μιας επίθεσης XSS.
+            HttpOnly = true,
+
+            // Αποστέλλεται μόνο μέσω HTTPS. Υποχρεωτικό όταν SameSite=None.
+            Secure = true,
+
+            // SameSite=None και όχι Strict: σε παραγωγή το frontend (Cloudflare Pages)
+            // και το API (Azure App Service) βρίσκονται σε διαφορετικά sites, οπότε
+            // ένα Strict cookie δεν θα στελνόταν ΠΟΤΕ από τον browser και η σιωπηλή
+            // ανανέωση θα ήταν αδύνατη. Η προστασία έναντι CSRF δεν χάνεται: το cookie
+            // από μόνο του δεν αυθεντικοποιεί κανένα αίτημα δεδομένων — τα endpoints
+            // απαιτούν JWT στην κεφαλίδα Authorization — και η πολιτική CORS δέχεται
+            // διαπιστευτήρια μόνο από τις ρητά δηλωμένες προελεύσεις.
+            SameSite = SameSiteMode.None,
+
+            // Χωρίς Expires: cookie συνεδρίας. Όταν κλείσει ο browser, χάνεται — άρα
+            // το κλείσιμο του παραθύρου τερματίζει στην πράξη τη συνεδρία, ακόμη και
+            // αν ο χρήστης δεν πατήσει «Αποσύνδεση». Η εγγραφή στη βάση διατηρεί τη
+            // δική της λήξη (7 ημέρες) ως ανώτατο όριο.
+            Path = "/"
+        };  
     
 
 //========================================================================
 //          FORGOT PASSWORD & RESET PASSWORD
 //========================================================================
+        [EnableRateLimiting("auth")]
         [HttpPost("forgot-password")]
         public async Task<IActionResult> ForgotPassword(ForgotPasswordDto dto)
         {
@@ -261,6 +335,7 @@ namespace API.Controllers
             return Ok(new { message = "Αν το email υπάρχει, θα λάβεις οδηγίες." });
         }
 
+        [EnableRateLimiting("auth")]
         [HttpPost("reset-password")]
         public async Task<IActionResult> ResetPassword(ResetPasswordDto dto)
         {

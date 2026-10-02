@@ -1,13 +1,15 @@
-// API/Controllers/AadeController.cs
+﻿// API/Controllers/AadeController.cs
 using API.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace API.Controllers;
 
 [Authorize]
 public class AadeController(AadeService aadeService) : BaseApiController
 {
+    [EnableRateLimiting("aade")]
     [HttpGet("lookup/{afm}")]
     public async Task<IActionResult> Lookup(string afm)
     {
