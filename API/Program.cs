@@ -16,6 +16,7 @@ using API.Services.Reports;
 using API.Services.Storage;
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.AspNetCore.HttpOverrides;
 
 
 
@@ -180,44 +181,42 @@ builder.Services.AddAuthorizationBuilder()
 // διεύθυνση IP· πίσω από το App Service η πραγματική IP έρχεται στην κεφαλίδα
 // X-Forwarded-For, γι' αυτό προτιμάται όταν υπάρχει.
 // ------------------------------------------------------------------------------
+// Την κεφαλίδα X-Forwarded-For δεν τη διαβάζουμε χειροκίνητα: τη μεταφράζει το
+// ForwardedHeaders middleware (βλ. παρακάτω) και γράφει τη διεύθυνση του πελάτη
+// στο Connection.RemoteIpAddress, χωρίς θύρα.
 static string ClientKey(HttpContext ctx)
 {
-    var forwarded = ctx.Request.Headers["X-Forwarded-For"].ToString();
+    var ip = ctx.Connection.RemoteIpAddress;
 
-    if (!string.IsNullOrWhiteSpace(forwarded))
-    {
-        // Η ΤΕΛΕΥΤΑΙΑ τιμή και όχι η πρώτη: ο πελάτης μπορεί να στείλει μόνος του
-        // X-Forwarded-For με ό,τι IP θέλει, και αν μετρούσαμε την πρώτη τιμή θα
-        // άλλαζε ψεύτικη IP σε κάθε αίτημα μηδενίζοντας τον μετρητή. Ο αντίστροφος
-        // διακομιστής προσθέτει τη δική του, αληθινή παρατήρηση στο τέλος.
-        var last = forwarded.Split(',')[^1].Trim();
-        var ip = StripPort(last);
+    if (ip is null) return "unknown";
 
-        if (!string.IsNullOrEmpty(ip)) return ip;
-    }
-
-    return ctx.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+    // Η ίδια IPv4 διεύθυνση εμφανίζεται άλλοτε ως 203.0.113.5 και άλλοτε ως
+    // ::ffff:203.0.113.5· χωρίς κανονικοποίηση θα έπαιρνε δύο χωριστούς μετρητές.
+    return (ip.IsIPv4MappedToIPv6 ? ip.MapToIPv4() : ip).ToString();
 }
 
-/// <summary>
-/// Το App Service γράφει τη διεύθυνση με θύρα (π.χ. 203.0.113.5:49812). Χωρίς
-/// αφαίρεσή της, κάθε νέα σύνδεση του ίδιου πελάτη θα έπαιρνε δικό της μετρητή.
-/// </summary>
-static string StripPort(string value)
+// Ο πελάτης δεν συνδέεται απευθείας: μπροστά από την εφαρμογή βρίσκεται ο
+// αντίστροφος διακομιστής του App Service. Χωρίς αυτή τη ρύθμιση, η εφαρμογή
+// βλέπει ως διεύθυνση πελάτη τον ίδιο τον διακομιστή — άρα όλοι οι χρήστες θα
+// μετρούνταν ως ένας στα όρια ρυθμού.
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
 {
-    if (value.StartsWith('['))                       // [2001:db8::1]:49812
-    {
-        var close = value.IndexOf(']');
-        return close > 0 ? value[1..close] : value;
-    }
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
 
-    var colon = value.IndexOf(':');
+    // Ένα μόνο άλμα: κρατείται η τελευταία καταχώρηση της κεφαλίδας, αυτή που
+    // γράφει ο διακομιστής μπροστά μας. Ό,τι έχει δηλώσει ο ίδιος ο πελάτης
+    // βρίσκεται αριστερότερα και αγνοείται — διαφορετικά θα άλλαζε ψεύτικη IP σε
+    // κάθε αίτημα και θα μηδένιζε τον μετρητή.
+    options.ForwardLimit = 1;
 
-    // Ένα μόνο ':' σημαίνει IPv4 με θύρα. Περισσότερα σημαίνουν γυμνή IPv6.
-    if (colon > 0 && value.IndexOf(':', colon + 1) < 0) return value[..colon];
-
-    return value;
-}
+    // Από προεπιλογή εμπιστεύεται μόνο proxy στο loopback. Ο διακομιστής του App
+    // Service δεν είναι τέτοιος, οπότε χωρίς καθαρισμό οι κεφαλίδες θα αγνοούνταν
+    // ολοκληρωτικά. Η παραδοχή είναι ότι η εφαρμογή δέχεται κίνηση αποκλειστικά
+    // μέσω αυτού· αν αύριο εκτεθεί και απευθείας, πρέπει να δηλωθούν ρητά οι
+    // έμπιστες διευθύνσεις στο KnownProxies.
+    options.KnownNetworks.Clear();
+    options.KnownProxies.Clear();
+});
 
 builder.Services.AddRateLimiter(options =>
 {
@@ -290,6 +289,11 @@ var app = builder.Build();
 //=============================================================
 
 //custom middleware για global error handling
+// Πρώτο στη σειρά: όσα ακολουθούν — καταγραφή σφαλμάτων, ανακατεύθυνση σε HTTPS,
+// όρια ρυθμού — πρέπει να βλέπουν τη διεύθυνση και το πρωτόκολλο του πραγματικού
+// πελάτη και όχι του αντίστροφου διακομιστή.
+app.UseForwardedHeaders();
+
 app.UseMiddleware<ExceptionMiddleware>();
 
 
