@@ -485,3 +485,11 @@ API/appsettings.Development.json
 
 # Παραδοτέα και υλικό τεκμηρίωσης — μένουν τοπικά
 docs/
+
+# Υλικό πτυχιακής: κείμενα, παρουσιάσεις, παραδοτέα και η γεννήτρια του τεύχους
+*.docx
+*.doc
+*.pptx
+*.pdf
+build/
+scratch_outline.txt
