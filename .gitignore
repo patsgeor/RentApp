@@ -493,3 +493,10 @@ docs/
 *.pdf
 build/
 scratch_outline.txt
+
+# Τα scripts των αντιγράφων ασφαλείας: ο γενικός κανόνας «Backup*/» παραπάνω
+# (από το πρότυπο .gitignore του Visual Studio) έκρυβε ολόκληρο τον φάκελο.
+!tools/backup/
+!tools/backup/**
+tools/backup/settings.local.ps1
+RentApp-Backups/
