@@ -1,7 +1,8 @@
 import { Component, OnInit, inject, signal, computed } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { debounceTime, distinctUntilChanged, Subject } from 'rxjs';
+import { debounceTime, distinctUntilChanged, map, Subject } from 'rxjs';
 import { ContractService } from '../../../core/services/contract-service';
 import { CustomerService } from '../../../core/services/customer-service';
 import { InstallmentService } from '../../../core/services/installment-service';
@@ -103,14 +104,6 @@ export class ContractForm implements OnInit {
   // Selected asset lines
   assetLines = signal<ContractAssetLineItem[]>([]);
 
-  // Computed totals
-  subtotal = computed(() => this.assetLines().reduce((s, a) => s + a.calculatedAmount, 0));
-  total    = computed(() => {
-    const d = Number(this.form.get('discountAmount')?.value ?? 0) || 0;
-    const t = Number(this.form.get('taxAmount')?.value ?? 0) || 0;
-    return this.subtotal() - d + t;
-  });
-
   form = this.fb.group({
     customerId:           ['', Validators.required],
     customerDisplay:      [''],
@@ -124,6 +117,24 @@ export class ContractForm implements OnInit {
     status:               [RentalStatus.Pending as number],
     notes:                [''],
     terms:                [''],
+  });
+
+  discount = toSignal(
+    this.form.get('discountAmount')!.valueChanges.pipe(map(v => Number(v) || 0)),
+    { initialValue: 0 }
+  );
+
+  tax = toSignal(
+    this.form.get('taxAmount')!.valueChanges.pipe(map(v => Number(v) || 0)),
+    { initialValue: 0 }
+  );
+
+  // Computed totals
+  subtotal = computed(() => this.assetLines().reduce((s, a) => s + a.calculatedAmount, 0));
+  total    = computed(() => {
+    const d = this.discount() ?? 0;
+    const t = this.tax() ?? 0;
+    return this.subtotal() - d + t;
   });
 
   ngOnInit() {
