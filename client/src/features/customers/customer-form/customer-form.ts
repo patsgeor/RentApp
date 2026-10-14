@@ -61,18 +61,18 @@ export class CustomerForm implements OnInit {
     if (id) {
       this.isEdit.set(true);
       this.customerId = id;
-     this.service.getById(id).subscribe(c => {
-        this.customerRowVersion = c.rowVersion ?? 0;   // ← ADD
+      this.service.getById(id).subscribe(c => {
+        this.customerRowVersion = c.rowVersion ?? 0;
         this.form.patchValue({
           name: c.name, afm: c.afm,
           dou: c.dou ?? '', address: c.address ?? '', representative: c.representative ?? '',
-        });
+        }, { emitEvent: false });
         this.contacts.set(c.contacts ?? []);
       });
     }
 
-      this.form.get('afm')?.valueChanges.subscribe(value => {
-      if (value?.length === 9) {
+    this.form.get('afm')?.valueChanges.subscribe(value => {
+      if (!this.isEdit() && value?.length === 9) {
         this.lookupAfm();
       }
     });
@@ -168,6 +168,8 @@ export class CustomerForm implements OnInit {
   
 
   lookupAfm() {
+    if (this.isEdit()) return;
+
     const afm = this.form.get('afm')?.value;
     if (!afm || afm.length !== 9) return;
 
@@ -182,12 +184,7 @@ export class CustomerForm implements OnInit {
         });
       },
       error: () => {
-        // this.errorMsg.set('Δεν βρέθηκαν στοιχεία ΑΑΔΕ.');
-        this.form.patchValue({
-          name: '',
-          dou:   '',
-          address: '',
-        });
+        // Αν αποτύχει η ΑΑΔΕ ή είναι ιδιώτης, δεν σβήνουμε ό,τι μπορεί να έχει πληκτρολογήσει ο χρήστης
       } 
     });
   }
